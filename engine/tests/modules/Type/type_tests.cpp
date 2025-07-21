@@ -40,11 +40,6 @@ struct TestModel final : public ModelBase<TestInterface, TestImplType>
     }
 };
 
-template<>
-struct astre::type::ModelTraits<TestModel> {
-    using interface_t = TestInterface;
-};
-
 // Implementation that fits in the SBO buffer
 class SmallType {
 public:
@@ -128,28 +123,28 @@ struct TrackedType {
 
 
 TEST(SBOTest, SmallObjectStoredInPlace) {
-    SBO<TestModel> sbo = SBO<TestModel, 128>(std::in_place_type<SmallType>, 42);
+    SBO<TestInterface, TestModel> sbo = SBO<TestInterface, TestModel, 128>(std::in_place_type<SmallType>, 42);
     ASSERT_TRUE(bool(sbo));
     EXPECT_EQ(sbo->value(), 42);
     EXPECT_FALSE(sbo.isHeapAllocated());
 }
 
 TEST(SBOTest, LargeObjectStoredOnHeap) {
-    SBO<TestModel, 64> sbo = SBO<TestModel, 64>(std::in_place_type<LargeType>, 99);
+    SBO<TestInterface, TestModel, 64> sbo = SBO<TestInterface, TestModel, 64>(std::in_place_type<LargeType>, 99);
     ASSERT_TRUE(bool(sbo));
     EXPECT_EQ(sbo->value(), 99);
     EXPECT_TRUE(sbo.isHeapAllocated());
 }
 
 TEST(SBOTest, ImplementationWrapperWorks) {
-    Implementation<TestModel> impl{LargeType{17}};
+    Implementation<TestInterface, TestModel> impl{LargeType{17}};
     ASSERT_TRUE(bool(impl));
     EXPECT_EQ(impl->value(), 17);
 }
 
 TEST(SBOTest, ImplementationMoveSemantics) {
-    Implementation<TestModel> a{SmallType{123}};
-    Implementation<TestModel> b = std::move(a);
+    Implementation<TestInterface, TestModel> a{SmallType{123}};
+    Implementation<TestInterface, TestModel> b = std::move(a);
 
     EXPECT_TRUE(bool(b));
     EXPECT_EQ(b->value(), 123);
@@ -159,7 +154,7 @@ TEST(SBOTest, ImplementationMoveSemantics) {
 
 TEST(SBOTest, SBODestructorIsCalled) {
     {
-        SBO<TestModel> sbo{std::in_place_type<SmallType>, 5};
+        SBO<TestInterface, TestModel> sbo{std::in_place_type<SmallType>, 5};
         EXPECT_EQ(sbo->value(), 5);
     }
     SUCCEED();  // No crash = destructor ran successfully
@@ -208,18 +203,13 @@ public:
     }
 };
 
-template<>
-struct astre::type::ModelTraits<TrackedModel> {
-    using interface_t = TestInterface;
-};
-
 TEST_F(SBOTypeSafetyTest, MoveDoesNotCauseDoubleFree) {
     {
-        SBO<TrackedModel> a{std::in_place_type<TrackedType>, 7};
+        SBO<TestInterface, TrackedModel> a{std::in_place_type<TrackedType>, 7};
         EXPECT_EQ(TrackedType::constructions, 1);
         EXPECT_FALSE(a.isHeapAllocated());
 
-        SBO<TrackedModel> b = std::move(a);
+        SBO<TestInterface, TrackedModel> b = std::move(a);
         EXPECT_TRUE(b);
         EXPECT_EQ(b->value(), 7);
     }
@@ -230,10 +220,10 @@ TEST_F(SBOTypeSafetyTest, MoveDoesNotCauseDoubleFree) {
 
 TEST_F(SBOTypeSafetyTest, HeapAllocatedMoveIsSafe) {
     {
-        SBO<TrackedModel, 1> a{std::in_place_type<TrackedType>, 13}; // forced heap alloc
+        SBO<TestInterface, TrackedModel, 1> a{std::in_place_type<TrackedType>, 13}; // forced heap alloc
         EXPECT_TRUE(a.isHeapAllocated());
 
-        SBO<TrackedModel, 1> b = std::move(a);
+        SBO<TestInterface, TrackedModel, 1> b = std::move(a);
         EXPECT_TRUE(b);
         EXPECT_EQ(b->value(), 13);
     }
@@ -247,10 +237,10 @@ TEST_F(SBOTypeSafetyTest, HeapAllocatedMoveIsSafe) {
 
 TEST_F(SBOTypeSafetyTest, SBOAllocatedMoveIsSafe) {
     {
-        SBO<TrackedModel, 16> a{std::in_place_type<TrackedType>, 13}; // forced buffer alloc
+        SBO<TestInterface, TrackedModel, 16> a{std::in_place_type<TrackedType>, 13}; // forced buffer alloc
         EXPECT_FALSE(a.isHeapAllocated());
 
-        SBO<TrackedModel, 16> b = std::move(a);
+        SBO<TestInterface, TrackedModel, 16> b = std::move(a);
         EXPECT_TRUE(b);
         EXPECT_EQ(b->value(), 13);
     }
@@ -260,37 +250,31 @@ TEST_F(SBOTypeSafetyTest, SBOAllocatedMoveIsSafe) {
 }
 
 TEST_F(SBOTypeSafetyTest, SBODestructorDoesNotDoubleFreeMoved) {
-    SBO<TrackedModel> a{std::in_place_type<TrackedType>, 21};
+    SBO<TestInterface, TrackedModel> a{std::in_place_type<TrackedType>, 21};
     EXPECT_EQ(TrackedType::constructions, 1);
 
-    SBO<TrackedModel> b = std::move(a);
+    SBO<TestInterface, TrackedModel> b = std::move(a);
     (void)b;
 
     // after scope, `a` should not double free
 }
 
 TEST_F(SBOTypeSafetyTest, DeathOnCopyingNonCopyableHeap) {
-    const SBO<TrackedModel, 1> a{std::in_place_type<TrackedType>, 21};
+    const SBO<TestInterface, TrackedModel, 1> a{std::in_place_type<TrackedType>, 21};
     EXPECT_TRUE(a.isHeapAllocated());
     auto cause_death = [&a]() {
-        [[maybe_unused]] SBO<TrackedModel, 1> b(a);
+        [[maybe_unused]] SBO<TestInterface, TrackedModel, 1> b(a);
     };
 
     EXPECT_DEATH(cause_death(), ".*");
 }
 
 TEST_F(SBOTypeSafetyTest, DeathOnCopyingNonCopyableBuffer) {
-    const SBO<TrackedModel> a{std::in_place_type<TrackedType>, 21};
+    const SBO<TestInterface, TrackedModel> a{std::in_place_type<TrackedType>, 21};
     EXPECT_FALSE(a.isHeapAllocated());
     auto cause_death = [&a]() {
-        [[maybe_unused]] SBO<TrackedModel> b(a);
+        [[maybe_unused]] SBO<TestInterface, TrackedModel> b(a);
     };
 
     EXPECT_DEATH(cause_death(), ".*");
-}
-
-TEST_F(SBOTypeSafetyTest, CopyCopyableModel) {
-    SBO<TestModel> a{std::in_place_type<SmallType>, 21};
-
-    EXPECT_NO_THROW(SBO<TestModel> b = a);
 }

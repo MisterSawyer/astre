@@ -25,9 +25,6 @@ namespace astre::type
         virtual std::unique_ptr<InterfaceBase> clone() const = 0;
     };
 
-    template<template<class> class ModelTemplate>
-    struct ModelTraits;
-
     /**
      * @brief ModelBase class that holds the implementation object and provides access to it through the interface.
      * 
@@ -108,12 +105,10 @@ namespace astre::type
      * This is a simple buffer object that can be used to store a single interface type.
      * If the interface type is larger than the buffer size, it will be allocated on the heap.
      */
-    template<template<class> class ModelTemplate, std::size_t buffer_size = 128UL, std::size_t alignment = alignof(std::max_align_t)>
+    template<class InterfaceType, template<class> class ModelTemplate, std::size_t buffer_size = 128UL, std::size_t alignment = alignof(std::max_align_t)>
     class SBO {
     public:
-        static_assert(std::is_class_v<typename ModelTraits<ModelTemplate>::interface_t>, 
-              "ModelTraits must define interface_t for given ModelTemplate");
-        using interface_t = ModelTraits<ModelTemplate>::interface_t;
+        using interface_t = InterfaceType;
         
         SBO() = delete;
 
@@ -210,30 +205,30 @@ namespace astre::type
      * 
      * @tparam ModelTemplate
      */
-    template<template<class> class ModelTemplate>
-    class Implementation final
+    template<class InterfaceType, template<class> class ModelTemplate>
+    class Implementation
     {
         public:
-            using interface_t = ModelTraits<ModelTemplate>::interface_t;
+            using interface_t = InterfaceType;
 
             Implementation(std::nullptr_t)  = delete;
 
             //ctor using move ctor of ImplType
             template<std::move_constructible ImplType>
             explicit inline Implementation(ImplType && impl)
-            : _pimpl(std::in_place_type<ImplType>, std::move(impl))
+            : _impl(std::in_place_type<ImplType>, std::move(impl))
             {
             }
 
             //move ctor
             Implementation(Implementation && other)
-            : _pimpl{std::move(other._pimpl)}
+            : _impl{std::move(other._impl)}
             {}
 
             //move assign
             Implementation & operator = (Implementation && other) noexcept {
                 if (this != &other) {
-                    _pimpl = std::move(other._pimpl);
+                    _impl = std::move(other._impl);
                 }
                 return *this;
             }
@@ -246,17 +241,17 @@ namespace astre::type
             ~Implementation() = default;
 
             // access object
-            constexpr inline interface_t & operator*() noexcept {return *_pimpl; }
+            constexpr inline interface_t & operator*() noexcept {return *_impl; }
             // access const object
-            constexpr inline const interface_t & operator*() const noexcept{return *_pimpl; }
+            constexpr inline const interface_t & operator*() const noexcept{return *_impl; }
             // access object pointer
-            constexpr inline interface_t * operator->() noexcept {return _pimpl.operator->(); }
+            constexpr inline interface_t * operator->() noexcept {return _impl.operator->(); }
             // access const object pointer
-            constexpr inline const interface_t * operator->() const noexcept{return _pimpl.operator->(); }
+            constexpr inline const interface_t * operator->() const noexcept{return _impl.operator->(); }
             // checks whether own implementation object
-            constexpr explicit operator bool() const noexcept { return bool(_pimpl);}
+            constexpr explicit operator bool() const noexcept { return bool(_impl);}
 
         private:
-            SBO<ModelTemplate> _pimpl;
+            SBO<InterfaceType, ModelTemplate> _impl;
     };
 }
