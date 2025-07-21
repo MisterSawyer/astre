@@ -1,0 +1,36 @@
+name: Build Astre engine
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt update && sudo apt install -y cmake build-essential
+
+    - name: Configure and build
+      run: |
+        cmake -S . -B build -DCMAKE_INSTALL_PREFIX=install -DASTRE_BUILD_TESTS=ON
+        cmake --build build --config Debug --target install
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure -C Debug
+
+    - name: Pack install directory into tarball
+      run: |
+        tar -czf astre-engine.tar.gz -C install .
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: astre-engine
+        path: astre-engine.tar.gz
