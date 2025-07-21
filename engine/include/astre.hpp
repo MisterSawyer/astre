@@ -5,6 +5,7 @@
 
 #include "entry/entry.hpp"
 #include "type/type.hpp"
+#include "process/process.hpp"
 
 namespace astre
 {
