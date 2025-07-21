@@ -15,49 +15,75 @@ namespace astre::type
      * @brief Interface class that defines the interface for the implementation object.
      * 
      */
-    class Interface
+    class InterfaceBase
     {
         public:
-        virtual ~Interface() = default;
+        virtual ~InterfaceBase() = default;
+
+        virtual void move(InterfaceBase * dest) = 0;
+        virtual void copy(InterfaceBase * dest) const = 0;
+        virtual std::unique_ptr<InterfaceBase> clone() const = 0;
     };
 
+    template<template<class> class ModelTemplate>
+    struct ModelTraits;
+
     /**
-     * @brief Dispatcher class that holds the implementation object and provides access to it through the interface.
+     * @brief ModelBase class that holds the implementation object and provides access to it through the interface.
      * 
      * @tparam InterfaceType The interface type
      * @tparam ImplType The implementation type
      */
     template<class InterfaceType, class ImplType>
-    class Dispatcher : public InterfaceType
+    class ModelBase : public InterfaceType
     {
         public:
+            using interface_t = InterfaceType;
 
-            // construct implementation object in place
+            // construct impl object in place
             template<class ... Args>
-            inline Dispatcher(Args && ... args)
+            inline ModelBase(Args && ... args)
             : _impl{std::forward<Args>(args)...}
             {}
-            // construct Obj using move ctor
-            explicit inline Dispatcher(ImplType && impl)
+
+            // construct impl using move ctor
+            explicit inline ModelBase(ImplType && impl)
             : _impl{std::move(impl)}
             {}
+
+            // construct impl using copy ctor
+            explicit inline ModelBase(const ImplType & impl)
+            : _impl{impl}
+            {}
+
             // move ctor
-            inline Dispatcher(Dispatcher && other)
+            inline ModelBase(ModelBase && other)
             :_impl{std::move(other._impl)}
             {}
+
+            // copy ctor
+            ModelBase(const ModelBase & other)
+            : _impl{other._impl}
+            {}
+
             // move assign
-            inline Dispatcher& operator =(Dispatcher && other)
+            inline ModelBase& operator =(ModelBase && other)
             {
                 if(this == &other)return *this;
                 _impl = std::move(other._impl);
                 return *this;
             }
-            // no copy ctor
-            Dispatcher(const Dispatcher & other) = delete;
-            // no copy assign
-            Dispatcher & operator = (const Dispatcher & other) = delete;
+
+            // copy assign
+            ModelBase & operator = (const ModelBase & other)
+            {
+                if(this == &other)return *this;
+                _impl = other._impl;
+                return *this;
+            }
+
             // dtor
-            virtual ~Dispatcher() = default;
+            virtual ~ModelBase() = default;
 
             // access implementation object
             constexpr inline ImplType & impl(){return _impl;}
@@ -69,7 +95,7 @@ namespace astre::type
     };
 
     template<class ... Args>
-    Dispatcher(Args && ... args) -> Dispatcher<Args...>;
+    ModelBase(Args && ... args) -> ModelBase<Args...>;
 
     /**
      * @brief Simple Buffer Object
@@ -82,27 +108,29 @@ namespace astre::type
      * This is a simple buffer object that can be used to store a single interface type.
      * If the interface type is larger than the buffer size, it will be allocated on the heap.
      */
-    template<class InterfaceType, template<class> class Dispatcher, std::size_t buffer_size = 128UL, std::size_t alignment = alignof(std::max_align_t)>
+    template<template<class> class ModelTemplate, std::size_t buffer_size = 128UL, std::size_t alignment = alignof(std::max_align_t)>
     class SBO {
     public:
-        using interface_type = InterfaceType;
+        static_assert(std::is_class_v<typename ModelTraits<ModelTemplate>::interface_t>, 
+              "ModelTraits must define interface_t for given ModelTemplate");
+        using interface_t = ModelTraits<ModelTemplate>::interface_t;
         
         SBO() = delete;
 
         template<typename Impl, typename... Args>
         SBO(std::in_place_type_t<Impl>, Args&&... args)
         {
-            using Model = Dispatcher<Impl>;
+            using Model = ModelTemplate<Impl>;
             if constexpr (sizeof(Model) <= buffer_size && alignof(Model) <= alignment) {
                 // In-place
-                new (&_buffer) Model(std::forward<Args>(args)...);
-                _ptr = reinterpret_cast<InterfaceType*>(&_buffer);
+                ::new (&_buffer) Model(std::forward<Args>(args)...);
+                _ptr = reinterpret_cast<interface_t*>(&_buffer);
                 assert(_ptr != nullptr);
                 _is_heap = false;
             } else {
                 // Heap fallback
                 _heap_obj = std::make_unique<Model>(std::forward<Args>(args)...);
-                _ptr = _heap_obj.get();
+                _ptr = static_cast<interface_t*>(_heap_obj.get());
                 assert(_ptr != nullptr);
                 _is_heap = true;
             }
@@ -115,21 +143,35 @@ namespace astre::type
             if (_is_heap) {
                 // Move unique_ptr
                 _heap_obj = std::move(other._heap_obj);
-                _ptr = _heap_obj.get();
+                _ptr = static_cast<interface_t*>(_heap_obj.get());
             } else if (other._ptr) {
-
-                _buffer = std::move(other._buffer);
-                _ptr = reinterpret_cast<InterfaceType*>(&_buffer);
+                // In-place
+                other._ptr->move(reinterpret_cast<InterfaceBase*>(&_buffer));
+                _ptr = reinterpret_cast<interface_t*>(&_buffer);
+                assert(_ptr != nullptr);
             }
             // Mark other as empty
             other._ptr = nullptr;
         }
 
+        // copy constructor
+        SBO(const SBO& other) noexcept {
+            _is_heap = other._is_heap;
+
+            if (_is_heap) {
+                // Copy content of unique_ptr
+                _heap_obj = other._ptr->clone();
+                _ptr = static_cast<interface_t*>(_heap_obj.get());
+            } else if (other._ptr) {
+                // In-place
+                other._ptr->copy(reinterpret_cast<InterfaceBase*>(&_buffer));
+                _ptr = reinterpret_cast<interface_t*>(&_buffer);
+                assert(_ptr != nullptr);
+            }
+        }
+
         // Move assignment
         SBO& operator=(SBO&& other) = delete;
-
-        // copy ctor
-        SBO(const SBO& other) = delete;
 
         // copy assign
         SBO& operator=(const SBO& other) = delete;
@@ -139,17 +181,17 @@ namespace astre::type
         {
             if (_ptr == nullptr) return;
             if (!_is_heap) {
-                _ptr->~InterfaceType();
+                _ptr->~interface_t();
             }else
             {
                 _heap_obj.reset();
             }
         }
 
-        InterfaceType* operator->() { return _ptr; }
-        const InterfaceType* operator->() const { return _ptr; }
-        InterfaceType& operator*() { return *_ptr; }
-        const InterfaceType& operator*() const { return *_ptr; }
+        interface_t* operator->() { return _ptr; }
+        const interface_t* operator->() const { return _ptr; }
+        interface_t& operator*() { return *_ptr; }
+        const interface_t& operator*() const { return *_ptr; }
 
         explicit operator bool() const noexcept { return _ptr != nullptr; }
 
@@ -157,8 +199,8 @@ namespace astre::type
 
     private:
         alignas(alignment) std::array<std::byte, buffer_size> _buffer;
-        std::unique_ptr<InterfaceType> _heap_obj;
-        InterfaceType* _ptr = nullptr;
+        std::unique_ptr<InterfaceBase> _heap_obj;
+        interface_t* _ptr = nullptr;
         bool _is_heap = false;
     };
 
@@ -166,14 +208,13 @@ namespace astre::type
      * @brief Implementation class that holds a unique_ptr to the implementation object
      * and provides access to it through the interface.
      * 
-     * @tparam InterfaceType The interface type
-     * @tparam Dispather The dispatcher type
+     * @tparam ModelTemplate
      */
-    template<class InterfaceType, template<class> class Dispatcher>
+    template<template<class> class ModelTemplate>
     class Implementation final
     {
         public:
-            using interface_type = InterfaceType;
+            using interface_t = ModelTraits<ModelTemplate>::interface_t;
 
             Implementation(std::nullptr_t)  = delete;
 
@@ -205,17 +246,17 @@ namespace astre::type
             ~Implementation() = default;
 
             // access object
-            constexpr inline InterfaceType & operator*() noexcept {return *_pimpl; }
+            constexpr inline interface_t & operator*() noexcept {return *_pimpl; }
             // access const object
-            constexpr inline const InterfaceType & operator*() const noexcept{return *_pimpl; }
+            constexpr inline const interface_t & operator*() const noexcept{return *_pimpl; }
             // access object pointer
-            constexpr inline InterfaceType * operator->() noexcept {return _pimpl.operator->(); }
+            constexpr inline interface_t * operator->() noexcept {return _pimpl.operator->(); }
             // access const object pointer
-            constexpr inline const InterfaceType * operator->() const noexcept{return _pimpl.operator->(); }
+            constexpr inline const interface_t * operator->() const noexcept{return _pimpl.operator->(); }
             // checks whether own implementation object
             constexpr explicit operator bool() const noexcept { return bool(_pimpl);}
 
         private:
-            SBO<InterfaceType, Dispatcher> _pimpl;
+            SBO<ModelTemplate> _pimpl;
     };
 }
