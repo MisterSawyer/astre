@@ -1,0 +1,81 @@
+# === Build Artifacts ===
+/build/
+/bin/
+/lib/
+/obj/
+/out/
+/*.exe
+/*.out
+/*.app
+/*.a
+/*.so
+/*.dll
+/*.dylib
+
+# === Install Artifacts ===
+/install/
+
+# === CMake ===
+CMakeFiles/
+/CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+install_manifest.txt
+
+# Ninja
+/build.ninja
+/.ninja_deps
+/.ninja_log
+
+# === Compiled Objects ===
+*.o
+*.obj
+*.lo
+*.gch
+*.pch
+
+# === Precompiled Headers ===
+*.pdb
+*.idb
+
+# === Generated Files ===
+*.autosave
+*.swp
+*.tmp
+*.bak
+
+# === Logs and Debugging ===
+*.log
+*.dSYM/
+*.core
+
+# === IDEs ===
+# VS Code
+.vscode/
+# CLion
+.idea/
+cmake-build-*/
+# Xcode
+*.xcodeproj
+*.xcworkspace
+*.xcuser*
+*.xcuserstate
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Conan / vcpkg ===
+.conan/
+vcpkg_installed/
+
+# === Coverage / Sanitizers ===
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+
+# === Logs ===
+/logs/

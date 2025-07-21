@@ -1,0 +1,8 @@
+#pragma once
+
+namespace astre::version
+{
+    const short int MAJOR_VERSION = @PROJECT_VERSION_MAJOR@;
+    const short int MINOR_VERSION = @PROJECT_VERSION_MINOR@;
+    const short int PATCH_VERSION = @PROJECT_VERSION_PATCH@;
+}
