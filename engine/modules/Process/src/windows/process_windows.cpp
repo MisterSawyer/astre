@@ -2,67 +2,11 @@
 
 namespace astre::process::windows
 {
-    template<class Extra, class ProcedureFunc>
-    static inline WNDCLASSEX _defaultWindowClass(ProcedureFunc && proc, const std::string & class_name)
-    {
-        WNDCLASSEX wcex = {0};
-        wcex.cbSize = sizeof(WNDCLASSEX);
-        wcex.cbClsExtra = 0;
-        wcex.hInstance = GetModuleHandle(nullptr);
-        wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-        wcex.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-        wcex.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-        wcex.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-        wcex.lpfnWndProc = proc;
-        wcex.cbWndExtra  = sizeof(Extra);
-        wcex.lpszClassName = class_name.c_str();
-        wcex.lpszMenuName = NULL;
-        wcex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC ;
-        return wcex;
-    }
-
-    PIXELFORMATDESCRIPTOR generateAdvancedPFD()
-    {
-	    PIXELFORMATDESCRIPTOR pfd = {0};
-	    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-	    pfd.nVersion = 1;
-	    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-	    pfd.cColorBits = 24;
-	    pfd.cAlphaBits = 8;
-	    pfd.cDepthBits = 24;
-	    pfd.cStencilBits = 8;
-	    pfd.iPixelType = PFD_TYPE_RGBA;
-	    pfd.iLayerType = PFD_MAIN_PLANE;
-	    return pfd;
-    }
-
-    void lockCursorToCenter(HWND hwnd) 
-    {
-        RECT client_rect;
-        GetClientRect(hwnd, &client_rect);
-
-        POINT center = {
-            (client_rect.right - client_rect.left) / 2,
-            (client_rect.bottom - client_rect.top) / 2
-        };
-
-        // Convert to screen coordinates
-        ClientToScreen(hwnd, &center);
-        SetCursorPos(center.x, center.y);
-
-        // Confine the cursor to the window
-        RECT clip_rect;
-        GetWindowRect(hwnd, &clip_rect);
-        ClipCursor(&clip_rect);
-
-        ShowCursor(FALSE); // Hide the cursor
-    }
-
     WinapiProcess::WinapiProcess()
-    :   _io_context(1),
-        _strand(asio::make_strand(_io_context)),
-        _default_oglctx_handle(nullptr),
+    :   _default_oglctx_handle(nullptr),
         _cursor_visible(true),
+        _io_context(1),
+        _strand(asio::make_strand(_io_context)),
         _io_thread(&WinapiProcess::messageLoop, this)
     {
         spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess constructor called", std::this_thread::get_id()));
@@ -95,10 +39,6 @@ namespace astre::process::windows
 
     asio::awaitable<void> WinapiProcess::close()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
-
         spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess clearing data", std::this_thread::get_id()));
 
         while(_oglctx_handles.empty() == false){
@@ -184,7 +124,7 @@ namespace astre::process::windows
             spdlog::debug(std::format("[winapi] Window class not registered. Trying to register now ..."));
 
             const bool registration_result = registerClass(
-                    _defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
+                    defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
             );
 
             if(registration_result == false){
@@ -311,12 +251,12 @@ namespace astre::process::windows
         }
         spdlog::debug(std::format("[winapi] creating default context"));
 
-        const std::string class_name = "WINAPI:oglDummyContextWindow";
+        const std::string class_name = "WINAPI:oglContextWindow";
         if(_registered_classes.contains(class_name) == false){
             spdlog::debug(std::format("[winapi] Window class not registered. Trying to register now ..."));
 
             const bool registration_result = registerClass(
-                    _defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
+                    defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
             );
 
             if(registration_result == false){
@@ -327,10 +267,10 @@ namespace astre::process::windows
 
         const auto & class_structure = _registered_classes.at(class_name);
         
-        native::window_handle dummy_window = CreateWindowExA(
+        native::window_handle ogl_window = CreateWindowExA(
             0,                                  // dwExStyle
             class_name.c_str(),                  // lpClassName
-            "oglDummyContextWindow",            // lpWindowName
+            "oglContextWindow",            // lpWindowName
             WS_OVERLAPPEDWINDOW,                // dwStyle
             CW_USEDEFAULT,                      // X
             CW_USEDEFAULT,                      // Y
@@ -342,15 +282,15 @@ namespace astre::process::windows
             nullptr                             // lpParam
         );
 
-        HDC device_handle = GetDC(dummy_window);
+        HDC device_handle = GetDC(ogl_window);
         PIXELFORMATDESCRIPTOR pfd = generateAdvancedPFD();
         int pixel_format_ID = ChoosePixelFormat(device_handle, &pfd);
 
         if(pixel_format_ID <= 0 || SetPixelFormat(device_handle, pixel_format_ID, &pfd) == false) {
             spdlog::error(std::format("[winapi-procedure] Cannot set pixel format to device {}" , GetLastError()));
-            spdlog::debug("[winapi-procedure] removing dummy window handle...");
-            ReleaseDC(dummy_window, device_handle);
-            DestroyWindow(dummy_window);
+            spdlog::debug("[winapi-procedure] removing ogl context window handle...");
+            ReleaseDC(ogl_window, device_handle);
+            DestroyWindow(ogl_window);
             return false;
         }
 
@@ -358,8 +298,8 @@ namespace astre::process::windows
 
         if(_default_oglctx_handle == nullptr){
             spdlog::error(std::format("[winapi-procedure] Cannot create default opengl context {}",  GetLastError()));
-            ReleaseDC(dummy_window, device_handle);
-            DestroyWindow(dummy_window);
+            ReleaseDC(ogl_window, device_handle);
+            DestroyWindow(ogl_window);
             return false;
         }
 
@@ -380,8 +320,8 @@ namespace astre::process::windows
             glGetString(GL_SHADING_LANGUAGE_VERSION)));
         
         wglMakeCurrent(0, 0);
-        ReleaseDC(dummy_window, device_handle);
-        DestroyWindow(dummy_window);
+        ReleaseDC(ogl_window, device_handle);
+        DestroyWindow(ogl_window);
 
         spdlog::info(std::format("[winapi-procedure] Default opengl {} created", _default_oglctx_handle));
 
@@ -502,14 +442,14 @@ namespace astre::process::windows
 
     LRESULT CALLBACK WinapiProcess::procedure(native::window_handle window, UINT message, WPARAM wparam, LPARAM lparam)
     {
-        WinapiProcess * specyfic_process = reinterpret_cast<WinapiProcess *>(GetWindowLongPtrW(window, 0));
-        // call specyfic procedure
-        if ( specyfic_process != nullptr ) return specyfic_process->specyficProcedure(window, message, wparam, lparam);
+        WinapiProcess * specific_process = reinterpret_cast<WinapiProcess *>(GetWindowLongPtrW(window, 0));
+        // call specific procedure
+        if ( specific_process != nullptr ) return specific_process->specificProcedure(window, message, wparam, lparam);
         // call default procedure
         return DefWindowProc(window, message, wparam, lparam);
     }
 
-    LRESULT CALLBACK WinapiProcess::specyficProcedure(native::window_handle window, UINT message, WPARAM wparam, LPARAM lparam)
+    LRESULT CALLBACK WinapiProcess::specificProcedure(native::window_handle window, UINT message, WPARAM wparam, LPARAM lparam)
     {
         if(window == nullptr)
         {
@@ -695,7 +635,7 @@ namespace astre::process::windows
                         while(PeekMessage(&msgcontainer, 0, 0, 0, PM_REMOVE) != 0)
                         {
                             TranslateMessage(&msgcontainer);
-                            //will call SpecyficProcedure of give n WM_ message in current thread
+                            //will call specific procedure of give n WM_ message in current thread
                             DispatchMessage(&msgcontainer);
                             // handle other tasks
                             _io_context.poll();
@@ -712,7 +652,7 @@ namespace astre::process::windows
                     default:
                     {
                         TranslateMessage(&msgcontainer);
-                        //will call SpecyficProcedure of give n WM_ message in current thread
+                        //will call specific procedure of give n WM_ message in current thread
                         DispatchMessage(&msgcontainer);
                         break;
                     }

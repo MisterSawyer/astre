@@ -31,5 +31,8 @@ add_module(NAME "Process"
         asio
         glew
         absl::flat_hash_map
+        
         astre::Native
+        astre::Type
+        astre::Formatter
 )

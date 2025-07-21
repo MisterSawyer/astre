@@ -11,8 +11,10 @@
 
 #include <GL/glew.h>
 #include <GL/wglew.h>
-//#include "opengl_core.hpp"
 
+#include "formatter/formatter.hpp"
+
+#include "winapi_utils.hpp"
 #include "process_callbacks.hpp"
 
 namespace astre::process::windows
@@ -32,7 +34,7 @@ namespace astre::process::windows
             //
             static LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
             //
-            LRESULT CALLBACK specyficProcedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+            LRESULT CALLBACK specificProcedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
         
             asio::awaitable<void> close();
             void join();

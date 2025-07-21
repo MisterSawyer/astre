@@ -1,10 +1,7 @@
 #pragma once
 
 #include "native/native.h"
-#include <asio.hpp>
-
 #include "type/type.hpp"
-
 #include "process_callbacks.hpp"
 
 namespace astre::process
@@ -37,7 +34,7 @@ namespace astre::process
          * @param resolution The resolution of the window to register.
          * @return The handle of the registered window.
          */
-        virtual asio::awaitable<native::window_handle> registerWindow(std::string name, unsigned int width, unsigned int height) = 0;
+        virtual native::window_handle registerWindow(std::string name, unsigned int width, unsigned int height) = 0;
 
         /**
          * Unregister a window.
