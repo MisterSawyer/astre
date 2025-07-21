@@ -21,6 +21,7 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Native
         astre::Version
         astre::Entry
+        astre::Type
 
     PUBLIC
         spdlog

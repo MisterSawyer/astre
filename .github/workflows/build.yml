@@ -23,7 +23,7 @@ jobs:
     - name: Run tests
       run: |
         cd build
-        ctest --output-on-failure -C Debug
+        ./engine/tests/AstreTests
 
     - name: Pack install directory into tarball
       run: |

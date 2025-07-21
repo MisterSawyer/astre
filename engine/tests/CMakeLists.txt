@@ -9,7 +9,17 @@ include(GoogleTest)
 
 # Add test executable
 add_executable(${PROJECT_NAME}Tests
+    "src/unit_tests.cpp"
+
+    # Components Tests
     "modules/Native/native_tests.cpp"
+    "modules/Type/type_tests.cpp"
+)
+
+target_include_directories(
+    ${PROJECT_NAME}Tests
+    PRIVATE
+        "include"
 )
 
 # Link
