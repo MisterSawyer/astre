@@ -134,56 +134,94 @@ silence_warnings(TARGETS nlohmann_json)
 # GLEW
 # ---------------------------------------------------------
 message(STATUS "Fetching dependency `GLEW` ...")
+
+set(GLEW_PREFIX         ${CMAKE_BINARY_DIR}/_deps/glew)
+set(GLEW_SOURCE_DIR     ${GLEW_PREFIX}/src)
+set(GLEW_BUILD_DIR      ${GLEW_PREFIX}/build)
+set(GLEW_INSTALL_DIR    ${GLEW_PREFIX}/install)
+
+# Compiler-agnostic CMake options
+set(GLEW_CMAKE_ARGS
+    -S ${GLEW_SOURCE_DIR}/build/cmake
+    -B ${GLEW_BUILD_DIR}
+    -DCMAKE_INSTALL_PREFIX=${GLEW_INSTALL_DIR}
+    -DBUILD_UTILS=OFF
+    -DGLEW_STATIC=ON
+    -DBUILD_SHARED_LIBS=OFF
+)
+
+# Compiler-specific overrides
+if(MSVC)
+    message(STATUS "Applying MSVC-specific flags for GLEW build")
+
+    list(APPEND GLEW_CMAKE_ARGS
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        -DCMAKE_C_FLAGS_RELEASE="/MT"
+        -DCMAKE_C_FLAGS_DEBUG="/MTd"
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT"
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd"
+        -DCMAKE_STATIC_LINKER_FLAGS="/IGNORE:4281"
+        -DCMAKE_SHARED_LINKER_FLAGS="/IGNORE:4281"
+        -DCMAKE_MODULE_LINKER_FLAGS="/IGNORE:4281"
+        -DCMAKE_EXE_LINKER_FLAGS="/IGNORE:4281"
+    )
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "Applying GCC-specific flags for GLEW build")
+
+    string(JOIN " " C_FLAGS_DEBUG "-O0" "-DDEBUG")
+    string(JOIN " " C_FLAGS_RELEASE "-O3" "-DNDEBUG")
+    string(JOIN " " CXX_FLAGS_DEBUG "-O0" "-DDEBUG")
+    string(JOIN " " CXX_FLAGS_RELEASE "-O3" "-DNDEBUG")
+    
+    list(APPEND GLEW_CMAKE_ARGS
+        "-DCMAKE_C_FLAGS_DEBUG=${C_FLAGS_DEBUG}"
+        "-DCMAKE_C_FLAGS_RELEASE=${C_FLAGS_RELEASE}"
+        "-DCMAKE_CXX_FLAGS_DEBUG=${CXX_FLAGS_DEBUG}"
+        "-DCMAKE_CXX_FLAGS_RELEASE=${CXX_FLAGS_RELEASE}"
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+    )
+endif()
+
 ExternalProject_Add(glew_build
     URL https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz
     URL_HASH SHA256=d4fc82893cfb00109578d0a1a2337fb8ca335b3ceccf97b97e5cc7f08e4353e1
-    PREFIX ${CMAKE_BINARY_DIR}/_deps/glew
-    SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/glew/src
-    STAMP_DIR ${CMAKE_BINARY_DIR}/_deps/glew/stamp
-    LOG_DIR ${CMAKE_BINARY_DIR}/_deps/glew/log
-    DOWNLOAD_DIR ${CMAKE_BINARY_DIR}/_deps/glew/download
-    CONFIGURE_COMMAND 
-        ${CMAKE_COMMAND} 
-            -S ${CMAKE_BINARY_DIR}/_deps/glew/src/build/cmake
-            -B ${CMAKE_BINARY_DIR}/_deps/glew/build
-            -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
-            -DCMAKE_C_FLAGS_RELEASE="/MT"
-            -DCMAKE_C_FLAGS_DEBUG="/MTd"
-            -DCMAKE_CXX_FLAGS_RELEASE="/MT"
-            -DCMAKE_CXX_FLAGS_DEBUG="/MTd"
-            -DCMAKE_C_FLAGS_MINSIZEREL="/MT"
-            -DCMAKE_C_FLAGS_RELWITHDEBINFO="/MT"
-            -DCMAKE_STATIC_LINKER_FLAGS="/IGNORE:4281"
-            -DCMAKE_SHARED_LINKER_FLAGS="/IGNORE:4281"
-            -DCMAKE_MODULE_LINKER_FLAGS="/IGNORE:4281"
-            -DCMAKE_EXE_LINKER_FLAGS="/IGNORE:4281"
-            -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/_deps/glew/install 
-            -DBUILD_UTILS=OFF 
-            -DGLEW_STATIC=ON 
-            -DBUILD_SHARED_LIBS=OFF
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    
-    BUILD_COMMAND 
-        ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/_deps/glew/build --config Release
-    BUILD_ALWAYS TRUE
-    BINARY_DIR ${CMAKE_BINARY_DIR}/_deps/glew/build
-    
-    INSTALL_COMMAND 
-        ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}/_deps/glew/build
-    
+
+    PREFIX        ${GLEW_PREFIX}
+    SOURCE_DIR    ${GLEW_SOURCE_DIR}
+    BINARY_DIR    ${GLEW_BUILD_DIR}
+    INSTALL_DIR   ${GLEW_INSTALL_DIR}
+    STAMP_DIR     ${GLEW_PREFIX}/stamp
+    LOG_DIR       ${GLEW_PREFIX}/log
+    DOWNLOAD_DIR  ${GLEW_PREFIX}/download
+
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} ${GLEW_CMAKE_ARGS}
+    BUILD_COMMAND     ${CMAKE_COMMAND} --build ${GLEW_BUILD_DIR} --config Release
+    INSTALL_COMMAND   ${CMAKE_COMMAND} --install ${GLEW_BUILD_DIR}
+    BUILD_ALWAYS      TRUE
     UPDATE_DISCONNECTED TRUE
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
 )
+
+# Interface library
 add_library(glew INTERFACE)
-target_compile_options(glew INTERFACE /wd4459)
-target_include_directories(glew INTERFACE "${CMAKE_BINARY_DIR}/_deps/glew/install/include")
-target_link_directories(glew INTERFACE "${CMAKE_BINARY_DIR}/_deps/glew/install/lib")
-target_link_libraries(glew INTERFACE libglew32 glu32 opengl32)
+target_include_directories(glew INTERFACE "${GLEW_INSTALL_DIR}/include")
+target_link_directories(glew INTERFACE "${GLEW_INSTALL_DIR}/lib")
+
+if(MSVC)
+    target_compile_options(glew INTERFACE /wd4459)
+    target_link_libraries(glew INTERFACE libglew32 glu32 opengl32)
+else()
+    target_link_libraries(glew INTERFACE libGLEW.a GL GLU)
+endif()
+
 add_dependencies(glew glew_build)
 
-install(DIRECTORY ${CMAKE_BINARY_DIR}/_deps/glew/install/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY ${CMAKE_BINARY_DIR}/_deps/glew/install/lib/     DESTINATION ${CMAKE_INSTALL_LIBDIR})
+# Optional installation for consumers
+install(DIRECTORY ${GLEW_INSTALL_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${GLEW_INSTALL_DIR}/lib/     DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # ---------------------------------------------------------
 # GTest
