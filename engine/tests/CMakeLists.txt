@@ -21,7 +21,9 @@ add_executable(${PROJECT_NAME}Tests
 if(WIN32)
     target_sources(${PROJECT_NAME}Tests
         PRIVATE
-            "modules/Process/winapi_process_tests.cpp")
+            "modules/Process/winapi_process_tests.cpp"
+            "modules/Window/winapi_window_tests.cpp"
+        )
 endif()
 
 target_include_directories(

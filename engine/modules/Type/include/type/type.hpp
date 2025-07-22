@@ -20,8 +20,25 @@ namespace astre::type
         public:
         virtual ~InterfaceBase() = default;
 
+        /**
+         * @brief Moves the implementation object to a new location.
+         * 
+         * @param dest The destination to move the implementation object to. 
+        */
         virtual void move(InterfaceBase * dest) = 0;
+        /**
+         * @brief Copies the implementation object to a new location.
+         * Memory buffer must be allocated before.
+         * 
+         * @param dest The destination to copy the implementation object to. 
+        */
         virtual void copy(InterfaceBase * dest) const = 0;
+        /**
+         * @brief Creates a copy of the implementation object.
+         * Allocates memory for itself
+         * 
+         * @return std::unique_ptr<InterfaceBase> A unique pointer to the new object.
+        */
         virtual std::unique_ptr<InterfaceBase> clone() const = 0;
     };
 
@@ -213,12 +230,23 @@ namespace astre::type
 
             Implementation(std::nullptr_t)  = delete;
 
+            //ctor in place 
+            template<class ImplType, typename... Args>
+            explicit inline Implementation(Args && ... args)
+            : _impl(std::in_place_type<ImplType>, std::forward<Args>(args)...)
+            {}
+
+            //ctor in place 
+            template<class ImplType, typename... Args>
+            explicit inline Implementation(std::in_place_type_t<ImplType>, Args && ... args)
+            : _impl(std::in_place_type<ImplType>, std::forward<Args>(args)...)
+            {}
+
             //ctor using move ctor of ImplType
             template<std::move_constructible ImplType>
             explicit inline Implementation(ImplType && impl)
             : _impl(std::in_place_type<ImplType>, std::move(impl))
-            {
-            }
+            {}
 
             //move ctor
             Implementation(Implementation && other)

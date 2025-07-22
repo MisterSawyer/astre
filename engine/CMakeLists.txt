@@ -24,6 +24,7 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Type
         astre::Formatter
         astre::Process
+        astre::Window
 
     PUBLIC
         spdlog

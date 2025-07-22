@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "native/native.h"
 #include "type/type.hpp"
 #include "process_callbacks.hpp"
@@ -34,7 +36,7 @@ namespace astre::process
          * @param resolution The resolution of the window to register.
          * @return The handle of the registered window.
          */
-        virtual native::window_handle registerWindow(std::string name, unsigned int width, unsigned int height) = 0;
+        virtual asio::awaitable<native::window_handle> registerWindow(std::string name, unsigned int width, unsigned int height) = 0;
 
         /**
          * Unregister a window.
@@ -101,10 +103,15 @@ namespace astre::process
     {
         public:
             using base = type::ModelBase<IProcess, ProcessImplType>;
+            
+            explicit inline ProcessModel(ProcessImplType && impl)
+            : base{std::move(impl)}
+            {}
 
             template<class... Args>                                                                             
-            inline ProcessModel(Args && ... args) : base(std::forward<Args>(args)...){}
-
+            inline ProcessModel(Args && ... args) : base(std::forward<Args>(args)...)
+            {}
+            
 
             constexpr inline void join() override { return base::impl().join();}
 
@@ -131,6 +138,21 @@ namespace astre::process
             inline asio::awaitable<void> hideCursor() override{
                 return base::impl().hideCursor();}
 
+            
+            inline void move(type::InterfaceBase * dest) override
+            {
+                throw std::runtime_error("Not moveable");
+            }
+
+            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
+            {
+                throw std::runtime_error("Not copyable");
+            }
+
+            inline std::unique_ptr<type::InterfaceBase> clone() const override
+            {
+                throw std::runtime_error("Not copyable");
+            }
     };
 
     template<class ProcessImplType>
@@ -146,10 +168,14 @@ namespace astre::process
             /* dtor */
             virtual ~Process() = default;
         
-            /* ctor */
-            template<class ProcessImplType>
-            Process(ProcessImplType && impl)
-            : Implementation(std::move(impl))
-            {}                                                          
+            template<class ProcessImplType, typename... Args>
+            explicit inline Process(Args && ... args)
+            : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
+            {}
+
+            template<class ProcessImplType, typename... Args>
+            explicit Process(std::in_place_type_t<ProcessImplType>, Args && ... args)
+            : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
+            {}
     };
 }
