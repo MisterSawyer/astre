@@ -33,8 +33,11 @@ target_include_directories(
 # Link
 target_link_libraries(${PROJECT_NAME}Tests
     PRIVATE
-        AstreEngine
+        asio
+        glew
         GTest::gtest_main
+
+        AstreEngine
 )
 
 # Discover tests

@@ -1,11 +1,14 @@
 #pragma once
 
+#include <optional>
+
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
+#include <asio.hpp>
 
 using namespace std::chrono_literals;
 
-namespace velora::tests
+namespace astre::tests
 {
     class BaseUnitTest : public testing::Test
     {
@@ -27,4 +30,24 @@ namespace velora::tests
         public:
             UnitTest() = default;
     };
+
+
+    template <typename T>
+    auto sync_await(asio::awaitable<T> && awaitable) {
+        asio::io_context ctx;
+        std::optional<T> result;
+        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
+            result = co_await std::forward<typename asio::awaitable<T>>(awaitable);
+        }, asio::detached);
+        ctx.run();
+        return *result;
+    }
+
+    inline void sync_await(asio::awaitable<void> && awaitable) {
+        asio::io_context ctx;
+        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
+            co_await std::forward<typename asio::awaitable<void>>(awaitable);
+        }, asio::detached);
+        ctx.run();
+    }
 }

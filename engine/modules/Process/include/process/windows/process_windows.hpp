@@ -54,11 +54,10 @@ namespace astre::process::windows
             asio::awaitable<void> hideCursor();
 
         protected:
+            bool initOpenGL();
             void messageLoop();
             bool registerClass(const WNDCLASSEX & class_structure);
             bool unregisterClass(std::string class_name);
-
-            bool initOpenGL();
 
         private:
             absl::flat_hash_map<std::string, const WNDCLASSEX> _registered_classes;

@@ -27,7 +27,8 @@ target_link_libraries("${PROJECT_NAME}Engine"
 
     PUBLIC
         spdlog
-        asio        
+        asio
+        glew     
 )
 
 target_sources("${PROJECT_NAME}Engine" PUBLIC

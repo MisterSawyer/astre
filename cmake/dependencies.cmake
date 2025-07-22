@@ -148,6 +148,7 @@ set(GLEW_CMAKE_ARGS
     -DBUILD_UTILS=OFF
     -DGLEW_STATIC=ON
     -DBUILD_SHARED_LIBS=OFF
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 )
 
 # Compiler-specific overrides
@@ -210,8 +211,9 @@ add_library(glew INTERFACE)
 target_include_directories(glew INTERFACE "${GLEW_INSTALL_DIR}/include")
 target_link_directories(glew INTERFACE "${GLEW_INSTALL_DIR}/lib")
 
+target_compile_definitions(glew INTERFACE GLEW_STATIC)
+
 if(MSVC)
-    target_compile_options(glew INTERFACE /wd4459)
     target_link_libraries(glew INTERFACE libglew32 glu32 opengl32)
 else()
     target_link_libraries(glew INTERFACE libGLEW.a GL GLU)
@@ -227,6 +229,7 @@ install(DIRECTORY ${GLEW_INSTALL_DIR}/lib/     DESTINATION ${CMAKE_INSTALL_LIBDI
 # GTest
 # ---------------------------------------------------------
 if(ASTRE_BUILD_TESTS)
+    set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
     message(STATUS "Fetching dependency `GTest` ...")
     FetchContent_Declare(
         googletest

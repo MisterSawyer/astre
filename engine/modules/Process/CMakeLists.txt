@@ -27,7 +27,6 @@ add_module(NAME "Process"
         ${SOURCE_DIRS}
 
     DEPENDENCIES
-        ${DEPENDENCIES}
         asio
         glew
         absl::flat_hash_map

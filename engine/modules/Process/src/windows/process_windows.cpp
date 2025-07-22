@@ -16,7 +16,7 @@ namespace astre::process::windows
     {
         spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess destructor called", std::this_thread::get_id()));
 
-        join();
+        if(_io_thread.joinable()) join();
 
         assert(_window_handles.empty() == true);
         assert(_registered_classes.empty() == true);
@@ -26,11 +26,13 @@ namespace astre::process::windows
     
     void WinapiProcess::join()
     {
-        if(_io_context.stopped() == false){
-            asio::co_spawn(_io_context, close(), asio::detached);
-        }
+        spdlog::debug(std::format("[winapi] [t:{}] WinApi process joining", std::this_thread::get_id()));
+        
+        // request thread to close
+        asio::co_spawn(_io_context, close(), asio::detached);
 
         if(_io_thread.joinable()){
+            spdlog::debug(std::format("[winapi] [t:{}] WinApi process waiting for thread join ... ", std::this_thread::get_id()));
             _io_thread.join();
         }
         
