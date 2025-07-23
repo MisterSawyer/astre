@@ -1,0 +1,105 @@
+name: Build Astre engine
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt update && sudo apt install -y cmake build-essential
+
+    - name: Install OpenGL + GLEW dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository universe
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgl1-mesa-dev \
+          libglu1-mesa-dev \
+          libglew-dev \
+          libx11-dev \
+          libxext-dev \
+          libxi-dev \
+          libxcursor-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxxf86vm-dev \
+          libxss-dev \
+          libxrender-dev \
+          libxfixes-dev \
+          x11-utils \
+          xvfb 
+    
+    - name: Configure and build
+      run: |
+        cmake -S . -B build -DCMAKE_INSTALL_PREFIX=install -DASTRE_BUILD_TESTS=ON
+        cmake --build build --config Debug --target install
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: astre-build
+        path: |
+          install
+
+  tests:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Download test binary
+      uses: actions/download-artifact@v4
+      with:
+        name: astre-build
+        path: artifacts
+
+    - name: Install runtime dependencies
+      run: |
+        sudo apt update && sudo apt install -y \
+          libgl1-mesa-dev \
+          libglu1-mesa-dev \
+          libglew-dev \
+          libx11-dev \
+          libxext-dev \
+          libxi-dev \
+          libxcursor-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxxf86vm-dev \
+          libxss-dev \
+          libxrender-dev \
+          libxfixes-dev
+
+    - name: Run tests
+      run: |
+        chmod +x artifacts/install/bin/AstreTests
+        ./artifacts/install/bin/AstreTests
+  
+  package:
+    runs-on: ubuntu-latest
+    needs: tests  # Only runs if tests pass
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: astre-build
+        path: artifacts
+
+    - name: Create tarball from install/
+      run: |
+        tar -czf astre-engine.tar.gz -C artifacts/install .
+
+    - name: Upload final packaged artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: astre-engine
+        path: astre-engine.tar.gz

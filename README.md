@@ -1,6 +1,6 @@
 # 🚀 Astre
 
-## 📚 Documentation
+[![Build Astre engine](https://github.com/MisterSawyer/astre/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MisterSawyer/astre/actions/workflows/ci.yml)
 
 ---
 
