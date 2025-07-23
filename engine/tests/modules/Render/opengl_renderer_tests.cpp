@@ -22,10 +22,7 @@ public:
     MOCK_METHOD(asio::awaitable<void>, show, (), (override));
     MOCK_METHOD(asio::awaitable<void>, hide, (), (override));
     MOCK_METHOD(asio::awaitable<void>, close, (), (override));
-    MOCK_METHOD(void, move, (astre::type::InterfaceBase *), (override));
-    MOCK_METHOD(void, copy, (astre::type::InterfaceBase *), (const, override));
-    MOCK_METHOD(std::unique_ptr<astre::type::InterfaceBase>, clone, (), (const, override));
-
+    MOCK_METHOD(void, move, (IWindow *), (override));
 };
 
 astre::native::device_context dummy_dc = reinterpret_cast<astre::native::device_context>(0x1337);

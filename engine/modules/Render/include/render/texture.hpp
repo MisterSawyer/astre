@@ -42,6 +42,8 @@ namespace astre::render
         public:
         virtual ~ITexture() = default;
 
+        virtual void move(ITexture * dest) = 0;
+
         /**
          * @brief Get the ID of the texture.
          * 
@@ -85,25 +87,15 @@ namespace astre::render
                 : base(std::move(obj))
             {}
 
+            inline void move(ITexture * dest) override
+            {
+                ::new(dest) TextureModel(std::move(base::impl()));
+            }
+
             inline std::size_t ID() const override { return base::impl().ID();}
             inline bool good() const override { return base::impl().good();}
             inline bool enable() const override { return base::impl().enable();}
             inline void disable() const override { return base::impl().disable();}
-    
-            inline void move(type::InterfaceBase * dest) override
-            {
-                throw std::runtime_error("Not moveable");
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
     };
 
     template<class TextureImplType>

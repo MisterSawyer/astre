@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "render/opengl/opengl_shader.hpp"
+
 #include "unit_tests.hpp"
 #include "process/process.hpp"
 #include "window/window.hpp"
-#include "render/opengl/opengl_shader.hpp"
 
 using namespace astre;
 using namespace astre::tests;
@@ -29,12 +30,16 @@ protected:
         ogl_context = sync_await(process->registerOGLContext(window->getHandle(), 3, 3));
         EXPECT_NE(ogl_context, nullptr);
 
-        wglMakeCurrent(dc, ogl_context);
+        #ifdef WIN32
+            wglMakeCurrent(dc, ogl_context);
+        #endif
     }
 
     void TearDown() override 
     {
-        wglMakeCurrent(0, 0);
+        #ifdef WIN32
+            wglMakeCurrent(0, 0);
+        #endif
 
         if (ogl_context) {
             sync_await(process->unregisterOGLContext(ogl_context));

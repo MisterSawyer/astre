@@ -2,9 +2,11 @@
 
 namespace astre::entry
 {
-    int main(int argc, char** argv)
+    asio::awaitable<int> main(asio::thread_pool & thread_pool, process::IProcess & process)
     {
         spdlog::info("astre game started");
-        return 0;
+
+
+        co_return 0;
     }
 }

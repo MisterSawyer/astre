@@ -19,6 +19,8 @@ namespace astre::render
         public:
         virtual ~IShaderStorageBuffer() = default;
 
+        virtual void move(IShaderStorageBuffer * dest) = 0;
+
         /**
          * @brief Get the ID of the shader storage buffer.
          * 
@@ -79,26 +81,16 @@ namespace astre::render
                 : base(std::move(obj))
             {}
 
+            inline void move(IShaderStorageBuffer * dest) override
+            {
+                ::new(dest) ShaderStorageBufferModel(std::move(base::impl()));
+            }
+
             inline std::size_t ID() const override { return base::impl().ID();}
             inline bool good() const override { return base::impl().good();}
             inline bool enable() const override { return base::impl().enable();}
             inline void disable() const override { return base::impl().disable();}
             inline void update(std::size_t size, const void * data) override { return base::impl().update(std::move(size), std::move(data));}
-    
-            inline void move(type::InterfaceBase * dest) override
-            {
-                throw std::runtime_error("Not moveable");
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
     };
 
     template<class ShaderStorageBufferImplType>

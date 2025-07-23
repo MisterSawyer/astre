@@ -7,7 +7,10 @@ add_module(NAME "Entry"
         "src"
     
     DEPENDENCIES
+        asio
         spdlog
         
         astre::Version
+        astre::Native
+        astre::Process
 )

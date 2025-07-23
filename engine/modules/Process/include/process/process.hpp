@@ -108,10 +108,6 @@ namespace astre::process
             inline ProcessModel(Args && ... args) 
                 : base(std::forward<Args>(args)...)
             {}
-            
-            explicit inline ProcessModel(ProcessImplType && impl)
-                : base{std::move(impl)}
-            {}
 
             inline void join() override { return base::impl().join();}
 
@@ -137,22 +133,6 @@ namespace astre::process
 
             inline asio::awaitable<void> hideCursor() override{
                 return base::impl().hideCursor();}
-
-            
-            inline void move(type::InterfaceBase * dest) override
-            {
-                throw std::runtime_error("Not moveable");
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
     };
 
     template<class ProcessImplType>
@@ -187,12 +167,4 @@ namespace astre::process
      * @return A new process
      */
     Process createProcess();
-
-    /**
-     * @brief Creates a new process
-     * 
-     * @return A new process
-     */
-    asio::awaitable<Process> createProcessAsync();
-
 }

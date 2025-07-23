@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
     #ifdef GOOGLE_PROTOBUF_VERSION
     GOOGLE_PROTOBUF_VERIFY_VERSION;
     #endif
+    
     const std::filesystem::path bin_path = std::filesystem::path(argv[0]).parent_path();
     const std::filesystem::path logs_dir = bin_path / "logs";
     _configureLogger(logs_dir);
@@ -88,5 +89,43 @@ int main(int argc, char* argv[])
         spdlog::debug("Argument at [{}] : {}", i, argv[i]);
     }
 
-    return astre::entry::main(argc, argv);
+
+    const unsigned hardware_cores = std::thread::hardware_concurrency();
+    const unsigned used_cores = 4;
+    assert(used_cores <= hardware_cores);
+
+
+    // Create a process
+    process::Process process(process::createProcess());
+
+    // Create a thread pool
+    asio::thread_pool thread_pool(used_cores);
+
+    // start external entry point
+    std::promise<int> external_main_promise;
+
+    asio::co_spawn(thread_pool, 
+        entry::main(thread_pool, *process), 
+        // when main ended spawn process->close()
+        // and set return values
+        [&thread_pool, &process, &external_main_promise](std::exception_ptr, int r)
+        {
+            // wait for process to close
+            asio::co_spawn(thread_pool, process->close(), asio::use_future).get();
+            external_main_promise.set_value(r);
+        }
+    );
+
+
+    thread_pool.join();
+    process->join();
+
+    int return_value = external_main_promise.get_future().get();
+    spdlog::debug("Program finished with code {}", return_value);
+
+    #ifdef GOOGLE_PROTOBUF_VERSION
+    google::protobuf::ShutdownProtobufLibrary();
+    #endif
+
+    return return_value;
 }

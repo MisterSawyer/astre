@@ -7,11 +7,6 @@ namespace astre::process
     {
         return Process(std::in_place_type<windows::WinapiProcess>);
     }
-
-    asio::awaitable<Process> createProcessAsync()
-    {
-        co_return createProcess();
-    }
 }
 
 namespace astre::process::windows

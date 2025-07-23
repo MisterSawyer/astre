@@ -3,8 +3,8 @@
 #include <format>
 #include <utility>
 
-#include <spdlog/spdlog.h>
 #include <GL/glew.h>
+#include <spdlog/spdlog.h>
 
 #include "render/texture.hpp"
 

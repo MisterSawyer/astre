@@ -3,9 +3,9 @@
 #include <utility>
 #include <cassert>
 
+#include <GL/glew.h>
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
-#include <GL/glew.h>
 
 #include "render/frame_buffer_object.hpp"
 #include "render/texture.hpp"

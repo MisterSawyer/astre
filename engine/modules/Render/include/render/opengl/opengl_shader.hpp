@@ -4,10 +4,11 @@
 #include <optional>
 #include <utility>
 
+#include <GL/glew.h>
+
 #include <absl/container/flat_hash_map.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
-#include <GL/glew.h>
 
 #include "process/process.hpp"
 

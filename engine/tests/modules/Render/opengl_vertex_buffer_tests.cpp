@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "render/vertex.hpp"
 #include "render/opengl/opengl_vertex_buffer.hpp"
+#include "render/vertex.hpp"
 
 using namespace astre::render::opengl;
 

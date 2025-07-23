@@ -48,6 +48,8 @@ namespace astre::render
         public:
         virtual ~IShader() {};
 
+        virtual void move(IShader * dest) = 0;
+
         /**
          * @brief Get the ID of the shader.
          * 
@@ -194,6 +196,11 @@ namespace astre::render
             {}
 
 
+            inline void move(IShader * dest) override
+            {
+                ::new(dest) ShaderModel(std::move(base::impl()));
+            }
+
             inline std::size_t ID() const override { return base::impl().ID();}
 
             inline bool enable() override { return base::impl().enable();}
@@ -215,22 +222,6 @@ namespace astre::render
 
             inline void setUniform(const std::string & name, unsigned int unit, const ITexture & value) override { return base::impl().setUniform(name, unit, value);}
             inline void setUniform(const std::string & name, unsigned int unit, const std::vector<ITexture*> & values) override { return base::impl().setUniform(name, unit, values);}
- 
-            inline void move(type::InterfaceBase * dest) override
-            {
-                throw std::runtime_error("Not moveable");
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
     };
 
     template<class ShaderImplType>

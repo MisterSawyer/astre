@@ -3,6 +3,7 @@
 #include <utility>
 
 #include <spdlog/spdlog.h>
+
 #include <GL/glew.h>
 
 #include "render/opengl/opengl_debug.hpp"

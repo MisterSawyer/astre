@@ -3,14 +3,14 @@
 #include <thread>
 #include <optional>
 
+#include <GL/glew.h>
+#include <GL/wglew.h>
+
 #include "native/native.h"
 #include <asio.hpp>
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
-
-#include <GL/glew.h>
-#include <GL/wglew.h>
 
 #include "formatter/formatter.hpp"
 

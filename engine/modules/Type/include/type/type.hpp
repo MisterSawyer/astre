@@ -19,27 +19,20 @@ namespace astre::type
     {
         public:
         virtual ~InterfaceBase() = default;
+    };
 
-        /**
-         * @brief Moves the implementation object to a new location.
-         * 
-         * @param dest The destination to move the implementation object to. 
-        */
-        virtual void move(InterfaceBase * dest) = 0;
-        /**
-         * @brief Copies the implementation object to a new location.
-         * Memory buffer must be allocated before.
-         * 
-         * @param dest The destination to copy the implementation object to. 
-        */
-        virtual void copy(InterfaceBase * dest) const = 0;
-        /**
-         * @brief Creates a copy of the implementation object.
-         * Allocates memory for itself
-         * 
-         * @return std::unique_ptr<InterfaceBase> A unique pointer to the new object.
-        */
-        virtual std::unique_ptr<InterfaceBase> clone() const = 0;
+    template<typename T>
+    concept HasMove = requires(T obj, T* dst) {
+        { obj.move(dst) } -> std::same_as<void>;
+    };
+
+    template<typename T>
+    concept HasCloneAndCopy = requires(const T& obj, T* dst) {
+        // clone() must return something convertible to unique_ptr<T>
+        { obj.clone() } -> std::convertible_to<std::unique_ptr<T>>;
+    
+        // copy(T*) must be callable (usually returns void)
+        { obj.copy(dst) } -> std::same_as<void>;
     };
 
     /**
@@ -148,7 +141,8 @@ namespace astre::type
         }
 
         // move constructor
-        SBO(SBO&& other) noexcept {
+        SBO(SBO&& other) noexcept requires (HasMove<interface_t>) 
+        {
             _is_heap = other._is_heap;
 
             if (_is_heap) {
@@ -157,7 +151,7 @@ namespace astre::type
                 _ptr = static_cast<interface_t*>(_heap_obj.get());
             } else if (other._ptr) {
                 // In-place
-                other._ptr->move(reinterpret_cast<InterfaceBase*>(&_buffer));
+                other._ptr->move(reinterpret_cast<interface_t*>(&_buffer));
                 _ptr = reinterpret_cast<interface_t*>(&_buffer);
                 assert(_ptr != nullptr);
             }
@@ -166,7 +160,8 @@ namespace astre::type
         }
 
         // copy constructor
-        SBO(const SBO& other) noexcept {
+        SBO(const SBO& other) noexcept requires (HasCloneAndCopy<interface_t>)
+        {
             _is_heap = other._is_heap;
 
             if (_is_heap) {
@@ -175,14 +170,14 @@ namespace astre::type
                 _ptr = static_cast<interface_t*>(_heap_obj.get());
             } else if (other._ptr) {
                 // In-place
-                other._ptr->copy(reinterpret_cast<InterfaceBase*>(&_buffer));
+                other._ptr->copy(reinterpret_cast<interface_t*>(&_buffer));
                 _ptr = reinterpret_cast<interface_t*>(&_buffer);
                 assert(_ptr != nullptr);
             }
         }
 
         // move assignment
-        SBO& operator=(SBO&& other)
+        SBO& operator=(SBO&& other) requires (HasMove<interface_t>)
         {
             if (_ptr == other._ptr) return *this;
             if (_is_heap) {
@@ -191,7 +186,7 @@ namespace astre::type
                 _ptr = static_cast<interface_t*>(_heap_obj.get());
             } else if (other._ptr) {
                 // In-place
-                other._ptr->move(reinterpret_cast<InterfaceBase*>(&_buffer));
+                other._ptr->move(reinterpret_cast<interface_t*>(&_buffer));
                 _ptr = reinterpret_cast<interface_t*>(&_buffer);
                 assert(_ptr != nullptr);
             }
@@ -201,7 +196,7 @@ namespace astre::type
         }
 
         // copy assignment
-        SBO& operator=(const SBO& other)
+        SBO& operator=(const SBO& other) requires (HasCloneAndCopy<interface_t>)
         {
             if (_ptr == other._ptr) return *this;
             if (_is_heap) {
@@ -210,7 +205,7 @@ namespace astre::type
                 _ptr = static_cast<interface_t*>(_heap_obj.get());
             } else if (other._ptr) {
                 // In-place
-                other._ptr->copy(reinterpret_cast<InterfaceBase*>(&_buffer));
+                other._ptr->copy(reinterpret_cast<interface_t*>(&_buffer));
                 _ptr = reinterpret_cast<interface_t*>(&_buffer);
                 assert(_ptr != nullptr);
             }
@@ -240,7 +235,7 @@ namespace astre::type
 
     private:
         alignas(alignment) std::array<std::byte, buffer_size> _buffer;
-        std::unique_ptr<InterfaceBase> _heap_obj;
+        std::unique_ptr<interface_t> _heap_obj;
         interface_t* _ptr = nullptr;
         bool _is_heap = false;
     };
@@ -269,12 +264,6 @@ namespace astre::type
             template<class ImplType, typename... Args>
             explicit inline Implementation(std::in_place_type_t<ImplType>, Args && ... args)
             : _impl(std::in_place_type<ImplType>, std::forward<Args>(args)...)
-            {}
-
-            //ctor using move ctor of ImplType
-            template<std::move_constructible ImplType>
-            explicit inline Implementation(ImplType && impl)
-            : _impl(std::in_place_type<ImplType>, std::move(impl))
             {}
 
             //move ctor

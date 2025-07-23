@@ -11,6 +11,12 @@ public:
         spdlog::debug("TestInterface dtor");
     }
     virtual int value() const = 0;
+
+    virtual void move(TestInterface * dest)  = 0;
+
+    virtual void copy([[maybe_unused]] TestInterface * dest) const = 0;
+
+    virtual std::unique_ptr<TestInterface> clone() const = 0;
 };
 
 template<class TestImplType>
@@ -24,17 +30,17 @@ struct TestModel final : public ModelBase<TestInterface, TestImplType>
 
     int value() const override { return base::impl().value(); }
 
-    void move(InterfaceBase * dest) override
+    void move(TestInterface * dest) override
     {
         ::new(dest) TestModel(std::move(base::impl()));
     }
 
-    void copy(InterfaceBase * dest) const override
+    void copy(TestInterface * dest) const override
     {
         ::new(dest) TestModel(const_base::impl());
     }
 
-    std::unique_ptr<InterfaceBase> clone() const override
+    std::unique_ptr<TestInterface> clone() const override
     {
         return std::make_unique<TestModel>(base::impl());
     }
@@ -137,13 +143,13 @@ TEST(SBOTest, LargeObjectStoredOnHeap) {
 }
 
 TEST(SBOTest, ImplementationWrapperWorks) {
-    Implementation<TestInterface, TestModel> impl{LargeType{17}};
+    Implementation<TestInterface, TestModel> impl{std::in_place_type<LargeType>, 17};
     ASSERT_TRUE(bool(impl));
     EXPECT_EQ(impl->value(), 17);
 }
 
 TEST(SBOTest, ImplementationMoveSemantics) {
-    Implementation<TestInterface, TestModel> a{SmallType{123}};
+    Implementation<TestInterface, TestModel> a{std::in_place_type<SmallType>, 123};
     Implementation<TestInterface, TestModel> b = std::move(a);
 
     EXPECT_TRUE(bool(b));
@@ -187,17 +193,17 @@ public:
 
     ~TrackedModel() override = default;
 
-    void move(InterfaceBase * dest) override
+    void move(TestInterface * dest) override
     {
         ::new(dest) TrackedModel(std::move(base::impl()));
     }
 
-    void copy([[maybe_unused]] InterfaceBase * dest) const override
+    void copy([[maybe_unused]] TestInterface * dest) const override
     {
         throw std::runtime_error("Not copyable");
     }
 
-    std::unique_ptr<InterfaceBase> clone() const override
+    std::unique_ptr<TestInterface> clone() const override
     {
         throw std::runtime_error("Not copyable");
     }

@@ -263,10 +263,6 @@ namespace astre::render
             template<class... Args>                                                                             
             inline RendererModel(Args && ... args) 
                 : base(std::forward<Args>(args)...)
-            {} 
-
-            explicit inline RendererModel(RendererImplType && obj)   
-                : base(std::move(obj))
             {}
 
             inline bool good() const override { return base::impl().good();}
@@ -368,22 +364,6 @@ namespace astre::render
             inline std::vector<std::size_t> getFrameBufferObjectTextures(std::size_t id) const override {
                 return base::impl().getFrameBufferObjectTextures(std::move(id));
             }
-
-            inline void move(type::InterfaceBase * dest) override
-            {
-                throw std::runtime_error("Not moveable");
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
     };
 
     template<class RendererImplType>

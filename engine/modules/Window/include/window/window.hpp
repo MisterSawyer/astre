@@ -11,6 +11,8 @@ namespace astre::window
     public:
         virtual ~IWindow() = default;
 
+        virtual void move(IWindow * dest) = 0;
+
         /**
          * @brief Check if the window is still valid.
          * @return If the window is still valid and usable, @c true. Otherwise, @c false.
@@ -106,6 +108,11 @@ namespace astre::window
                 : base{std::move(impl)}
             {}
 
+            inline void move(IWindow * dest) override
+            {
+                ::new(dest) WindowModel(std::move(base::impl()));
+            }
+
             inline bool good() const override { return base::impl().good();}
             inline asio::awaitable<void> show() override {return base::impl().show();}
             inline asio::awaitable<void> hide() override {return base::impl().hide();}
@@ -122,22 +129,6 @@ namespace astre::window
             inline unsigned int getHeight() const override {return base::impl().getHeight();}
 
             inline process::IProcess & getProcess() override {return base::impl().getProcess();}
-    
-            
-            inline void move(type::InterfaceBase * dest) override
-            {
-                ::new(dest) WindowModel(std::move(base::impl()));
-            }
-
-            inline void copy([[maybe_unused]] type::InterfaceBase * dest) const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
-
-            inline std::unique_ptr<type::InterfaceBase> clone() const override
-            {
-                throw std::runtime_error("Not copyable");
-            }
     };
 
     template<class WindowImplType>
