@@ -15,6 +15,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "formatter/formatter.hpp"
 #include "process/process.hpp"
 #include "window/window.hpp"
 
