@@ -1,7 +1,7 @@
 #pragma once
 
 #include "native/native.h"
-#include "type.hpp"
+#include "type/type.hpp"
 #include "process/process.hpp"
 
 namespace astre::window
@@ -160,6 +160,12 @@ namespace astre::window
             inline Window(std::in_place_type_t<WindowImplType>, Args && ... args)
                 : Implementation(std::in_place_type<WindowImplType>, std::forward<Args>(args)...)
             {}
-
     };
+
+    /**
+     * @brief Creates a new window
+     * 
+     * @return A new window
+     */
+    asio::awaitable<Window> createWindowAsync(asio::io_context & io_context, process::IProcess & process, const std::string & title, unsigned int width, unsigned int height);
 }

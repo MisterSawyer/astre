@@ -158,6 +158,9 @@ namespace astre::process
     template<class ProcessImplType>
     ProcessModel(ProcessImplType && ) -> ProcessModel<ProcessImplType>;
 
+    /**
+     * @brief A process
+     */
     class Process final : public type::Implementation<IProcess, ProcessModel>
     {                                                                   
         public:
@@ -177,4 +180,19 @@ namespace astre::process
                 : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
             {}
     };
+
+    /**
+     * @brief Creates a new process
+     * 
+     * @return A new process
+     */
+    Process createProcess();
+
+    /**
+     * @brief Creates a new process
+     * 
+     * @return A new process
+     */
+    asio::awaitable<Process> createProcessAsync();
+
 }

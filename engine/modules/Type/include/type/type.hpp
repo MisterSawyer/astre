@@ -127,8 +127,7 @@ namespace astre::type
     public:
         using interface_t = InterfaceType;
         
-        SBO() = delete;
-
+        // in-place ctor
         template<typename Impl, typename... Args>
         SBO(std::in_place_type_t<Impl>, Args&&... args)
         {
@@ -148,7 +147,7 @@ namespace astre::type
             }
         }
 
-        // Move constructor
+        // move constructor
         SBO(SBO&& other) noexcept {
             _is_heap = other._is_heap;
 
@@ -182,11 +181,41 @@ namespace astre::type
             }
         }
 
-        // Move assignment
-        SBO& operator=(SBO&& other) = delete;
+        // move assignment
+        SBO& operator=(SBO&& other)
+        {
+            if (_ptr == other._ptr) return *this;
+            if (_is_heap) {
+                // Move unique_ptr
+                _heap_obj = std::move(other._heap_obj);
+                _ptr = static_cast<interface_t*>(_heap_obj.get());
+            } else if (other._ptr) {
+                // In-place
+                other._ptr->move(reinterpret_cast<InterfaceBase*>(&_buffer));
+                _ptr = reinterpret_cast<interface_t*>(&_buffer);
+                assert(_ptr != nullptr);
+            }
+            // Mark other as empty
+            other._ptr = nullptr;
+            return *this;
+        }
 
-        // copy assign
-        SBO& operator=(const SBO& other) = delete;
+        // copy assignment
+        SBO& operator=(const SBO& other)
+        {
+            if (_ptr == other._ptr) return *this;
+            if (_is_heap) {
+                // Copy content of unique_ptr
+                _heap_obj = other._ptr->clone();
+                _ptr = static_cast<interface_t*>(_heap_obj.get());
+            } else if (other._ptr) {
+                // In-place
+                other._ptr->copy(reinterpret_cast<InterfaceBase*>(&_buffer));
+                _ptr = reinterpret_cast<interface_t*>(&_buffer);
+                assert(_ptr != nullptr);
+            }
+            return *this;
+        }
 
         // dtor
         ~SBO() 
@@ -249,12 +278,12 @@ namespace astre::type
             {}
 
             //move ctor
-            Implementation(Implementation && other)
+            inline Implementation(Implementation && other)
             : _impl{std::move(other._impl)}
             {}
 
             //move assign
-            Implementation & operator = (Implementation && other) noexcept {
+            inline Implementation & operator = (Implementation && other) noexcept {
                 if (this != &other) {
                     _impl = std::move(other._impl);
                 }
@@ -266,7 +295,7 @@ namespace astre::type
             // copy assign
             Implementation & operator = (const Implementation & other) = delete;
             //dtor
-            ~Implementation() = default;
+            virtual ~Implementation() = default;
 
             // access object
             constexpr inline interface_t & operator*() noexcept {return *_impl; }

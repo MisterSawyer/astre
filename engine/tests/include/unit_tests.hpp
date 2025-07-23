@@ -40,7 +40,7 @@ namespace astre::tests
             result = co_await std::forward<typename asio::awaitable<T>>(awaitable);
         }, asio::detached);
         ctx.run();
-        return *result;
+        return std::move(*result);
     }
 
     template <typename T>
@@ -51,7 +51,7 @@ namespace astre::tests
         }, asio::detached);
         ctx.run();
         ctx.restart();
-        return *result;
+        return std::move(*result);
     }
 
     inline void sync_await(asio::awaitable<void> && awaitable) {

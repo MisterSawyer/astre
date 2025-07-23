@@ -1,5 +1,19 @@
-#include "window_windows.hpp"
+#include "window/window.hpp"
+#include "window/windows/window_windows.hpp"
 
+namespace astre::window
+{
+    /**
+     * @brief Creates a new window
+     * 
+     * @return A new window
+     */
+    asio::awaitable<Window> createWindowAsync(asio::io_context & io_context, process::IProcess & process, const std::string & title, unsigned int width, unsigned int height)
+    {
+        auto window_handle = co_await process.registerWindow(title, width, height);
+        co_return Window(std::in_place_type<windows::WinapiWindow>, io_context, process, window_handle, width, height);
+    }
+}
 namespace astre::window::windows
 {
     WinapiWindow::WinapiWindow(asio::io_context & io_context, process::IProcess & process, native::window_handle window_handle, unsigned int width, unsigned int height)

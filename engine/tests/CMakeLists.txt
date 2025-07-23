@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME}Tests
     "modules/Render/opengl_renderer_tests.cpp"
     "modules/Render/opengl_vertex_buffer_tests.cpp"
     "modules/Render/opengl_texture_tests.cpp"
+    "modules/Render/opengl_shader_tests.cpp"
 )
 
 if(WIN32)

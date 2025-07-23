@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <cassert>
 
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>

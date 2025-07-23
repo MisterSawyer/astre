@@ -2,6 +2,7 @@
 #include "unit_tests.hpp"
 
 #include "native/native.h"
+#include "window/window.hpp"
 #include "window/windows/window_windows.hpp"
 
 #include "process/process.hpp"
@@ -9,11 +10,12 @@
 
 using namespace astre::tests;
 using namespace astre::native;
+using namespace astre::window;
 using namespace astre::window::windows;
 
 class WinapiWindowTest : public ::testing::Test {
 protected:
-    WinapiWindowTest() : process(std::in_place_type<astre::process::windows::WinapiProcess>) {}
+    WinapiWindowTest() : process(astre::process::createProcess()) {}
 
     asio::io_context io_ctx;
     astre::process::Process process;
@@ -63,4 +65,19 @@ TEST_F(WinapiWindowTest, AcquireAndReleaseDeviceContext)
     EXPECT_TRUE(window.releaseDeviceContext(dc));
 
     sync_await(io_ctx, window.close());
+}
+
+TEST_F(WinapiWindowTest, TestCreationMethod) 
+{
+    Window window = sync_await(createWindowAsync(io_ctx, *process, "Test Window", 640, 480));
+    EXPECT_TRUE(bool(window));
+    EXPECT_NE(window->getHandle(), nullptr);
+    EXPECT_EQ(window->getWidth(), 640);
+    EXPECT_EQ(window->getHeight(), 480);
+    EXPECT_TRUE(window->good());
+    auto dc = window->acquireDeviceContext();
+    EXPECT_NE(dc, nullptr);
+    EXPECT_TRUE(window->releaseDeviceContext(dc));
+
+    sync_await(io_ctx, window->close());
 }

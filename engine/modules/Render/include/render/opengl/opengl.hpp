@@ -103,26 +103,26 @@ namespace astre::render::opengl
             asio::awaitable<void> enableVSync();
             asio::awaitable<void> disableVSync();
 
-            asio::awaitable<std::optional<std::size_t>> constructVertexBuffer(std::string name, const Mesh & mesh);
+            asio::awaitable<std::optional<std::size_t>> createVertexBuffer(std::string name, const Mesh & mesh);
             asio::awaitable<bool> eraseVertexBuffer(std::size_t id);
             std::optional<std::size_t> getVertexBuffer(std::string name) const;
 
-            asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code);
-            asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code);
+            asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code);
+            asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code);
             asio::awaitable<bool> eraseShader(std::size_t id);
             std::optional<std::size_t> getShader(std::string name) const;
 
-            asio::awaitable<std::optional<std::size_t>> constructShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data);
+            asio::awaitable<std::optional<std::size_t>> createShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data);
             asio::awaitable<bool> eraseShaderStorageBuffer(std::size_t id);
             std::optional<std::size_t> getShaderStorageBuffer(std::string name) const;
             asio::awaitable<bool> updateShaderStorageBuffer(std::size_t id, const std::size_t size, const void * data);
             
-            asio::awaitable<std::optional<std::size_t>> constructFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments);
+            asio::awaitable<std::optional<std::size_t>> createFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments);
             asio::awaitable<bool> eraseFrameBufferObject(std::size_t id);
             std::optional<std::size_t> getFrameBufferObject(std::string name) const;
             std::vector<std::size_t> getFrameBufferObjectTextures(std::size_t id) const;
 
-            asio::awaitable<std::optional<std::size_t>> constructTexture(std::string name, std::pair<unsigned int, unsigned int> resolution, TextureFormat format);
+            asio::awaitable<std::optional<std::size_t>> createTexture(std::string name, std::pair<unsigned int, unsigned int> resolution, TextureFormat format);
             asio::awaitable<bool> eraseTexture(std::size_t id);
             std::optional<std::size_t> getTexture(std::string name) const;
 
@@ -131,7 +131,7 @@ namespace astre::render::opengl
         protected:
 
             template<class ImplType, class T, class ... Args>
-            asio::awaitable<std::optional<std::size_t>> constructInternalObject(
+            asio::awaitable<std::optional<std::size_t>> createInternalObject(
                 absl::flat_hash_map<std::size_t, T> & object_map,
                 absl::flat_hash_map<std::string, std::size_t> & name_map,
                 std::string name,  Args && ... args)

@@ -280,9 +280,9 @@ namespace astre::render::opengl
         co_return;
     }
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructVertexBuffer(std::string name,  const Mesh & mesh)
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createVertexBuffer(std::string name,  const Mesh & mesh)
     {
-        co_return co_await (constructInternalObject<OpenGLVertexBuffer>(
+        co_return co_await (createInternalObject<OpenGLVertexBuffer>(
             _vertex_buffers, _vertex_buffer_names, std::move(name),
             mesh.indices, mesh.vertices));
     }
@@ -298,15 +298,15 @@ namespace astre::render::opengl
     }
 
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructShader(std::string name, std::vector<std::string> vertex_code)
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createShader(std::string name, std::vector<std::string> vertex_code)
     {
-        co_return co_await (constructInternalObject<OpenGLShader>(
+        co_return co_await (createInternalObject<OpenGLShader>(
             _shaders, _shader_names, std::move(name), std::move(vertex_code)));
     }
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code)
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code)
     {
-        co_return co_await (constructInternalObject<OpenGLShader>(
+        co_return co_await (createInternalObject<OpenGLShader>(
             _shaders, _shader_names, std::move(name), std::move(vertex_code),
             std::move(fragment_code)));
     }
@@ -322,13 +322,13 @@ namespace astre::render::opengl
     }
 
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructShaderStorageBuffer(
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createShaderStorageBuffer(
                 std::string name,
                 unsigned int binding_point,
                 const std::size_t size,
                 const void * data)
     {
-        co_return co_await (constructInternalObject<OpenGLShaderStorageBuffer>(
+        co_return co_await (createInternalObject<OpenGLShaderStorageBuffer>(
             _shader_storage_buffers, _shader_storage_buffer_names, std::move(name),
             binding_point, std::move(size), std::move(data)));
     }
@@ -360,7 +360,7 @@ namespace astre::render::opengl
     }
 
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments)
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments)
     {
         if(good() == false)co_return false;
         
@@ -407,7 +407,7 @@ namespace astre::render::opengl
             }
         }
         // create FBO
-        co_return co_await (constructInternalObject<OpenGLFrameBufferObject>(
+        co_return co_await (createInternalObject<OpenGLFrameBufferObject>(
             _frame_buffer_objects, _frame_buffer_object_names, std::move(name),
             std::move(resolution), std::move(constructed_attachments)));
     }
@@ -431,9 +431,9 @@ namespace astre::render::opengl
         return it->second->getTextures();
     }
 
-    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::constructTexture(std::string name, std::pair<unsigned int, unsigned int> resolution, TextureFormat format)
+    asio::awaitable<std::optional<std::size_t>> OpenGLRenderer::createTexture(std::string name, std::pair<unsigned int, unsigned int> resolution, TextureFormat format)
     {
-        co_return co_await (constructInternalObject<OpenGLTexture>(
+        co_return co_await (createInternalObject<OpenGLTexture>(
             _textures, _textures_names, std::move(name),
             std::move(resolution), textureFormatToOpenGLFormat(format)));
     }

@@ -1,4 +1,18 @@
-#include "process_windows.hpp"
+#include "process/process.hpp"
+#include "process/windows/process_windows.hpp"
+
+namespace astre::process
+{
+    Process createProcess()
+    {
+        return Process(std::in_place_type<windows::WinapiProcess>);
+    }
+
+    asio::awaitable<Process> createProcessAsync()
+    {
+        co_return createProcess();
+    }
+}
 
 namespace astre::process::windows
 {

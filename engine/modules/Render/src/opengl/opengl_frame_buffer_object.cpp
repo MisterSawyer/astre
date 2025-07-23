@@ -157,10 +157,9 @@ namespace astre::render::opengl
 
         for(const auto & [id, att] : attachments)
         {
-            // calculate attachement point
-            assert(color_index < 8, "More than 8 color attachments not supported");
-            assert(depth_index < 1, "Multiple depth attachment not supported");
-            assert(stencil_index < 1, "Multiple stencil attachment not supported");
+            assert(color_index < 8 && "More than 8 color attachments not supported");
+            assert(depth_index < 1 && "Multiple depth attachment not supported");
+            assert(stencil_index < 1 && "Multiple stencil attachment not supported");
 
             switch (att.point)
             {

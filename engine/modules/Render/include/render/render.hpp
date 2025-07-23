@@ -112,7 +112,7 @@ namespace astre::render
          * 
          * @note This function must be called on the render thread strand.
          */
-        virtual asio::awaitable<std::optional<std::size_t>> constructVertexBuffer(std::string name, const Mesh & mesh) = 0;
+        virtual asio::awaitable<std::optional<std::size_t>> createVertexBuffer(std::string name, const Mesh & mesh) = 0;
 
         /**
          * @brief Erase a vertex buffer object (VBO) by ID.
@@ -142,7 +142,7 @@ namespace astre::render
          * @param vertex_code Vertex shader code
          * @return ID of the newly created shader object, or std::nullopt if the shader could not be created
          */
-        virtual asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code) = 0;
+        virtual asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code) = 0;
 
         /**
          * @brief Construct a new shader object with the given name and vertex and fragment code
@@ -151,7 +151,7 @@ namespace astre::render
          * @param fragment_code Fragment shader code
          * @return ID of the newly created shader object, or std::nullopt if the shader could not be created
          */
-        virtual asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code) = 0;
+        virtual asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code) = 0;
 
         /**
          * @brief Erase a shader object by ID
@@ -177,7 +177,7 @@ namespace astre::render
          *
          * @return The id of the shader storage buffer, or std::nullopt if an error occurred
          */
-        virtual asio::awaitable<std::optional<std::size_t>> constructShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data) = 0;
+        virtual asio::awaitable<std::optional<std::size_t>> createShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data) = 0;
 
         /**
          * @brief Update a shader storage buffer
@@ -221,7 +221,7 @@ namespace astre::render
          * @return An awaitable that resolves to the ID of the created FBO or an empty optional if the
          * FBO could not be created.
          */
-        virtual asio::awaitable<std::optional<std::size_t>> constructFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments) = 0;
+        virtual asio::awaitable<std::optional<std::size_t>> createFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments) = 0;
         
         /**
          * @brief Erase a Frame Buffer Object (FBO) object by ID
@@ -309,8 +309,8 @@ namespace astre::render
                 return base::impl().disableVSync();
             }
 
-            inline asio::awaitable<std::optional<std::size_t>> constructVertexBuffer(std::string name, const Mesh & mesh) override{ 
-                return base::impl().constructVertexBuffer(std::move(name), mesh);
+            inline asio::awaitable<std::optional<std::size_t>> createVertexBuffer(std::string name, const Mesh & mesh) override{ 
+                return base::impl().createVertexBuffer(std::move(name), mesh);
             }
         
             inline asio::awaitable<bool> eraseVertexBuffer(std::size_t id) override {
@@ -321,12 +321,12 @@ namespace astre::render
                 return base::impl().getVertexBuffer(std::move(name));
             }
 
-            inline asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code) override { 
-                return base::impl().constructShader(std::move(name), std::move(vertex_code));
+            inline asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code) override { 
+                return base::impl().createShader(std::move(name), std::move(vertex_code));
             }
 
-            inline asio::awaitable<std::optional<std::size_t>> constructShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code) override { 
-                return base::impl().constructShader(std::move(name), std::move(vertex_code), std::move(fragment_code));
+            inline asio::awaitable<std::optional<std::size_t>> createShader(std::string name, std::vector<std::string> vertex_code, std::vector<std::string> fragment_code) override { 
+                return base::impl().createShader(std::move(name), std::move(vertex_code), std::move(fragment_code));
             }
 
             inline asio::awaitable<bool> eraseShader(std::size_t id) override {
@@ -337,8 +337,8 @@ namespace astre::render
                 return  base::impl().getShader(std::move(name));
             }
 
-            inline asio::awaitable<std::optional<std::size_t>> constructShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data) override{ 
-                return base::impl().constructShaderStorageBuffer(std::move(name), binding_point, std::move(size), std::move(data));
+            inline asio::awaitable<std::optional<std::size_t>> createShaderStorageBuffer(std::string name, unsigned int binding_point, const std::size_t size, const void * data) override{ 
+                return base::impl().createShaderStorageBuffer(std::move(name), binding_point, std::move(size), std::move(data));
             }
 
             inline asio::awaitable<bool> updateShaderStorageBuffer(std::size_t id, const std::size_t size, const void * data) override {
@@ -353,8 +353,8 @@ namespace astre::render
                 return base::impl().getShaderStorageBuffer(std::move(name));
             }
 
-            inline asio::awaitable<std::optional<std::size_t>> constructFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments) override{ 
-                return base::impl().constructFrameBufferObject(std::move(name), std::move(resolution), std::move(attachments));
+            inline asio::awaitable<std::optional<std::size_t>> createFrameBufferObject(std::string name, std::pair<unsigned int, unsigned int> resolution, std::initializer_list<FBOAttachment> attachments) override{ 
+                return base::impl().createFrameBufferObject(std::move(name), std::move(resolution), std::move(attachments));
             }
 
             inline asio::awaitable<bool> eraseFrameBufferObject(std::size_t id) override {

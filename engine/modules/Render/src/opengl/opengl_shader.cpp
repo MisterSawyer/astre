@@ -123,6 +123,12 @@ namespace astre::render::opengl
     OpenGLShader::OpenGLShader(std::vector<std::string> vertex_code)
     :   OpenGLShader()
     {
+        if(_shader_program_ID == 0)
+        {
+            spdlog::error("OpenGL shader program ID generation failed");
+            return;
+        }
+
         spdlog::debug(std::format("Compiling OpenGL shader[{}] : [Vertex Stage] ", _shader_program_ID));
         
         _vertex_stage = Stage(_shader_program_ID, GL_VERTEX_SHADER, std::move(vertex_code));
@@ -146,6 +152,12 @@ namespace astre::render::opengl
     OpenGLShader::OpenGLShader(std::vector<std::string> vertex_code, std::vector<std::string> fragment_code)
     :   OpenGLShader()
     {
+        if(_shader_program_ID == 0)
+        {
+            spdlog::error("OpenGL shader program ID generation failed");
+            return;
+        }
+
         spdlog::debug(std::format("Compiling OpenGL shader[{}] : [Vertex Stage] ", _shader_program_ID));
         
         _vertex_stage = Stage(_shader_program_ID, GL_VERTEX_SHADER, std::move(vertex_code));
@@ -193,7 +205,14 @@ namespace astre::render::opengl
 
     bool OpenGLShader::generateProgramID()
     {
-        _shader_program_ID = glCreateProgram();
+        try{
+            _shader_program_ID = glCreateProgram();
+        }
+        catch(...)
+        {
+            spdlog::error("Cannot create shader program - glCreateProgram error");
+            return false;
+        }
 
         const auto check = checkOpenGLState();
         if(!check)
