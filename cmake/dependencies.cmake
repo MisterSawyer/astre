@@ -226,6 +226,19 @@ install(DIRECTORY ${GLEW_INSTALL_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLU
 install(DIRECTORY ${GLEW_INSTALL_DIR}/lib/     DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # ---------------------------------------------------------
+# glm
+# ---------------------------------------------------------
+message(STATUS "Fetching dependency `glm` ...")
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY "https://github.com/g-truc/glm.git"
+    GIT_TAG        "1.0.1"
+    SYSTEM
+)
+FetchContent_MakeAvailable(glm)
+
+
+# ---------------------------------------------------------
 # GTest
 # ---------------------------------------------------------
 if(ASTRE_BUILD_TESTS)

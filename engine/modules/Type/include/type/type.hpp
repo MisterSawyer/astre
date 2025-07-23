@@ -276,6 +276,12 @@ namespace astre::type
             constexpr inline interface_t * operator->() noexcept {return _impl.operator->(); }
             // access const object pointer
             constexpr inline const interface_t * operator->() const noexcept{return _impl.operator->(); }
+
+            // access object pointer
+            constexpr inline const interface_t* get() const noexcept { return _impl.operator->(); }
+            // access const object pointer
+            constexpr inline interface_t* get() noexcept { return _impl.operator->(); }
+
             // checks whether own implementation object
             constexpr explicit operator bool() const noexcept { return bool(_impl);}
 

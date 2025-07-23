@@ -32,6 +32,6 @@ add_module(NAME "Process"
         absl::flat_hash_map
         
         astre::Native
-        astre::Type
         astre::Formatter
+        astre::Type
 )

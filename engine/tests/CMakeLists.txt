@@ -16,6 +16,10 @@ add_executable(${PROJECT_NAME}Tests
     "modules/Native/native_tests.cpp"
     "modules/Type/type_tests.cpp"
     "modules/Process/process_tests.cpp"
+
+    "modules/Render/opengl_renderer_tests.cpp"
+    "modules/Render/opengl_vertex_buffer_tests.cpp"
+    "modules/Render/opengl_texture_tests.cpp"
 )
 
 if(WIN32)
@@ -37,7 +41,9 @@ target_link_libraries(${PROJECT_NAME}Tests
     PRIVATE
         asio
         glew
+        glm
         GTest::gtest_main
+        GTest::gmock
 
         AstreEngine
 )

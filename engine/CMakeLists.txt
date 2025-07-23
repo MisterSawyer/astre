@@ -25,11 +25,13 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Formatter
         astre::Process
         astre::Window
+        astre::Render
 
     PUBLIC
         spdlog
         asio
-        glew     
+        glew
+        glm   
 )
 
 target_sources("${PROJECT_NAME}Engine" PUBLIC

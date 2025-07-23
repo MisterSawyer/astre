@@ -104,16 +104,16 @@ namespace astre::process
         public:
             using base = type::ModelBase<IProcess, ProcessImplType>;
             
-            explicit inline ProcessModel(ProcessImplType && impl)
-            : base{std::move(impl)}
-            {}
-
             template<class... Args>                                                                             
-            inline ProcessModel(Args && ... args) : base(std::forward<Args>(args)...)
+            inline ProcessModel(Args && ... args) 
+                : base(std::forward<Args>(args)...)
             {}
             
+            explicit inline ProcessModel(ProcessImplType && impl)
+                : base{std::move(impl)}
+            {}
 
-            constexpr inline void join() override { return base::impl().join();}
+            inline void join() override { return base::impl().join();}
 
             inline asio::awaitable<void> close() override { return base::impl().close();}
             
@@ -158,24 +158,23 @@ namespace astre::process
     template<class ProcessImplType>
     ProcessModel(ProcessImplType && ) -> ProcessModel<ProcessImplType>;
 
-    class Process : public type::Implementation<IProcess, ProcessModel>
+    class Process final : public type::Implementation<IProcess, ProcessModel>
     {                                                                   
         public:
             /* move ctor */
-            Process(Process && other) = default;
-            Process & operator=(Process && other) = default;
-
-            /* dtor */
-            virtual ~Process() = default;
+            inline Process(Process && other) = default;
+            inline Process & operator=(Process && other) = default;
         
+            /* ctor */
             template<class ProcessImplType, typename... Args>
-            explicit inline Process(Args && ... args)
-            : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
+            inline Process(Args && ... args)
+                : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
             {}
 
+            /* ctor */
             template<class ProcessImplType, typename... Args>
-            explicit Process(std::in_place_type_t<ProcessImplType>, Args && ... args)
-            : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
+            inline Process(std::in_place_type_t<ProcessImplType>, Args && ... args)
+                : Implementation(std::in_place_type<ProcessImplType>, std::forward<Args>(args)...)
             {}
     };
 }

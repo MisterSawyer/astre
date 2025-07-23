@@ -30,5 +30,6 @@ add_module(NAME "Window"
         
         astre::Native
         astre::Formatter
+        astre::Type
         astre::Process
 )

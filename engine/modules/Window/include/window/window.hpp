@@ -98,21 +98,30 @@ namespace astre::window
             using base = type::ModelBase<IWindow, WindowImplType>;
 
             template<class... Args>                                                                             
-            inline WindowModel(Args && ... args) : base(std::forward<Args>(args)...){} 
+            inline WindowModel(Args && ... args)    
+                : base(std::forward<Args>(args)...)
+            {} 
 
-            constexpr inline bool good() const override { return base::impl().good();}
+            explicit inline WindowModel(WindowImplType && impl)
+                : base{std::move(impl)}
+            {}
+
+            inline bool good() const override { return base::impl().good();}
             inline asio::awaitable<void> show() override {return base::impl().show();}
             inline asio::awaitable<void> hide() override {return base::impl().hide();}
             inline asio::awaitable<void> close() override {return base::impl().close();}
-            constexpr inline native::window_handle getHandle() const override { return base::impl().getHandle();}
+            inline native::window_handle getHandle() const override { return base::impl().getHandle();}
 
-            constexpr inline native::device_context acquireDeviceContext() override { 
-                return base::impl().acquireDeviceContext();};
-            constexpr inline bool releaseDeviceContext(native::device_context device_context) override { 
-                return base::impl().releaseDeviceContext(std::move(device_context));};
+            inline native::device_context acquireDeviceContext() override { 
+                return base::impl().acquireDeviceContext();}
 
-            constexpr inline const Resolution & getResolution() const override {return base::impl().getResolution();}
-            constexpr inline IProcess & getProcess() override {return base::impl().getProcess();}
+            inline bool releaseDeviceContext(native::device_context device_context) override { 
+                return base::impl().releaseDeviceContext(std::move(device_context));}
+
+            inline unsigned int getWidth() const override {return base::impl().getWidth();}
+            inline unsigned int getHeight() const override {return base::impl().getHeight();}
+
+            inline process::IProcess & getProcess() override {return base::impl().getProcess();}
     
             
             inline void move(type::InterfaceBase * dest) override
@@ -134,20 +143,23 @@ namespace astre::window
     template<class WindowImplType>
     WindowModel(WindowImplType && ) -> WindowModel<WindowImplType>;
 
-    class Window : public type::Implementation<IWindow, WindowModel>
+    class Window final : public type::Implementation<IWindow, WindowModel>
     {                                                                   
         public:
             /* move ctor */
-            Window(Window && other) = default;
-            Window & operator=(Window && other) = default;
+            inline Window(Window && other) = default;
+            inline Window & operator=(Window && other) = default;
 
-            /* dtor */
-            virtual ~Window() {}
-        
             /* ctor */
-            template<class WindowImplType>
-            Window(WindowImplType && impl)
-            : Implementation(std::move(impl))
-            {}                                                          
+            template<class WindowImplType, typename... Args>
+            inline Window(Args && ... args)
+                : Implementation(std::in_place_type<WindowImplType>, std::forward<Args>(args)...)
+            {}
+
+            template<class WindowImplType, typename... Args>
+            inline Window(std::in_place_type_t<WindowImplType>, Args && ... args)
+                : Implementation(std::in_place_type<WindowImplType>, std::forward<Args>(args)...)
+            {}
+
     };
 }
