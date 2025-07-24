@@ -82,7 +82,7 @@ namespace astre::render::opengl
                 std::optional<std::size_t> fbo);
                 
             asio::awaitable<void> present();
-            asio::awaitable<void> updateViewportSize(std::pair<unsigned int, unsigned int> resolution);
+            asio::awaitable<void> updateViewportSize(unsigned int width, unsigned int height);
             std::pair<unsigned int, unsigned int> getViewportSize() const;
             asio::awaitable<void> enableVSync();
             asio::awaitable<void> disableVSync();

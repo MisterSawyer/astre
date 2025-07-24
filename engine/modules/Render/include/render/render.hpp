@@ -1,6 +1,8 @@
 #pragma once
 
 #include "type/type.hpp"
+#include "process/process.hpp"
+#include "window/window.hpp"
 
 #include "render/render_options.hpp"
 
@@ -20,6 +22,8 @@ namespace astre::render
     {
     public:
         virtual ~IRenderer() = default;
+
+        virtual void move(IRenderer * dest) = 0;
 
         /**
          * @brief Check if renderer is properly initialized
@@ -265,6 +269,11 @@ namespace astre::render
                 : base(std::forward<Args>(args)...)
             {}
 
+            inline void move(IRenderer * dest) override
+            {
+                ::new(dest) RendererModel(std::move(base::impl()));
+            }
+
             inline bool good() const override { return base::impl().good();}
             inline asio::awaitable<void> close() override { return base::impl().close();}
             inline void join() override { return base::impl().join();}
@@ -289,8 +298,8 @@ namespace astre::render
                 return base::impl().present();
             }
 
-            inline asio::awaitable<void> updateViewportSize(std::pair<unsigned int, unsigned int> resolution) override { 
-                return base::impl().updateViewportSize(std::move(resolution));
+            inline asio::awaitable<void> updateViewportSize(unsigned int width, unsigned int height) override { 
+                return base::impl().updateViewportSize(width, height);
             }
 
             inline std::pair<unsigned int, unsigned int> getViewportSize() const override { 
@@ -387,6 +396,8 @@ namespace astre::render
             inline Renderer(std::in_place_type_t<RendererImplType>, Args && ... args)
                 : Implementation(std::in_place_type<RendererImplType>, std::forward<Args>(args)...)
             {}
-
     };
+
+
+    asio::awaitable<render::Renderer> createRenderer(window::IWindow & window);
 }

@@ -1,4 +1,15 @@
+#include "render/render.hpp"
 #include "render/opengl/opengl.hpp"
+
+
+namespace astre::render
+{
+    asio::awaitable<render::Renderer> createRenderer(window::IWindow & window)
+    {
+        native::opengl_context_handle oglctx_handle = co_await window.getProcess().registerOGLContext(window.getHandle(), 4, 0);
+        co_return Renderer(std::in_place_type<opengl::OpenGLRenderer>, window, oglctx_handle);
+    }
+}
 
 namespace astre::render::opengl
 {
@@ -633,17 +644,17 @@ namespace astre::render::opengl
         co_return;
     }
 
-    asio::awaitable<void> OpenGLRenderer::updateViewportSize(std::pair<unsigned int, unsigned int> resolution)
+    asio::awaitable<void> OpenGLRenderer::updateViewportSize(unsigned int width, unsigned int height)
     {
         if(good() == false)co_return;
 
         co_await _render_context->ensureOnStrand();
         
-        _viewport_resolution = resolution;
+        _viewport_resolution = std::make_pair(width, height);
 
         // if the OpenGL context depends on a HDC that may change
         // (e.g. due to window resize, DPI change, or re-creation), 
-        // then you must re-acquire the HDC (_device_context) from the HWND before calling glViewport()
+        // then we must re-acquire the HDC (_device_context) from the HWND before calling glViewport()
         // or any other GL function that implicitly touches the current drawable surface
         _render_context->updateDeviceContext();
 

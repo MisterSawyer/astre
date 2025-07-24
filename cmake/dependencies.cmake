@@ -167,6 +167,17 @@ if(MSVC)
         -DCMAKE_MODULE_LINKER_FLAGS="/IGNORE:4281"
         -DCMAKE_EXE_LINKER_FLAGS="/IGNORE:4281"
     )
+
+    set(GLEW_BUILD_COMMAND 
+        ${CMAKE_COMMAND} --build ${GLEW_BUILD_DIR} --config Debug &&
+        ${CMAKE_COMMAND} --build ${GLEW_BUILD_DIR} --config Release
+    )
+
+    set(GLEW_INSTALL_COMMAND
+        ${CMAKE_COMMAND} --install ${GLEW_BUILD_DIR} --config Debug &&
+        ${CMAKE_COMMAND} --install ${GLEW_BUILD_DIR} --config Release
+    )
+
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -199,8 +210,8 @@ ExternalProject_Add(glew_build
     DOWNLOAD_DIR  ${GLEW_PREFIX}/download
 
     CONFIGURE_COMMAND ${CMAKE_COMMAND} ${GLEW_CMAKE_ARGS}
-    BUILD_COMMAND     ${CMAKE_COMMAND} --build ${GLEW_BUILD_DIR} --config Release
-    INSTALL_COMMAND   ${CMAKE_COMMAND} --install ${GLEW_BUILD_DIR}
+    BUILD_COMMAND     ${GLEW_BUILD_COMMAND}
+    INSTALL_COMMAND   ${GLEW_INSTALL_COMMAND}
     BUILD_ALWAYS      TRUE
     UPDATE_DISCONNECTED TRUE
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
@@ -214,7 +225,12 @@ target_link_directories(glew INTERFACE "${GLEW_INSTALL_DIR}/lib")
 target_compile_definitions(glew INTERFACE GLEW_STATIC)
 
 if(MSVC)
-    target_link_libraries(glew INTERFACE libglew32 glu32 opengl32)
+    target_link_libraries(glew INTERFACE
+        $<$<CONFIG:Debug>:libglew32d>
+        $<$<CONFIG:Release>:libglew32>
+        $<$<CONFIG:RelWithDebInfo>:libglew32>
+        $<$<CONFIG:MinSizeRel>:libglew32>
+        glu32 opengl32)
 else()
     target_link_libraries(glew INTERFACE libGLEW.a GL GLU)
 endif()
