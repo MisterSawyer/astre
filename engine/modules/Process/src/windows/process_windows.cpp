@@ -10,12 +10,73 @@ namespace astre::process
 
 namespace astre::process::windows
 {
+    // -------------------------------------------
+    // ProcedureContext
+    // -------------------------------------------
+    ProcedureContext::ProcedureContext()
+    {
+        start(&ProcedureContext::messageLoop, this);
+    }
+
+    void ProcedureContext::messageLoop() 
+    { 
+        spdlog::debug("[winapi-procedure] Message loop started");
+
+        MSG msgcontainer;
+
+        while(running())
+        {     
+            // perform implementation part of messages from the queue
+            // first call to this function will create message queue for this thread in winapi
+            if(PeekMessage(&msgcontainer, NULL, 0, 0, PM_REMOVE))
+            {
+                switch(msgcontainer.message)
+                {
+                    case WM_QUIT: 
+                    {
+                        spdlog::debug("[winapi-procedure] Input thread received WM_QUIT");
+
+                        // handle rest of messages
+                        while(PeekMessage(&msgcontainer, 0, 0, 0, PM_REMOVE) != 0)
+                        {
+                            TranslateMessage(&msgcontainer);
+                            //will call specific procedure of give n WM_ message in current thread
+                            DispatchMessage(&msgcontainer);
+                            // handle other tasks
+                            poll();
+                        }
+                        // handle rest of tasks
+                        run();
+                        // all msg handled
+                        close();
+
+                        break;
+                    }
+
+                    default:
+                    {
+                        TranslateMessage(&msgcontainer);
+                        //will call specific procedure of give n WM_ message in current thread
+                        DispatchMessage(&msgcontainer);
+                        break;
+                    }
+                }
+            }
+
+            // handle other tasks
+            poll();
+        }
+
+        spdlog::debug(std::format("[winapi-procedure] Input thread ended"));
+    }
+
+    // -------------------------------------------
+    // WinapiProcess
+    // -------------------------------------------
     WinapiProcess::WinapiProcess(unsigned int number_of_threads)
     :   _default_oglctx_handle(nullptr),
         _cursor_visible(true),
-        _io_context(1),
-        _io_thread(&WinapiProcess::messageLoop, this),
-        _async_context(_io_context),
+        _procedure_context(),
         _execution_context(number_of_threads)
     {
         spdlog::debug("[winapi] WinapiProcess constructor called");
@@ -25,7 +86,7 @@ namespace astre::process::windows
     {
         spdlog::debug("[winapi]WinapiProcess destructor called");
 
-        if(_io_thread.joinable()) join();
+        join();
 
         assert(_window_handles.empty() == true);
         assert(_registered_classes.empty() == true);
@@ -52,13 +113,10 @@ namespace astre::process::windows
         spdlog::debug("[winapi]WinApi process joining");
 
         // request thread to close
-        asio::co_spawn(_io_context, close(), asio::detached);
+        _procedure_context.co_spawn(close());
 
         // join IO thread
-        if(_io_thread.joinable()){
-            spdlog::debug("[winapi] WinApi process waiting for thread join ... ");
-            _io_thread.join();
-        }
+        _procedure_context.join();
         
         spdlog::debug("[winapi] WinApi process thread joined");
     }
@@ -138,7 +196,7 @@ namespace astre::process::windows
 
     asio::awaitable<native::window_handle> WinapiProcess::registerWindow(std::string name, unsigned int width, unsigned int height)
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         spdlog::debug("[winapi] registerWindow");
 
@@ -230,7 +288,7 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::unregisterWindow(native::window_handle window)
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         spdlog::debug(std::format("[winapi] unregistering Window {} ...", window));
 
@@ -250,7 +308,7 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks)
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         spdlog::debug("[winapi] setWindowCallbacks");
 
@@ -352,7 +410,7 @@ namespace astre::process::windows
 
     asio::awaitable<native::opengl_context_handle> WinapiProcess::registerOGLContext(native::window_handle window_handle, unsigned int major_version, unsigned int minor_version)
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         if(window_handle == nullptr){
             spdlog::error(std::format("[winapi-procedure] cannot construct OGLContext on empty window "));
@@ -408,7 +466,7 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::unregisterOGLContext(native::opengl_context_handle oglctx)
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
         
         spdlog::debug(std::format("[winapi] unregistering OGLContext {} ...", oglctx));
 
@@ -440,7 +498,7 @@ namespace astre::process::windows
 
     asio::awaitable<void> WinapiProcess::showCursor()
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         _cursor_visible = true;
         ShowCursor(TRUE);
@@ -448,7 +506,7 @@ namespace astre::process::windows
 
     asio::awaitable<void> WinapiProcess::hideCursor()
     {
-        co_await _async_context.ensureOnStrand();
+        co_await _procedure_context.ensureOnStrand();
 
         _cursor_visible = false;
         ShowCursor(FALSE);
@@ -624,59 +682,5 @@ namespace astre::process::windows
         default:
             return DefWindowProc(window, message, wparam, lparam);
         }
-    }
-
-    void WinapiProcess::messageLoop() 
-    { 
-        spdlog::debug("[winapi-procedure] Message loop started");
-
-        MSG msgcontainer;
-        bool working = true;
-
-        while(working)
-        {     
-            // perform implementation part of messages from the queue
-            // first call to this function will create message queue for this thread in winapi
-            if(PeekMessage(&msgcontainer, NULL, 0, 0, PM_REMOVE))
-            {
-                switch(msgcontainer.message)
-                {
-                    case WM_QUIT: 
-                    {
-                        spdlog::debug("[winapi-procedure] Input thread received WM_QUIT");
-
-                        // handle rest of messages
-                        while(PeekMessage(&msgcontainer, 0, 0, 0, PM_REMOVE) != 0)
-                        {
-                            TranslateMessage(&msgcontainer);
-                            //will call specific procedure of give n WM_ message in current thread
-                            DispatchMessage(&msgcontainer);
-                            // handle other tasks
-                            _io_context.poll();
-                        }
-                        // handle rest of tasks
-                        _io_context.run();
-                        // all msg handled
-                        _io_context.stop();
-
-                        working = false;
-                        break;
-                    }
-
-                    default:
-                    {
-                        TranslateMessage(&msgcontainer);
-                        //will call specific procedure of give n WM_ message in current thread
-                        DispatchMessage(&msgcontainer);
-                        break;
-                    }
-                }
-            }
-
-            // handle other tasks
-            _io_context.poll();
-        }
-
-        spdlog::debug(std::format("[winapi-procedure] Input thread ended"));
     }
 }

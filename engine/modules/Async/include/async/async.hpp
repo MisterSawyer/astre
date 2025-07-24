@@ -5,6 +5,7 @@
 
 #include <chrono>
 using namespace std::chrono_literals;
+#include <thread>
 
 namespace astre::async
 {
@@ -14,7 +15,7 @@ namespace astre::async
     }
 
     template<class AsioContext>
-    class AsyncContext
+    class AsyncContext final
     {
         public:
             using context_type = AsioContext;
@@ -28,7 +29,7 @@ namespace astre::async
             inline AsyncContext & operator=(const AsyncContext &) = default;
             inline AsyncContext & operator=(AsyncContext &&) = default;
 
-            inline asio::awaitable<void> ensureOnStrand()
+            inline asio::awaitable<void> ensureOnStrand() const
             {
                 if(!_strand.running_in_this_thread()) {
                     return asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
@@ -37,7 +38,7 @@ namespace astre::async
             }
 
             template<typename Awaitable>
-            void co_spawn(Awaitable&& awaitable)
+            void co_spawn(Awaitable&& awaitable) const
             {
                 asio::co_spawn(_strand, std::forward<Awaitable>(awaitable), asio::detached);
             }
@@ -46,5 +47,43 @@ namespace astre::async
             asio::strand<executor_type> _strand;
     };
 
+    class ThreadContext
+    {
+        public:
+            ThreadContext();
+
+            virtual ~ThreadContext();
+
+            asio::awaitable<void> ensureOnStrand() const;
+
+            template<typename Awaitable>
+            void co_spawn(Awaitable&& awaitable) const
+            {
+                _async_context.co_spawn(std::move(awaitable));
+            }
+
+            template<class Func, class... Args>
+            void start(Func && func, Args&&... args)
+            {
+                _thread = std::thread(std::forward<Func>(func), std::forward<Args>(args)...);
+            }
+
+            void join();
+
+            void close();
+        
+            bool running() const;
+            
+            void run();
+            
+            void poll();
+
+        private:
+            asio::io_context _io_context;
+            asio::executor_work_guard<asio::io_context::executor_type> _work_guard;
+            AsyncContext<asio::io_context> _async_context;
+
+            std::thread _thread;
+    };
 
 }

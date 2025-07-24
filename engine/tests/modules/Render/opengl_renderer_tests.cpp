@@ -67,7 +67,7 @@ TEST_F(RenderThreadContextTest, ThreadStartsAndJoinsCleanly) {
 TEST_F(RenderThreadContextTest, SignalCloseStopsContext) {
     ASSERT_TRUE(context->running());
 
-    context->signalClose();
+    context->close();
 
     // Give some time for the thread to exit
     context->join();

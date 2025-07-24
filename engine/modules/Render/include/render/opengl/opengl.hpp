@@ -15,6 +15,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "async/async.hpp"
 #include "formatter/formatter.hpp"
 #include "process/process.hpp"
 #include "window/window.hpp"
@@ -38,26 +39,15 @@
 
 namespace astre::render::opengl
 {
-
-    class OpenGLRenderThreadContext
+    class OpenGLRenderThreadContext : public async::ThreadContext
     {
         public:
         OpenGLRenderThreadContext(
             window::IWindow & window,
             native::opengl_context_handle oglctx);
 
-        ~OpenGLRenderThreadContext();
-                
-        void join();
-
-        const asio::strand<asio::io_context::executor_type> & getStrand() const;
-
-        asio::awaitable<void> ensureOnStrand();
-                
-        void signalClose();
-
-        bool running() const;
-
+        ~OpenGLRenderThreadContext() = default;
+                                
         native::device_context getDeviceContext();
 
         bool updateDeviceContext();
@@ -65,15 +55,9 @@ namespace astre::render::opengl
         private:
             void workerThread();
 
-            asio::io_context _io_context;
-            asio::executor_work_guard<asio::io_context::executor_type> _work_guard;
-            asio::strand<asio::io_context::executor_type> _strand;
-
             window::IWindow & _window;
             native::device_context _device_context;
             native::opengl_context_handle _oglctx_handle;
-
-            std::thread _worker_thread;
     };
 
     /**

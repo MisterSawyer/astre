@@ -20,7 +20,18 @@
 #include "process_callbacks.hpp"
 
 namespace astre::process::windows
-{   
+{ 
+    
+    class ProcedureContext : public async::ThreadContext
+    {
+        public:
+            ProcedureContext();
+
+            ~ProcedureContext() = default;
+
+            void messageLoop();
+    };
+
     /**
      * @brief WinAPI `IProcess` interface implementation
      */
@@ -61,7 +72,6 @@ namespace astre::process::windows
 
         protected:
             bool initOpenGL();
-            void messageLoop();
             bool registerClass(const WNDCLASSEX & class_structure);
             bool unregisterClass(std::string class_name);
 
@@ -75,9 +85,7 @@ namespace astre::process::windows
             bool _cursor_visible;
 
             // IO thread
-            asio::io_context _io_context;
-            async::AsyncContext<asio::io_context> _async_context;
-            std::thread _io_thread;
+            ProcedureContext _procedure_context;
 
             // Consumers execution context
             IProcess::execution_context_type _execution_context;

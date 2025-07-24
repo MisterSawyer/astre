@@ -8,58 +8,11 @@ namespace astre::render::opengl
     // ----------------------------------------------------------------
 
     OpenGLRenderThreadContext::OpenGLRenderThreadContext(window::IWindow & window, native::opengl_context_handle oglctx)
-    :   _io_context(1),
-        _work_guard(asio::make_work_guard(_io_context.get_executor())),
-        _strand(asio::make_strand(_io_context)), 
-        _window(window), 
+    :   _window(window), 
         _device_context(nullptr),
-        _oglctx_handle(oglctx), 
-        _worker_thread(&OpenGLRenderThreadContext::workerThread, this)
-    {}
-
-    OpenGLRenderThreadContext::~OpenGLRenderThreadContext()
+        _oglctx_handle(oglctx) 
     {
-        join();
-    }
-
-    void OpenGLRenderThreadContext::join()
-    {
-        if(_worker_thread.joinable() == false)return;
-
-        spdlog::debug("[opengl] Render thread waiting to finish ... ");
-        
-        signalClose();
-        _worker_thread.join();
-        
-        spdlog::debug("[opengl] Render thread finished");
-    }
-
-    const asio::strand<asio::io_context::executor_type> & OpenGLRenderThreadContext::getStrand() const
-    {
-        return _strand;
-    }
-
-    asio::awaitable<void> OpenGLRenderThreadContext::ensureOnStrand()
-    {
-        if(!_strand.running_in_this_thread()) {
-            co_return co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
-
-        co_return;
-    }
-
-    void OpenGLRenderThreadContext::signalClose()
-    {
-        if(_work_guard.owns_work() == false)return;
-        spdlog::debug("[opengl] Render thread signaled to close");
-        _work_guard.reset();
-    }
-
-    bool OpenGLRenderThreadContext::running() const
-    {
-        if(_work_guard.owns_work() == false)return false;
-        if(_worker_thread.joinable() == false)return false;
-        return true;
+        start(&OpenGLRenderThreadContext::workerThread, this);
     }
 
     native::device_context OpenGLRenderThreadContext::getDeviceContext()
@@ -133,7 +86,7 @@ namespace astre::render::opengl
 
         try
         {
-            _io_context.run();
+            run();
         }
         catch(const std::exception & e)
         {
@@ -203,11 +156,7 @@ namespace astre::render::opengl
 
         spdlog::debug("[opengl] OpenGL renderer join");
         
-        asio::co_spawn(_render_context->getStrand(), close(),
-            // when close finishes, we know that oglcontext is unbinded and unregistered from process,
-            // and device context is released
-            asio::detached
-        );
+        _render_context->co_spawn(close());
         
         // wait for render thread to finish
         _render_context->join();
@@ -226,7 +175,7 @@ namespace astre::render::opengl
 
         // set render_context to closed such that we won't accept any new 
         // rendering tasks
-        _render_context->signalClose();
+        _render_context->close();
 
         _vertex_buffers.clear();
         _shaders.clear();
@@ -239,11 +188,9 @@ namespace astre::render::opengl
         #ifdef WIN32
             wglMakeCurrent(0, 0);
         #endif 
-
-        co_await _window.getProcess().unregisterOGLContext(_oglctx_handle);
-
-        co_await _render_context->ensureOnStrand();
+        native::opengl_context_handle oglctx_handle = _oglctx_handle;
         _oglctx_handle = nullptr;
+        co_await _window.getProcess().unregisterOGLContext(oglctx_handle);
 
         co_return;
     }

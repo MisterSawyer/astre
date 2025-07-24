@@ -17,6 +17,7 @@ add_module(NAME "Render"
         spdlog::spdlog
 
         astre::Native
+        astre::Async
         astre::Formatter
         astre::Type
         astre::Process
