@@ -18,9 +18,6 @@
 #include <GL/glx.h>
 #include <unistd.h>  // for pid_t
 
-#include <spdlog/spdlog.h>
-
-
 namespace astre::native
 {
     using opengl_context_handle = GLXContext;   // OpenGL context

@@ -1,3 +1,6 @@
+#include <GL/glew.h>
+#include <spdlog/spdlog.h>
+
 #include "render/opengl/opengl_debug.hpp"
 
 namespace astre::render::opengl

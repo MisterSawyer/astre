@@ -32,13 +32,20 @@ if (MSVC)
         /W4 # Enables aggressive compiler warnings
         /utf-8 # Set source and execution character set to UTF-8
         /permissive- # Enforce standard compliance
+        /external:W0 # suppress warnings from external headers
+        /external:anglebrackets # treat <> includes as external
+        /experimental:external # enable experimental external header support
 
         # Debug config
-        "$<$<CONFIG:Debug>:/Od>"
-        "$<$<CONFIG:Debug>:/MTd>" # Multi-threaded Debug Runtime (static)
-        "$<$<CONFIG:Debug>:/Z7>" # Debug symbols are stored in each .obj file. The linker merges them into the final .pdb if requested. No .pdb is created during compilation — only at link time.
-        "$<$<CONFIG:Debug>:/FS>" # Prevents simultaneous writes to .pdb (debug symbols) from multiple compiler processes
-        "$<$<CONFIG:Debug>:/D_ITERATOR_DEBUG_LEVEL=2>" # # Controls STL iterator safety checks - Full checks
+        "$<$<CONFIG:Debug>:/WX>"    # treat warnings as errors
+        "$<$<CONFIG:Debug>:/Od>"    # Disable optimizations
+        "$<$<CONFIG:Debug>:/MTd>"   # Multi-threaded Debug Runtime (static)
+        "$<$<CONFIG:Debug>:/Z7>"    # Debug symbols are stored in each .obj file. The linker merges them into the final .pdb if requested. No .pdb is created during compilation — only at link time.
+        "$<$<CONFIG:Debug>:/FS>"    # Prevents simultaneous writes to .pdb (debug symbols) from multiple compiler processes
+        "$<$<CONFIG:Debug>:/D_ITERATOR_DEBUG_LEVEL=2>"  # Controls STL iterator safety checks - Full checks
+        "$<$<CONFIG:Debug>:/analyze>"                   # Static analysis
+        "$<$<CONFIG:Debug>:/D_DEBUG>"
+
 
         # Rel with deb info config
         "$<$<CONFIG:RelWithDebInfo>:/O2>" # Maximize Speed Optimization

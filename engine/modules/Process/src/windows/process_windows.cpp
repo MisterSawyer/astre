@@ -1,4 +1,14 @@
+#include <sstream>
+#include <string>
+
+#include <spdlog/spdlog.h>
+#include <GL/glew.h>
+#include <GL/wglew.h>
+
+#include "formatter/formatter.hpp"
+#include "process/process.hpp"
 #include "process/windows/process_windows.hpp"
+#include "process/windows/winapi_utils.hpp"
 
 namespace astre::process
 {

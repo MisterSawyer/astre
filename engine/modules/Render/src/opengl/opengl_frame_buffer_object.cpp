@@ -1,3 +1,13 @@
+#include <cassert>
+
+#include <spdlog/spdlog.h>
+
+#include "render/opengl/glsl_variable.hpp"
+#include "render/opengl/opengl_texture.hpp"
+#include "render/opengl/opengl_render_buffer_object.hpp"
+#include "render/texture.hpp"
+#include "render/render_buffer.hpp"
+
 #include "render/opengl/opengl_frame_buffer_object.hpp"
 
 namespace astre::render::opengl

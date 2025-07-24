@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <spdlog/spdlog.h>
+
 #include "type/type.hpp"
 
 using namespace astre::type;

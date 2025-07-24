@@ -16,9 +16,8 @@ FetchContent_Declare(
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(spdlog)
-
 # Suppress warnings for building spdlog
-silence_warnings(TARGETS spdlog::spdlog)
+silence_warnings(TARGETS spdlog spdlog::spdlog)
 
 # ---------------------------------------------------------
 # asio
@@ -70,6 +69,8 @@ silence_warnings(TARGETS
     absl::synchronization
     absl::time
     absl::utility
+    absl::malloc_internal
+    absl::time_zone
 )
 
 # ---------------------------------------------------------
@@ -267,4 +268,5 @@ if(ASTRE_BUILD_TESTS)
         SYSTEM
     )
     FetchContent_MakeAvailable(googletest)
+    silence_warnings(TARGETS gtest gtest_main gmock)
 endif()

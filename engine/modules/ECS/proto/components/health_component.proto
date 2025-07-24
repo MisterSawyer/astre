@@ -1,0 +1,9 @@
+syntax="proto3";
+
+package astre.ecs;
+
+message HealthComponent 
+{
+    int32 health = 1;
+    bool alive = 2; 
+}

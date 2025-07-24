@@ -1,0 +1,41 @@
+syntax="proto3";
+
+package astre.math;
+
+message Vec2
+{
+    float x = 1; float y = 2;
+}
+
+message Vec3
+{
+    float x = 1; float y = 2; float z = 3;
+}
+
+message Vec4
+{
+    float x = 1; float y = 2; float z = 3; float w = 4;
+}
+
+message Quat 
+{ 
+    float x = 1; float y = 2; float z = 3; float w = 4;
+}
+
+// exactly 4 values in row-major or column-major order
+message Mat2
+{
+  repeated float data = 1; 
+}
+
+// exactly 9 values in row-major or column-major order
+message Mat3 
+{
+  repeated float data = 1; 
+}
+
+// exactly 16 values in row-major or column-major order
+message Mat4 
+{
+  repeated float data = 1; 
+}

@@ -1,5 +1,7 @@
 #include "native/windows/win.h"
 
+#include <spdlog/spdlog.h>
+
 namespace astre::native{
 
 std::string GetLastErrorAsString() {

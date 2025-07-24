@@ -1,0 +1,20 @@
+syntax="proto3";
+
+import "Math/proto/math.proto";
+
+package astre.ecs;
+
+message TransformComponent 
+{
+    astre.math.Vec3 position = 1;
+    astre.math.Quat rotation = 2;
+    astre.math.Vec3 scale = 3;
+
+    astre.math.Vec3 prev_position = 4;
+    astre.math.Quat prev_rotation = 5;
+    astre.math.Vec3 prev_scale = 6;
+
+    astre.math.Vec3 forward = 7;
+    astre.math.Vec3 right = 8;
+    astre.math.Vec3 up = 9;
+}

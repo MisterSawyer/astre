@@ -5,7 +5,6 @@
 
 #include "async/async.hpp"
 #include "process/process.hpp"
-#include "formatter/formatter.hpp"
 
 namespace astre::window::windows
 {

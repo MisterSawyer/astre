@@ -1,0 +1,26 @@
+syntax="proto3";
+
+import "ECS/proto/components/transform_component.proto";
+import "ECS/proto/components/visual_component.proto";
+import "ECS/proto/components/input_component.proto";
+import "ECS/proto/components/health_component.proto";
+import "ECS/proto/components/camera_component.proto";
+import "ECS/proto/components/terrain_component.proto";
+import "ECS/proto/components/light_component.proto";
+import "ECS/proto/components/script_component.proto";
+
+package astre.ecs;
+
+message EntityDefinition
+{
+    string name = 1;
+
+    optional TransformComponent transform = 2;
+    optional HealthComponent health = 3;
+    optional VisualComponent visual = 4;
+    optional InputComponent input = 5;
+    optional CameraComponent camera = 6;
+    optional TerrainComponent terrain = 7;
+    optional LightComponent light = 8;
+    optional ScriptComponent script = 9;
+}

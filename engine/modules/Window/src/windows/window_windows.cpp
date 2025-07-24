@@ -1,4 +1,8 @@
+#include <spdlog/spdlog.h>
+
+#include "formatter/formatter.hpp"
 #include "window/window.hpp"
+
 #include "window/windows/window_windows.hpp"
 
 namespace astre::window

@@ -1,22 +1,14 @@
 #pragma once
 
-#include <thread>
 #include <optional>
-
-#include <GL/glew.h>
-#include <GL/wglew.h>
 
 #include "native/native.h"
 #include <asio.hpp>
-#include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 
 #include "async/async.hpp"
-#include "formatter/formatter.hpp"
-#include "process/process.hpp"
 
-#include "winapi_utils.hpp"
 #include "process_callbacks.hpp"
 
 namespace astre::process::windows

@@ -21,8 +21,6 @@
 #include <windows.h>
 #include <windowsx.h>
 
-#include <spdlog/spdlog.h>
-
 namespace astre::native
 {
     using opengl_context_handle = HGLRC;

@@ -33,3 +33,5 @@ add_module(NAME "Native"
         spdlog::spdlog
 )
 
+# spdlog-src\include\spdlog\fmt\bundled\core.h(418): warning C6239
+target_compile_options(Native PRIVATE /wd6239)

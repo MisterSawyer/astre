@@ -1,9 +1,8 @@
 #pragma once
 
 #include "native/native.h"
-#include <spdlog/spdlog.h>
+#include <asio.hpp>
 
-#include "version/version.h"
 #include "process/process.hpp"
 
 namespace astre::entry
