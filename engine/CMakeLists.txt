@@ -27,6 +27,7 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Process
         astre::Window
         astre::Render
+        astre::ECS
 
     PUBLIC
         spdlog
