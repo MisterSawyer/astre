@@ -56,10 +56,10 @@ static void _configureLogger(std::filesystem::path logs_dir)
         (logs_dir / log_name).string(), true);
 
     // set different log levels per sink
-    console_sink->set_level(spdlog::level::info);
+    console_sink->set_level(spdlog::level::debug);
     file_sink->set_level(spdlog::level::debug);
-    console_sink->set_pattern("[%T] [%^%l%$] %v");
-    file_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
+    console_sink->set_pattern("[%T] [%^%l%$][%t] %v");
+    file_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%l][%t] %v");
     
     spdlog::logger logger("multi_sink", {console_sink, file_sink});
     logger.set_level(spdlog::level::debug);
@@ -89,36 +89,30 @@ int main(int argc, char* argv[])
         spdlog::debug("Argument at [{}] : {}", i, argv[i]);
     }
 
-
     const unsigned hardware_cores = std::thread::hardware_concurrency();
     const unsigned used_cores = 4;
     assert(used_cores <= hardware_cores);
 
-
-    // Create a process
-    process::Process process(process::createProcess());
-
-    // Create a thread pool
-    asio::thread_pool thread_pool(used_cores);
-
     // start external entry point
     std::promise<int> external_main_promise;
+    {
+        // Create a process
+        process::Process process(process::createProcess(used_cores));
 
-    asio::co_spawn(thread_pool, 
-        entry::main(thread_pool, *process), 
-        // when main ended spawn process->close()
-        // and set return values
-        [&thread_pool, &process, &external_main_promise](std::exception_ptr, int r)
-        {
-            // wait for process to close
-            asio::co_spawn(thread_pool, process->close(), asio::use_future).get();
-            external_main_promise.set_value(r);
-        }
-    );
+        asio::co_spawn(process->getExecutionContext(), 
+            entry::main(*process), 
+            // when main ended spawn process->close()
+            // and set return values
+            [&process, &external_main_promise](std::exception_ptr, int r)
+            {
+                // wait for process to close
+                asio::co_spawn(process->getExecutionContext(), process->close(), asio::use_future).get();
+                external_main_promise.set_value(r);
+            }
+        );
 
-
-    thread_pool.join();
-    process->join();
+        process->join();
+    }
 
     int return_value = external_main_promise.get_future().get();
     spdlog::debug("Program finished with code {}", return_value);

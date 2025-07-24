@@ -158,5 +158,5 @@ namespace astre::window
      * 
      * @return A new window
      */
-    asio::awaitable<Window> createWindowAsync(asio::io_context & io_context, process::IProcess & process, const std::string & title, unsigned int width, unsigned int height);
+    asio::awaitable<Window> createWindow(process::IProcess & process, const std::string & title, unsigned int width, unsigned int height);
 }

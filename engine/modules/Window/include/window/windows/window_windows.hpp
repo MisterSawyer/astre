@@ -3,6 +3,7 @@
 #include "native/native.h"
 #include <asio.hpp>
 
+#include "async/async.hpp"
 #include "process/process.hpp"
 #include "formatter/formatter.hpp"
 
@@ -14,9 +15,13 @@ namespace astre::window::windows
     class WinapiWindow
     {
         public:
-            WinapiWindow(WinapiWindow && other);
+            using execution_context_type = process::IProcess::execution_context_type;
 
-            WinapiWindow(asio::io_context & io_context, process::IProcess & process, native::window_handle window_handle, unsigned int width, unsigned int height);
+            WinapiWindow(process::IProcess & process, native::window_handle window_handle, unsigned int width, unsigned int height);
+
+            WinapiWindow(WinapiWindow && other);
+            
+            WinapiWindow(const WinapiWindow & other) = delete;
 
             ~WinapiWindow();
 
@@ -42,8 +47,7 @@ namespace astre::window::windows
 
         private:
         
-            asio::io_context & _io_context;
-            asio::strand<asio::io_context::executor_type> _strand;
+            async::AsyncContext<execution_context_type> _async_context;
 
             process::IProcess & _process;
 

@@ -12,7 +12,9 @@
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 
+#include "async/async.hpp"
 #include "formatter/formatter.hpp"
+#include "process/process.hpp"
 
 #include "winapi_utils.hpp"
 #include "process_callbacks.hpp"
@@ -25,7 +27,8 @@ namespace astre::process::windows
     class WinapiProcess
     {
         public:
-            WinapiProcess();
+            WinapiProcess(unsigned int number_of_threads);
+
             WinapiProcess(const WinapiProcess &) = delete;
             WinapiProcess(WinapiProcess &&) = delete; //TODO
             WinapiProcess & operator=(const WinapiProcess &) = delete;
@@ -53,6 +56,9 @@ namespace astre::process::windows
 
             asio::awaitable<void> hideCursor();
 
+            const IProcess::execution_context_type & getExecutionContext() const;
+            IProcess::execution_context_type & getExecutionContext();
+
         protected:
             bool initOpenGL();
             void messageLoop();
@@ -70,8 +76,10 @@ namespace astre::process::windows
 
             // IO thread
             asio::io_context _io_context;
-            asio::strand<asio::io_context::executor_type> _strand;
+            async::AsyncContext<asio::io_context> _async_context;
             std::thread _io_thread;
-            
+
+            // Consumers execution context
+            IProcess::execution_context_type _execution_context;
     };
 }

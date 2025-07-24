@@ -96,6 +96,10 @@ namespace astre::process
          * @note If the cursor is already hidden, this function will not do anything.
          */
         virtual asio::awaitable<void> hideCursor() = 0;
+        
+        using execution_context_type = asio::thread_pool;
+        virtual const execution_context_type & getExecutionContext() const = 0;
+        virtual execution_context_type & getExecutionContext() = 0;
     };
 
     template<class ProcessImplType>
@@ -133,6 +137,12 @@ namespace astre::process
 
             inline asio::awaitable<void> hideCursor() override{
                 return base::impl().hideCursor();}
+
+            inline const IProcess::execution_context_type & getExecutionContext() const override {
+                return base::impl().getExecutionContext();}
+
+            inline IProcess::execution_context_type & getExecutionContext() override {
+                return base::impl().getExecutionContext();}
     };
 
     template<class ProcessImplType>
@@ -166,5 +176,5 @@ namespace astre::process
      * 
      * @return A new process
      */
-    Process createProcess();
+    Process createProcess(unsigned int number_of_threads);
 }

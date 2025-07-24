@@ -26,12 +26,12 @@ namespace astre::render::opengl
     {
         if(_worker_thread.joinable() == false)return;
 
-        spdlog::debug(std::format("[opengl] [t:{}] Render thread waiting to finish ... ", std::this_thread::get_id()));
+        spdlog::debug("[opengl] Render thread waiting to finish ... ");
         
         signalClose();
         _worker_thread.join();
         
-        spdlog::debug(std::format("[opengl] [t:{}] Render thread finished", std::this_thread::get_id()));
+        spdlog::debug("[opengl] Render thread finished");
     }
 
     const asio::strand<asio::io_context::executor_type> & OpenGLRenderThreadContext::getStrand() const
@@ -51,7 +51,7 @@ namespace astre::render::opengl
     void OpenGLRenderThreadContext::signalClose()
     {
         if(_work_guard.owns_work() == false)return;
-        spdlog::debug(std::format("[opengl] [t:{}] Render thread signaled to close", std::this_thread::get_id()));
+        spdlog::debug("[opengl] Render thread signaled to close");
         _work_guard.reset();
     }
 
@@ -78,7 +78,7 @@ namespace astre::render::opengl
         {
             if(_window.releaseDeviceContext(_device_context) == false)
             {
-                spdlog::error(std::format("[t:{}] Cannot release OpenGL device context", std::this_thread::get_id()));
+                spdlog::error("Cannot release OpenGL device context");
                 return false;
             }
         }
@@ -94,7 +94,7 @@ namespace astre::render::opengl
 
         if(binding_success == false)
         {
-            spdlog::error(std::format("[t:{}] Cannot activate OpenGL context", std::this_thread::get_id()));
+            spdlog::error("Cannot activate OpenGL context");
             return false;
         }
 
@@ -107,7 +107,7 @@ namespace astre::render::opengl
             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         #endif
 
-        spdlog::debug(std::format("[opengl] [t:{}] Render thread started", std::this_thread::get_id()));
+        spdlog::debug("[opengl] Render thread started");
                 
         _device_context = _window.acquireDeviceContext();
                 
@@ -120,7 +120,7 @@ namespace astre::render::opengl
 
         if(binding_success == false)
         {
-            spdlog::error(std::format("[t:{}] Cannot bind OpenGL context", std::this_thread::get_id()));
+            spdlog::error("Cannot bind OpenGL context");
             return;
         }
 
@@ -149,11 +149,11 @@ namespace astre::render::opengl
         {
             if(_window.releaseDeviceContext(_device_context) == false)
             {
-                spdlog::error(std::format("[t:{}] Cannot release OpenGL device context", std::this_thread::get_id()));
+                spdlog::error("Cannot release OpenGL device context");
             }
         }
 
-        spdlog::debug(std::format("[opengl] [t:{}] Render thread ended", std::this_thread::get_id()));
+        spdlog::debug("[opengl]  Render thread ended");
     }
 
     // ----------------------------------------------------------------
@@ -201,7 +201,7 @@ namespace astre::render::opengl
     {
         if(_render_context == nullptr) return;
 
-        spdlog::debug(std::format("[opengl] [t:{}] OpenGL renderer join", std::this_thread::get_id()));
+        spdlog::debug("[opengl] OpenGL renderer join");
         
         asio::co_spawn(_render_context->getStrand(), close(),
             // when close finishes, we know that oglcontext is unbinded and unregistered from process,
@@ -222,7 +222,7 @@ namespace astre::render::opengl
 
         co_await _render_context->ensureOnStrand();
 
-        spdlog::debug(std::format("[opengl] [t:{}] close", std::this_thread::get_id()));
+        spdlog::debug("[opengl] close");
 
         // set render_context to closed such that we won't accept any new 
         // rendering tasks
@@ -351,7 +351,7 @@ namespace astre::render::opengl
         
         if(_shader_storage_buffers.contains(id) == false)
         {
-            spdlog::warn(std::format("[t:{}] Shader storage buffer {} does not exist", std::this_thread::get_id(), id));
+            spdlog::warn(std::format("Shader storage buffer {} does not exist", id));
             co_return false;
         }
 
@@ -377,7 +377,7 @@ namespace astre::render::opengl
                 Texture tex(std::in_place_type<OpenGLTexture>, resolution, textureFormatToOpenGLFormat(att.format));
                 if(tex->good() == false)
                 {
-                    spdlog::warn(std::format("[t:{}] Failed to construct texture for FBO attachment", std::this_thread::get_id()));
+                    spdlog::warn("Failed to construct texture for FBO attachment");
                     co_return std::nullopt;
                 }
 
@@ -392,7 +392,7 @@ namespace astre::render::opengl
                 RenderBuffer rbo(std::in_place_type<OpenGLRenderBufferObject>, resolution, textureFormatToOpenGLFormat(att.format));
                 if(rbo->good() == false)
                 {
-                    spdlog::warn(std::format("[t:{}] Failed to construct render buffer for FBO attachment", std::this_thread::get_id()));
+                    spdlog::warn("Failed to construct render buffer for FBO attachment");
                     co_return std::nullopt;
                 }
 
@@ -402,7 +402,7 @@ namespace astre::render::opengl
             }
             else
             {
-                spdlog::warn(std::format("[t:{}] Unknown FBO attachment type", std::this_thread::get_id()));
+                spdlog::warn("Unknown FBO attachment type");
                 co_return std::nullopt;
             }
         }
@@ -517,7 +517,7 @@ namespace astre::render::opengl
         {
             if(_textures.contains(sampler) == false)
             {
-                spdlog::warn(std::format("[t:{}] Texture {} does not exist", std::this_thread::get_id(), name));
+                spdlog::warn(std::format("Texture {} does not exist", name));
                 continue;
             }
 
@@ -532,7 +532,7 @@ namespace astre::render::opengl
             {
                 if(_textures.contains(samplers[i]) == false)
                 {
-                    spdlog::warn(std::format("[t:{}] Texture {} does not exist", std::this_thread::get_id(), name));
+                    spdlog::warn(std::format("Texture {} does not exist", name));
                     success = false;
                     continue;
                 }

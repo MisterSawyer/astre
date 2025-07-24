@@ -142,7 +142,7 @@ namespace astre::render::opengl
 
                 if(name_map.contains(name))
                 {
-                    spdlog::warn(std::format("[t:{}] renderer object {} already exists", std::this_thread::get_id(), name));
+                    spdlog::warn(std::format("renderer object {} already exists", name));
                     co_return std::nullopt;
                 }
 
@@ -167,14 +167,14 @@ namespace astre::render::opengl
 
                 if(name_map.contains(name) == false)
                 {
-                    spdlog::warn(std::format("[t:{}] renderer object {} does not exist", std::this_thread::get_id(), name));
+                    spdlog::warn(std::format("renderer object {} does not exist", name));
                     return std::nullopt;
                 }
                 
                 const auto id = name_map.at(name);
                 if(object_map.contains(id) == false)
                 {
-                    spdlog::warn(std::format("[t:{}] renderer object {} does not exist", std::this_thread::get_id(), id));
+                    spdlog::warn(std::format("renderer object {} does not exist", id));
                     return std::nullopt;
                 }
                 return id;
@@ -189,13 +189,13 @@ namespace astre::render::opengl
 
                 if(object_map.contains(id) == false)
                 {
-                    spdlog::warn(std::format("[t:{}] renderer object {} does not exist", std::this_thread::get_id(), id));
+                    spdlog::warn(std::format("renderer object {} does not exist", id));
                     co_return false;
                 }
 
                 object_map.erase(id);
 
-                spdlog::info(std::format("[t:{}] renderer object {} erased", std::this_thread::get_id(), id));
+                spdlog::info(std::format("renderer object {} erased", id));
 
                 co_return true;
             }

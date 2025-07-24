@@ -8,7 +8,7 @@
 
 namespace astre::entry
 {
-    extern asio::awaitable<int> main(asio::thread_pool & thread_pool, process::IProcess & process);
+    extern asio::awaitable<int> main(process::IProcess & process);
 }
 
 int main(int argc, char** argv);

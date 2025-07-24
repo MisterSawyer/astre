@@ -19,6 +19,7 @@ target_include_directories("${PROJECT_NAME}Engine"
 target_link_libraries("${PROJECT_NAME}Engine"
     PUBLIC
         astre::Native
+        astre::Async
         astre::Version
         astre::Entry
         astre::Type

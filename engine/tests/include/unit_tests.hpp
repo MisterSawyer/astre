@@ -31,43 +31,37 @@ namespace astre::tests
             UnitTest() = default;
     };
 
-
-    template <typename T>
-    auto sync_await(asio::awaitable<T> && awaitable) {
-        asio::io_context ctx;
+    template <typename ExecutionContextType, typename T>
+    auto sync_await(ExecutionContextType & ctx, asio::awaitable<T> && awaitable) 
+    { 
+        std::promise<bool> promise;
         std::optional<T> result;
-        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
-            result = co_await std::forward<typename asio::awaitable<T>>(awaitable);
-        }, asio::detached);
-        ctx.run();
+        asio::co_spawn(ctx, 
+            [&]() -> asio::awaitable<void> {
+                spdlog::info("awaiting...");
+                result = co_await std::move(awaitable);
+                spdlog::info("sync_await finished");
+            },
+            [&promise](std::exception_ptr) {
+                promise.set_value(true);
+            }
+        );
+        promise.get_future().get();
         return std::move(*result);
     }
 
-    template <typename T>
-    auto sync_await(asio::io_context & ctx, asio::awaitable<T> && awaitable) {
-        std::optional<T> result;
-        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
-            result = co_await std::forward<typename asio::awaitable<T>>(awaitable);
-        }, asio::detached);
-        ctx.run();
-        ctx.restart();
-        return std::move(*result);
-    }
-
-    inline void sync_await(asio::awaitable<void> && awaitable) {
-        asio::io_context ctx;
-        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
-            co_await std::forward<typename asio::awaitable<void>>(awaitable);
-        }, asio::detached);
-        ctx.run();
-    }
-
-    inline void sync_await(asio::io_context & ctx, asio::awaitable<void> && awaitable) {
-        asio::co_spawn(ctx, [&]() -> asio::awaitable<void> {
-            co_await std::forward<typename asio::awaitable<void>>(awaitable);
-        }, asio::detached);
-        ctx.run();
-        ctx.restart();
+    template <typename ExecutionContextType>
+    inline void sync_await(ExecutionContextType & ctx, asio::awaitable<void> && awaitable) {
+        std::promise<bool> promise;
+        asio::co_spawn(ctx, 
+            [&]() -> asio::awaitable<void> {
+                co_await std::move(awaitable);
+            },
+            [&promise](std::exception_ptr) {
+                promise.set_value(true);
+            }
+        );
+        promise.get_future().get();
     }
 
 }

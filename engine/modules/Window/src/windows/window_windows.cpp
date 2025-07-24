@@ -8,17 +8,16 @@ namespace astre::window
      * 
      * @return A new window
      */
-    asio::awaitable<Window> createWindowAsync(asio::io_context & io_context, process::IProcess & process, const std::string & title, unsigned int width, unsigned int height)
+    asio::awaitable<Window> createWindow(process::IProcess & process, const std::string & title, unsigned int width, unsigned int height)
     {
         auto window_handle = co_await process.registerWindow(title, width, height);
-        co_return Window(std::in_place_type<windows::WinapiWindow>, io_context, process, window_handle, width, height);
+        co_return Window(std::in_place_type<windows::WinapiWindow>, process, window_handle, width, height);
     }
 }
 namespace astre::window::windows
 {
-    WinapiWindow::WinapiWindow(asio::io_context & io_context, process::IProcess & process, native::window_handle window_handle, unsigned int width, unsigned int height)
-    :   _io_context(io_context),
-        _strand(asio::make_strand(io_context)),
+    WinapiWindow::WinapiWindow(process::IProcess & process, native::window_handle window_handle, unsigned int width, unsigned int height)
+    :   _async_context(process.getExecutionContext()),
         _process(process),
         _window_handle(window_handle),
         _width(width),
@@ -29,8 +28,7 @@ namespace astre::window::windows
     }
 
     WinapiWindow::WinapiWindow(WinapiWindow && other)
-    :   _io_context(other._io_context),
-        _strand(std::move(other._strand)),
+    :   _async_context(std::move(other._async_context)),
         _window_handle(other._window_handle),
         _process(other._process),
         _width(other._width),
@@ -51,9 +49,7 @@ namespace astre::window::windows
 
     asio::awaitable<void> WinapiWindow::show()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
         ShowWindowAsync(_window_handle, SW_SHOW);
         co_return;
@@ -61,9 +57,7 @@ namespace astre::window::windows
 
     asio::awaitable<void> WinapiWindow::hide()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
         ShowWindowAsync(_window_handle, SW_HIDE);
         co_return;
@@ -91,9 +85,7 @@ namespace astre::window::windows
     
     asio::awaitable<void> WinapiWindow::close()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
         if(_window_handle == nullptr)co_return;
 

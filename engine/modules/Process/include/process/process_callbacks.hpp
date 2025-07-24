@@ -3,12 +3,13 @@
 #include <functional>
 
 #include <asio.hpp>
+#include "async/async.hpp"
 
 namespace astre::process
 {
     struct WindowCallbacks
     {
-        asio::any_io_executor executor;
+        async::AsyncContext<asio::thread_pool> context;
         
         std::function<asio::awaitable<void>()> onDestroy;
         std::function<asio::awaitable<void>(int, int)> onResize;

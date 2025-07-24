@@ -14,20 +14,18 @@ using namespace astre::render::opengl;
 
 class OpenGLShaderRealContextTest : public ::testing::Test {
 protected:
-    asio::io_context io_ctx;
-
     process::Process process;
     window::Window window;
     native::device_context dc = nullptr;
     native::opengl_context_handle ogl_context = nullptr;
 
     OpenGLShaderRealContextTest()
-        :   process(process::createProcess()),
-            window(sync_await(window::createWindowAsync(io_ctx, *process, "Test Window", 640, 480)))
+        :   process(process::createProcess(1)),
+            window(sync_await(process->getExecutionContext(), window::createWindow( *process, "Test Window", 640, 480)))
     {        
         dc = window->acquireDeviceContext();
         
-        ogl_context = sync_await(process->registerOGLContext(window->getHandle(), 3, 3));
+        ogl_context = sync_await(process->getExecutionContext(), process->registerOGLContext(window->getHandle(), 3, 3));
         EXPECT_NE(ogl_context, nullptr);
 
         #ifdef WIN32
@@ -42,12 +40,12 @@ protected:
         #endif
 
         if (ogl_context) {
-            sync_await(process->unregisterOGLContext(ogl_context));
+            sync_await(process->getExecutionContext(), process->unregisterOGLContext(ogl_context));
         }
 
         EXPECT_TRUE(window->releaseDeviceContext(dc));
 
-        sync_await(io_ctx, window->close());
+        sync_await(process->getExecutionContext(), window->close());
 
         process->join();
     }

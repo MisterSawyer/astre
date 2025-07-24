@@ -29,6 +29,7 @@ add_module(NAME "Window"
         asio
         
         astre::Native
+        astre::Async
         astre::Formatter
         astre::Type
         astre::Process

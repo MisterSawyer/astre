@@ -1,29 +1,29 @@
-#include "process/process.hpp"
 #include "process/windows/process_windows.hpp"
 
 namespace astre::process
 {
-    Process createProcess()
+    Process createProcess(unsigned int number_of_threads)
     {
-        return Process(std::in_place_type<windows::WinapiProcess>);
+        return Process(std::in_place_type<windows::WinapiProcess>, number_of_threads);
     }
 }
 
 namespace astre::process::windows
 {
-    WinapiProcess::WinapiProcess()
+    WinapiProcess::WinapiProcess(unsigned int number_of_threads)
     :   _default_oglctx_handle(nullptr),
         _cursor_visible(true),
         _io_context(1),
-        _strand(asio::make_strand(_io_context)),
-        _io_thread(&WinapiProcess::messageLoop, this)
+        _io_thread(&WinapiProcess::messageLoop, this),
+        _async_context(_io_context),
+        _execution_context(number_of_threads)
     {
-        spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess constructor called", std::this_thread::get_id()));
+        spdlog::debug("[winapi] WinapiProcess constructor called");
     }
 
     WinapiProcess::~WinapiProcess()
     {
-        spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess destructor called", std::this_thread::get_id()));
+        spdlog::debug("[winapi]WinapiProcess destructor called");
 
         if(_io_thread.joinable()) join();
 
@@ -33,24 +33,39 @@ namespace astre::process::windows
         assert(_default_oglctx_handle == nullptr);
     }
     
+
+    const IProcess::execution_context_type & WinapiProcess::getExecutionContext() const
+    {
+        return _execution_context;
+    }
+
+    IProcess::execution_context_type & WinapiProcess::getExecutionContext()
+    {
+        return _execution_context;
+    }
+
     void WinapiProcess::join()
     {
-        spdlog::debug(std::format("[winapi] [t:{}] WinApi process joining", std::this_thread::get_id()));
+        // wait for all consumers tasks to finish
+        _execution_context.join();
         
+        spdlog::debug("[winapi]WinApi process joining");
+
         // request thread to close
         asio::co_spawn(_io_context, close(), asio::detached);
 
+        // join IO thread
         if(_io_thread.joinable()){
-            spdlog::debug(std::format("[winapi] [t:{}] WinApi process waiting for thread join ... ", std::this_thread::get_id()));
+            spdlog::debug("[winapi] WinApi process waiting for thread join ... ");
             _io_thread.join();
         }
         
-        spdlog::debug(std::format("[winapi] [t:{}] WinApi process thread joined", std::this_thread::get_id()));
+        spdlog::debug("[winapi] WinApi process thread joined");
     }
 
     asio::awaitable<void> WinapiProcess::close()
     {
-        spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess clearing data", std::this_thread::get_id()));
+        spdlog::debug("[winapi] WinapiProcess clearing data");
 
         while(_oglctx_handles.empty() == false){
             co_await unregisterOGLContext(*(_oglctx_handles.begin()));
@@ -66,7 +81,7 @@ namespace astre::process::windows
             unregisterClass(_registered_classes.begin()->first);
         }
 
-        spdlog::debug(std::format("[winapi] [t:{}] WinapiProcess stopping and closing", std::this_thread::get_id()));
+        spdlog::debug("[winapi]  WinapiProcess stopping and closing");
 
         PostQuitMessage(0);
     }
@@ -123,11 +138,9 @@ namespace astre::process::windows
 
     asio::awaitable<native::window_handle> WinapiProcess::registerWindow(std::string name, unsigned int width, unsigned int height)
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
-        spdlog::debug(std::format("[winapi] [t:{}] registerWindow", std::this_thread::get_id()));
+        spdlog::debug("[winapi] registerWindow");
 
         const std::string class_name = "WINAPI:window";
 
@@ -198,7 +211,7 @@ namespace astre::process::windows
 
         _window_handles.try_emplace(window_handle, std::nullopt);
 
-        spdlog::info(std::format("[winapi] [t:{}] Window {} created", std::this_thread::get_id(), window_handle));
+        spdlog::info(std::format("[winapi] Window {} created", window_handle));
 
         RAWINPUTDEVICE rid;
         rid.usUsagePage = 0x01; // Generic desktop controls
@@ -217,11 +230,9 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::unregisterWindow(native::window_handle window)
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
-        spdlog::debug(std::format("[winapi] [t:{}] unregistering Window {} ...", std::this_thread::get_id(), window));
+        spdlog::debug(std::format("[winapi] unregistering Window {} ...", window));
 
         if(_window_handles.contains(window) == false){
             spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
@@ -239,11 +250,9 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks)
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
-        spdlog::debug(std::format("[winapi] [t:{}] setWindowCallbacks", std::this_thread::get_id()));
+        spdlog::debug("[winapi] setWindowCallbacks");
 
         if(_window_handles.contains(window) == false){
             spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
@@ -343,9 +352,7 @@ namespace astre::process::windows
 
     asio::awaitable<native::opengl_context_handle> WinapiProcess::registerOGLContext(native::window_handle window_handle, unsigned int major_version, unsigned int minor_version)
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
 
         if(window_handle == nullptr){
             spdlog::error(std::format("[winapi-procedure] cannot construct OGLContext on empty window "));
@@ -401,11 +408,9 @@ namespace astre::process::windows
 
     asio::awaitable<bool> WinapiProcess::unregisterOGLContext(native::opengl_context_handle oglctx)
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
         
-        spdlog::debug(std::format("[winapi] [t:{}] unregistering OGLContext {} ...", std::this_thread::get_id(), oglctx));
+        spdlog::debug(std::format("[winapi] unregistering OGLContext {} ...", oglctx));
 
         if(oglctx == nullptr)
         {
@@ -435,18 +440,16 @@ namespace astre::process::windows
 
     asio::awaitable<void> WinapiProcess::showCursor()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
+
         _cursor_visible = true;
         ShowCursor(TRUE);
     }
 
     asio::awaitable<void> WinapiProcess::hideCursor()
     {
-        if(!_strand.running_in_this_thread()){
-            co_await asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-        }
+        co_await _async_context.ensureOnStrand();
+
         _cursor_visible = false;
         ShowCursor(FALSE);
     }
@@ -499,7 +502,7 @@ namespace astre::process::windows
             {
                 // spawn onDestroy callback on window_callbacks executor
                 // it will handle the window destruction
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onDestroy(), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onDestroy());
             }
             else
             {
@@ -523,7 +526,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onResize != nullptr)
             {
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onResize((int)LOWORD(lparam), (int)HIWORD(lparam)), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onResize((int)LOWORD(lparam), (int)HIWORD(lparam)));
             }
             return handling_result;
         }
@@ -535,7 +538,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onKeyPress != nullptr)
             {
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onKeyPress(key), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onKeyPress(key));
             }
             return handling_result;
         }
@@ -547,7 +550,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onKeyRelease != nullptr)
             {
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onKeyRelease(key), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onKeyRelease(key));
             }
             return handling_result;
         }
@@ -573,14 +576,14 @@ namespace astre::process::windows
                 POINT client_pos = screen_pos;
                 ScreenToClient(window, &client_pos);
 
-                asio::co_spawn(
-                    window_callbacks.executor,
-                    window_callbacks.onMouseMove(
-                        (float)client_pos.x, (float)client_pos.y,
-                        (float)dx, (float)dy
-                    ),
-                    asio::detached
-                );
+                if(window_callbacks.onMouseMove != nullptr){
+                    window_callbacks.context.co_spawn(
+                        window_callbacks.onMouseMove(
+                            (float)client_pos.x, (float)client_pos.y,
+                            (float)dx, (float)dy
+                        )
+                    );
+                }
             }
 
             if(_cursor_visible == false)
@@ -604,7 +607,7 @@ namespace astre::process::windows
         {
             if (window_callbacks.onMouseButtonDown)
             {
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onMouseButtonDown(MK_LBUTTON), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onMouseButtonDown(MK_LBUTTON));
             }
             return 0;
         }
@@ -613,7 +616,7 @@ namespace astre::process::windows
         {
             if (window_callbacks.onMouseButtonUp)
             {
-                asio::co_spawn(window_callbacks.executor, window_callbacks.onMouseButtonUp(MK_LBUTTON), asio::detached);
+                window_callbacks.context.co_spawn(window_callbacks.onMouseButtonUp(MK_LBUTTON));
             }
             return 0;
         }
@@ -625,7 +628,7 @@ namespace astre::process::windows
 
     void WinapiProcess::messageLoop() 
     { 
-        spdlog::debug(std::format("[winapi-procedure] [t:{}] Message loop started", std::this_thread::get_id()));
+        spdlog::debug("[winapi-procedure] Message loop started");
 
         MSG msgcontainer;
         bool working = true;
@@ -640,7 +643,7 @@ namespace astre::process::windows
                 {
                     case WM_QUIT: 
                     {
-                        spdlog::debug(std::format("[winapi-procedure] [t:{}]Input thread received WM_QUIT", std::this_thread::get_id()));
+                        spdlog::debug("[winapi-procedure] Input thread received WM_QUIT");
 
                         // handle rest of messages
                         while(PeekMessage(&msgcontainer, 0, 0, 0, PM_REMOVE) != 0)
