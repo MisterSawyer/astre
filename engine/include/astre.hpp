@@ -12,6 +12,7 @@
 #include "render/render.hpp"
 #include "ecs/ecs.hpp"
 #include "asset/asset.hpp"
+#include "pipeline/pipeline.hpp"
 
 namespace astre
 {

@@ -152,6 +152,7 @@ namespace astre::process::windows
         spdlog::debug("[winapi]  WinapiProcess stopping and closing");
 
         PostQuitMessage(0);
+        _procedure_context.close();
     }
 
     bool WinapiProcess::registerClass( const WNDCLASSEX & class_structure)

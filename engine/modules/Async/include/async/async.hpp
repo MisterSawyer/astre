@@ -37,10 +37,10 @@ namespace astre::async
                 return noop();
             }
 
-            template<typename Awaitable>
-            void co_spawn(Awaitable&& awaitable) const
+            template<typename T>
+            void co_spawn(asio::awaitable<T> && awaitable) const
             {
-                asio::co_spawn(_strand, std::forward<Awaitable>(awaitable), asio::detached);
+                asio::co_spawn(_strand, std::forward<typename asio::awaitable<T>>(awaitable), asio::detached);
             }
 
         private:

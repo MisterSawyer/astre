@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "unit_tests.hpp"
 #include "async/async.hpp"
+
+#include "process/process.hpp"
 #include "process/windows/process_windows.hpp"
 
 using namespace astre::tests;

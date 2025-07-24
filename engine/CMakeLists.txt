@@ -19,6 +19,7 @@ target_include_directories("${PROJECT_NAME}Engine"
 target_link_libraries("${PROJECT_NAME}Engine"
     PUBLIC
         astre::Math
+        Math_proto
         astre::Native
         astre::Async
         astre::Version
@@ -29,7 +30,9 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Window
         astre::Render
         astre::ECS
+        ECS_proto
         astre::Asset
+        astre::Pipeline
 
     PUBLIC
         spdlog

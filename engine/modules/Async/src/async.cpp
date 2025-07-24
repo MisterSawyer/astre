@@ -21,7 +21,6 @@ namespace astre::async
     void ThreadContext::join()
     {
         if(_thread.joinable() == false)return;
-        close();
         _thread.join();
     }
 
