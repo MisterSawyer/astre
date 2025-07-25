@@ -93,9 +93,9 @@ namespace astre::type
             virtual ~ModelBase() = default;
 
             // access implementation object
-            constexpr inline ImplType & impl(){return _impl;}
+            inline ImplType & impl(){return _impl;}
             // access const implementation object
-            constexpr inline const ImplType & impl() const {return _impl;}
+            inline const ImplType & impl() const {return _impl;}
 
         private:
             ImplType _impl;
@@ -287,21 +287,21 @@ namespace astre::type
             virtual ~Implementation() = default;
 
             // access object
-            constexpr inline interface_t & operator*() noexcept {return *_impl; }
+            inline interface_t & operator*() noexcept {return *_impl; }
             // access const object
-            constexpr inline const interface_t & operator*() const noexcept{return *_impl; }
+            inline const interface_t & operator*() const noexcept{return *_impl; }
             // access object pointer
-            constexpr inline interface_t * operator->() noexcept {return _impl.operator->(); }
+            inline interface_t * operator->() noexcept {return _impl.operator->(); }
             // access const object pointer
-            constexpr inline const interface_t * operator->() const noexcept{return _impl.operator->(); }
+            inline const interface_t * operator->() const noexcept{return _impl.operator->(); }
 
             // access object pointer
-            constexpr inline const interface_t* get() const noexcept { return _impl.operator->(); }
+            inline const interface_t* get() const noexcept { return _impl.operator->(); }
             // access const object pointer
-            constexpr inline interface_t* get() noexcept { return _impl.operator->(); }
+            inline interface_t* get() noexcept { return _impl.operator->(); }
 
             // checks whether own implementation object
-            constexpr explicit operator bool() const noexcept { return bool(_impl);}
+            explicit operator bool() const noexcept { return bool(_impl);}
 
         private:
             SBO<InterfaceType, ModelTemplate> _impl;

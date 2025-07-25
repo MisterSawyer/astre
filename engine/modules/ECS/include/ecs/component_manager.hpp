@@ -61,7 +61,7 @@ namespace astre::ecs
              * 
              * @return A pointer to the component, or nullptr if not found.
              */
-            constexpr inline Component* get(Entity entity)
+            inline Component* get(Entity entity)
             {
                 auto it = _components.find(entity);
                 if (it != _components.end()) {
@@ -77,7 +77,7 @@ namespace astre::ecs
              * 
              * @return A pointer to the component, or nullptr if not found.
              */
-            constexpr inline const Component* get(Entity entity) const
+            inline const Component* get(Entity entity) const
             {
                 auto it = _components.find(entity);
                 if (it != _components.end()) {

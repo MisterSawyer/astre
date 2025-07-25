@@ -132,7 +132,7 @@ namespace astre::render
      * @note The hash value is computed using the absl::Hash API.
      */
     template <typename H>
-    constexpr inline H AbslHashValue(H h, const Texture & vb) {
+    inline H AbslHashValue(H h, const Texture & vb) {
         return H::combine(std::move(h), vb->ID());
     }
 
@@ -145,7 +145,7 @@ namespace astre::render
      * 
      * @note This function checks if two Textures are equal by comparing their IDs.
      */
-    constexpr inline bool operator==(const Texture & lhs, const Texture & rhs){
+    inline bool operator==(const Texture & lhs, const Texture & rhs){
         return lhs->ID() == rhs->ID();
     }
 }

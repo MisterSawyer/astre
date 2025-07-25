@@ -146,7 +146,7 @@ namespace astre::render
      * @return The absolute hash value of the FrameBufferObject.
      */
     template <typename H>
-    constexpr inline H AbslHashValue(H h, const FrameBufferObject & vb) {
+    inline H AbslHashValue(H h, const FrameBufferObject & vb) {
         return H::combine(std::move(h), vb->ID());
     }
 
@@ -157,7 +157,7 @@ namespace astre::render
      * @param rhs The second FrameBufferObject.
      * @return True if the IDs of the two FrameBufferObjects are equal, false otherwise.
      */
-    constexpr inline bool operator==(const FrameBufferObject & lhs, const FrameBufferObject & rhs){
+    inline bool operator==(const FrameBufferObject & lhs, const FrameBufferObject & rhs){
         return lhs->ID() == rhs->ID();
     }
 }

@@ -268,5 +268,5 @@ if(ASTRE_BUILD_TESTS)
         SYSTEM
     )
     FetchContent_MakeAvailable(googletest)
-    silence_warnings(TARGETS gtest gtest_main gmock)
+    silence_warnings(TARGETS gtest gtest_main gmock gmock_main)
 endif()

@@ -17,6 +17,9 @@ if (MSVC)
     # https://cmake.org/cmake/help/latest/policy/CMP0091.html
     cmake_policy(SET CMP0091 NEW)
 
+    # https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt
+    add_compile_definitions(_WIN32_WINNT=0x0A00) # Windows 10
+
     message(STATUS "Configuring for MSVC compiler")
     message(STATUS "MSVC version: ${MSVC_VERSION}")
     

@@ -103,7 +103,7 @@ namespace astre::render
      *  @note The hash value is computed using the absl::Hash API.
      */
     template <typename H>
-    constexpr inline H AbslHashValue(H h, const RenderBuffer & vb) {
+    inline H AbslHashValue(H h, const RenderBuffer & vb) {
         return H::combine(std::move(h), vb->ID());
     }
 
@@ -114,7 +114,7 @@ namespace astre::render
      * @param rhs The second RenderBuffer.
      * @return True if the IDs of the two RenderBuffers are equal, false otherwise.
      */
-    constexpr inline bool operator==(const RenderBuffer & lhs, const RenderBuffer & rhs){
+    inline bool operator==(const RenderBuffer & lhs, const RenderBuffer & rhs){
         return lhs->ID() == rhs->ID();
     }
 }

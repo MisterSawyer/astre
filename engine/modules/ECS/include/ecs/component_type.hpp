@@ -17,7 +17,7 @@ namespace astre::ecs
          * @return The unique type ID for the component.
          */
         template<typename Component>
-        constexpr inline static const uint32_t getTypeID() 
+        inline static const uint32_t getTypeID() 
         {
             static const uint32_t id = _COUNTER++;
             assert(id < MAX_COMPONENT_TYPES);

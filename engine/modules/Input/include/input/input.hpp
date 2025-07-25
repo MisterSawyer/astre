@@ -18,7 +18,7 @@ namespace astre::input
     InputCode keyToInputCode(const std::string & key_name);
 
     template<class T>
-    constexpr inline bool isInputPresent(InputCode code, const T & keys_set)
+    inline bool isInputPresent(InputCode code, const T & keys_set)
     {
         return std::find(keys_set.begin(), keys_set.end(), code) != keys_set.end();
     }

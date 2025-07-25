@@ -116,7 +116,7 @@ namespace astre::render
      * @note The hash value is computed using the absl::Hash API.
      */
     template <typename H>
-    constexpr inline H AbslHashValue(H h, const VertexBuffer & vb) {
+    inline H AbslHashValue(H h, const VertexBuffer & vb) {
         return H::combine(std::move(h), vb->ID());
     }
 
@@ -127,7 +127,7 @@ namespace astre::render
      * @param rhs The second VertexBuffer.
      * @return True if the IDs of the two VertexBuffers are equal, false otherwise.
      */
-    constexpr inline bool operator==(const VertexBuffer & lhs, const VertexBuffer & rhs){
+    inline bool operator==(const VertexBuffer & lhs, const VertexBuffer & rhs){
         return lhs->ID() == rhs->ID();
     }
 }

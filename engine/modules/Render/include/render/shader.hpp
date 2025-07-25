@@ -247,11 +247,11 @@ namespace astre::render
     };
 
     template <typename H>
-    constexpr inline H AbslHashValue(H h, const Shader & shader) {
+    inline H AbslHashValue(H h, const Shader & shader) {
         return H::combine(std::move(h), shader->ID());
     }
 
-    constexpr inline bool operator==(const Shader & lhs, const Shader & rhs){
+    inline bool operator==(const Shader & lhs, const Shader & rhs){
         return lhs->ID() == rhs->ID();
     }
 }
