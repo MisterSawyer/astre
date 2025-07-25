@@ -11,10 +11,8 @@
 #include <asio.hpp>
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
+#include "math/math.hpp"
 #include "async/async.hpp"
 #include "formatter/formatter.hpp"
 #include "process/process.hpp"
@@ -74,7 +72,7 @@ namespace astre::render::opengl
 
             asio::awaitable<void> close();
 
-            asio::awaitable<void> clearScreen(glm::vec4 color, std::optional<std::size_t> fbo);
+            asio::awaitable<void> clearScreen(math::Vec4 color, std::optional<std::size_t> fbo);
             asio::awaitable<void> render(std::size_t vertex_buffer,
                 std::size_t shader,
                 ShaderInputs shader_inputs,

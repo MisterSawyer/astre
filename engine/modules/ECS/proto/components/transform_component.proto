@@ -6,15 +6,15 @@ package astre.ecs;
 
 message TransformComponent 
 {
-    astre.math.Vec3 position = 1;
-    astre.math.Quat rotation = 2;
-    astre.math.Vec3 scale = 3;
+    astre.math.Vec3Serialized position = 1;
+    astre.math.QuatSerialized rotation = 2;
+    astre.math.Vec3Serialized scale = 3;
 
-    astre.math.Vec3 prev_position = 4;
-    astre.math.Quat prev_rotation = 5;
-    astre.math.Vec3 prev_scale = 6;
+    astre.math.Vec3Serialized prev_position = 4;
+    astre.math.QuatSerialized prev_rotation = 5;
+    astre.math.Vec3Serialized prev_scale = 6;
 
-    astre.math.Vec3 forward = 7;
-    astre.math.Vec3 right = 8;
-    astre.math.Vec3 up = 9;
+    astre.math.Vec3Serialized forward = 7;
+    astre.math.Vec3Serialized right = 8;
+    astre.math.Vec3Serialized up = 9;
 }

@@ -7,9 +7,9 @@
 #include <GL/glew.h>
 
 #include <absl/container/flat_hash_map.h>
-#include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
+#include "math/math.hpp"
 #include "process/process.hpp"
 
 #include "render/vertex.hpp"
@@ -39,14 +39,14 @@ namespace astre::render::opengl
         void setUniform(const std::string & name, int value);
         void setUniform(const std::string & name, float value);
 
-        void setUniform(const std::string & name, const glm::vec2 & value);
-        void setUniform(const std::string & name, const glm::vec3 & value);
-        void setUniform(const std::string & name, const glm::vec4 & value);
+        void setUniform(const std::string & name, const math::Vec2 & value);
+        void setUniform(const std::string & name, const math::Vec3 & value);
+        void setUniform(const std::string & name, const math::Vec4 & value);
 
-        void setUniform(const std::string & name, const glm::mat2 & value);
-        void setUniform(const std::string & name, const glm::mat3 & value);
-        void setUniform(const std::string & name, const glm::mat4 & value);
-        void setUniform(const std::string & name, const std::vector<glm::mat4> & values);
+        void setUniform(const std::string & name, const math::Mat2 & value);
+        void setUniform(const std::string & name, const math::Mat3 & value);
+        void setUniform(const std::string & name, const math::Mat4 & value);
+        void setUniform(const std::string & name, const std::vector<math::Mat4> & values);
 
         void setUniform(const std::string & name, unsigned int unit, const ITexture & value);
         void setUniform(const std::string & name, unsigned int unit, const std::vector<ITexture*> & values);

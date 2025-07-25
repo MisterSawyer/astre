@@ -52,7 +52,7 @@ namespace astre::render
          * @param color Color to clear the screen with
          * @return asio::awaitable<void> 
          */
-        virtual asio::awaitable<void> clearScreen(glm::vec4 color, std::optional<std::size_t> fbo = std::nullopt) = 0;
+        virtual asio::awaitable<void> clearScreen(math::Vec4 color, std::optional<std::size_t> fbo = std::nullopt) = 0;
 
         /**
          * @brief Render a vertex buffer using a specified shader.
@@ -278,7 +278,7 @@ namespace astre::render
             inline asio::awaitable<void> close() override { return base::impl().close();}
             inline void join() override { return base::impl().join();}
 
-            inline asio::awaitable<void> clearScreen(glm::vec4 color, std::optional<std::size_t> fbo) override { 
+            inline asio::awaitable<void> clearScreen(math::Vec4 color, std::optional<std::size_t> fbo) override { 
                 return base::impl().clearScreen(std::move(color), std::move(fbo));
             }
 

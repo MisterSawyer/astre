@@ -9,6 +9,6 @@ message VisualComponent
     bool visible = 1;
     string vertex_buffer_name = 2;
     string shader_name = 3;
-    astre.math.Vec4 color = 4;
-    astre.math.Mat4 model_matrix = 5;
+    astre.math.Vec4Serialized color = 4;
+    astre.math.Mat4Serialized model_matrix = 5;
 }

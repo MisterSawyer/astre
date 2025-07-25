@@ -1,6 +1,6 @@
 include("${PROJECT_SOURCE_DIR}/cmake/add_module.cmake")
 
-add_module(NAME "Asset"
+add_module(NAME "World"
     INCLUDE_DIRS
         "include"
     SOURCE_DIRS
@@ -9,10 +9,11 @@ add_module(NAME "Asset"
     DEPENDENCIES
         asio
         absl::flat_hash_map
-        spdlog
-        
+        #glm
+
+        astre::Math
         astre::Native
         astre::Type
-        astre::Render
         astre::ECS
+        astre::Asset
 )

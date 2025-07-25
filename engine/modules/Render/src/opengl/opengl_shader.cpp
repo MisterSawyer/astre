@@ -397,67 +397,67 @@ namespace astre::render::opengl
         glUniform1f(_uniforms.at(name).first, value);
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const glm::vec2 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Vec2 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniform2fv(_uniforms.at(name).first, 1, glm::value_ptr(value));
+        glUniform2fv(_uniforms.at(name).first, 1, math::value_ptr(value));
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const glm::vec3 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Vec3 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniform3fv(_uniforms.at(name).first, 1, glm::value_ptr(value));
+        glUniform3fv(_uniforms.at(name).first, 1, math::value_ptr(value));
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const glm::vec4 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Vec4 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniform4fv(_uniforms.at(name).first, 1, glm::value_ptr(value));
+        glUniform4fv(_uniforms.at(name).first, 1, math::value_ptr(value));
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const glm::mat2 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Mat2 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniformMatrix2fv(_uniforms.at(name).first, 1, GL_FALSE, glm::value_ptr(value));
+        glUniformMatrix2fv(_uniforms.at(name).first, 1, GL_FALSE, math::value_ptr(value));
     }
         
-    void OpenGLShader::setUniform(const std::string & name, const glm::mat3 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Mat3 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniformMatrix3fv(_uniforms.at(name).first, 1, GL_FALSE, glm::value_ptr(value));
+        glUniformMatrix3fv(_uniforms.at(name).first, 1, GL_FALSE, math::value_ptr(value));
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const glm::mat4 & value)
+    void OpenGLShader::setUniform(const std::string & name, const math::Mat4 & value)
     {
         if(_uniforms.contains(name) == false)
         {
             spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
             return;
         }
-        glUniformMatrix4fv(_uniforms.at(name).first, 1, GL_FALSE, glm::value_ptr(value));
+        glUniformMatrix4fv(_uniforms.at(name).first, 1, GL_FALSE, math::value_ptr(value));
     }
 
-    void OpenGLShader::setUniform(const std::string & name, const std::vector<glm::mat4> & values)
+    void OpenGLShader::setUniform(const std::string & name, const std::vector<math::Mat4> & values)
     {
         const std::string array_name = name + "[0]";
         if(_uniforms.contains(array_name) == false)
@@ -473,7 +473,7 @@ namespace astre::render::opengl
             return;
         }
 
-        glUniformMatrix4fv(_uniforms.at(array_name).first, values.size(), GL_FALSE, glm::value_ptr(values[0]));
+        glUniformMatrix4fv(_uniforms.at(array_name).first, values.size(), GL_FALSE, math::value_ptr(values[0]));
     }
 
     void OpenGLShader::setUniform(const std::string & name, unsigned int unit, const ITexture & value)

@@ -8,8 +8,8 @@
 
 #include "render/render.hpp"
 
-#include "asset/component_loader.hpp"
-#include "asset/component_serializer.hpp"
+#include "asset/entity_loader.hpp"
+#include "asset/entity_serializer.hpp"
 
 namespace astre::asset
 {

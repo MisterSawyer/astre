@@ -41,4 +41,27 @@ namespace astre::ecs
 
         return _names_to_entities.at(name);
     }
+
+    void Registry::destroyEntity(Entity entity)
+    {
+        if(_entities_to_names.contains(entity))
+        {
+            _names_to_entities.erase(_entities_to_names.at(entity));
+            _entities_to_names.erase(entity);
+
+            _entities.destroyEntity(entity);
+        }
+    }
+
+    std::optional<Entity> Registry::getEntity(std::string name) const
+    {
+        if(!_names_to_entities.contains(name)) return std::nullopt;
+        return _names_to_entities.at(name);
+    }
+    std::optional<std::string> Registry::getName(Entity entity) const
+    {
+        if(!_entities_to_names.contains(entity)) return std::nullopt;
+        return _entities_to_names.at(entity);
+    }
+
 }

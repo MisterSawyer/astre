@@ -15,19 +15,19 @@ namespace astre::asset
     */
     using ComponentSerializer = std::function<void(const ecs::Entity, const ecs::Registry &, ecs::EntityDefinition &)>;
 
-    class ComponentSerializerRegistry
+    class EntitySerializer
     {
     public:
-        ComponentSerializerRegistry();
-        inline ComponentSerializerRegistry(ComponentSerializerRegistry && other) = default;
-        inline ComponentSerializerRegistry& operator=(ComponentSerializerRegistry && other) = default;
-        ComponentSerializerRegistry(const ComponentSerializerRegistry &) = delete;
-        ComponentSerializerRegistry& operator=(const ComponentSerializerRegistry &) = delete;
+        EntitySerializer();
+        inline EntitySerializer(EntitySerializer && other) = default;
+        inline EntitySerializer& operator=(EntitySerializer && other) = default;
+        EntitySerializer(const EntitySerializer &) = delete;
+        EntitySerializer& operator=(const EntitySerializer &) = delete;
 
         ecs::EntityDefinition serializeEntity(ecs::Entity entity, const ecs::Registry & registry) const;
 
     private:
-        void registerSerializer(const std::string& name, ComponentSerializer serializer);
+        void registerComponentSerializer(const std::string& name, ComponentSerializer serializer);
 
         absl::flat_hash_map<std::string, ComponentSerializer> _serializers;
     };

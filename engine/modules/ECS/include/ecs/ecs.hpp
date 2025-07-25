@@ -63,6 +63,10 @@ namespace astre::ecs
             }
 
             std::optional<Entity> createEntity(std::string name);
+            void destroyEntity(Entity entity);
+            
+            std::optional<Entity> getEntity(std::string name) const;
+            std::optional<std::string> getName(Entity entity) const;
 
         private:
             EntityManager _entities;

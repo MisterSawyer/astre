@@ -30,6 +30,7 @@ namespace astre::ecs
 
     void EntityManager::destroyEntity(Entity entity)
     {
+        assert(_masks.contains(entity));
         _masks.erase(entity);
     }
 

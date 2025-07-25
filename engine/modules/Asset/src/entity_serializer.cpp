@@ -1,4 +1,6 @@
-#include "asset/component_serializer.hpp"
+#include <spdlog/spdlog.h>
+
+#include "asset/entity_serializer.hpp"
 
 namespace astre::asset
 {
@@ -16,48 +18,54 @@ namespace astre::asset
             };
     }
 
-    ComponentSerializerRegistry::ComponentSerializerRegistry()
+    EntitySerializer::EntitySerializer()
     {
-        registerSerializer("TransformComponent",
+        registerComponentSerializer("TransformComponent",
             _constructComponentSerializer<ecs::TransformComponent>(&ecs::EntityDefinition::mutable_transform) 
         );
 
-        registerSerializer("VisualComponent", 
+        registerComponentSerializer("VisualComponent", 
             _constructComponentSerializer<ecs::VisualComponent>(&ecs::EntityDefinition::mutable_visual)
         );
 
-        registerSerializer("InputComponent",
+        registerComponentSerializer("InputComponent",
             _constructComponentSerializer<ecs::InputComponent>(&ecs::EntityDefinition::mutable_input)
         );
 
-        registerSerializer("HealthComponent",
+        registerComponentSerializer("HealthComponent",
             _constructComponentSerializer<ecs::HealthComponent>(&ecs::EntityDefinition::mutable_health)
         );
 
-        registerSerializer("CameraComponent", 
+        registerComponentSerializer("CameraComponent", 
             _constructComponentSerializer<ecs::CameraComponent>(&ecs::EntityDefinition::mutable_camera)
         );
 
-        registerSerializer("TerrainComponent", 
+        registerComponentSerializer("TerrainComponent", 
             _constructComponentSerializer<ecs::TerrainComponent>(&ecs::EntityDefinition::mutable_terrain)
         );
 
-        registerSerializer("LightComponent", 
+        registerComponentSerializer("LightComponent", 
             _constructComponentSerializer<ecs::LightComponent>(&ecs::EntityDefinition::mutable_light)
         );
 
-        registerSerializer("ScriptComponent", 
+        registerComponentSerializer("ScriptComponent", 
             _constructComponentSerializer<ecs::ScriptComponent>(&ecs::EntityDefinition::mutable_script)
         );
     }
 
-    void ComponentSerializerRegistry::registerSerializer(const std::string& name, ComponentSerializer serializer)
+    void EntitySerializer::registerComponentSerializer(const std::string& name, ComponentSerializer serializer)
     {
         _serializers[name] = std::move(serializer);
     }
 
-    ecs::EntityDefinition ComponentSerializerRegistry::serializeEntity(const ecs::Entity entity, const ecs::Registry & registry) const {
+    ecs::EntityDefinition EntitySerializer::serializeEntity(const ecs::Entity entity, const ecs::Registry & registry) const {
         ecs::EntityDefinition entity_def;
+        auto name_res = registry.getName(entity);
+        if (name_res.has_value() == false) {
+            spdlog::error("Entity {} has no name", entity);
+            throw std::runtime_error("Entity has no name");
+        }
+        entity_def.set_name(name_res.value());
         for (const auto& [name, serializer] : _serializers) {
             serializer(entity, registry, entity_def);
         }

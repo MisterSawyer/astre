@@ -4,10 +4,10 @@
 #include <string>
 #include <utility>
 
-#include <glm/glm.hpp>
 #include <absl/container/flat_hash_map.h>
 
 #include "type/type.hpp"
+#include "math/math.hpp"
 
 #include "render/texture.hpp"
 
@@ -24,14 +24,14 @@ namespace astre::render
         absl::flat_hash_map<std::string, int> in_int;
         absl::flat_hash_map<std::string, float> in_float;
 
-        absl::flat_hash_map<std::string, glm::vec2> in_vec2;
-        absl::flat_hash_map<std::string, glm::vec3> in_vec3;
-        absl::flat_hash_map<std::string, glm::vec4> in_vec4;
+        absl::flat_hash_map<std::string, math::Vec2> in_vec2;
+        absl::flat_hash_map<std::string, math::Vec3> in_vec3;
+        absl::flat_hash_map<std::string, math::Vec4> in_vec4;
 
-        absl::flat_hash_map<std::string, glm::mat2> in_mat2;
-        absl::flat_hash_map<std::string, glm::mat3> in_mat3;
-        absl::flat_hash_map<std::string, glm::mat4> in_mat4;
-        absl::flat_hash_map<std::string, std::vector<glm::mat4>> in_mat4_array;
+        absl::flat_hash_map<std::string, math::Mat2> in_mat2;
+        absl::flat_hash_map<std::string, math::Mat3> in_mat3;
+        absl::flat_hash_map<std::string, math::Mat4> in_mat4;
+        absl::flat_hash_map<std::string, std::vector<math::Mat4>> in_mat4_array;
 
         absl::flat_hash_map<std::string, std::size_t> in_samplers;
         absl::flat_hash_map<std::string, std::vector<std::size_t>> in_samplers_array;
@@ -104,7 +104,7 @@ namespace astre::render
          * @param value 2D float Vector value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::vec2 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Vec2 & value)= 0;
 
         /**
          * @brief Set the 3D float vector uniform value in the shader.
@@ -113,7 +113,7 @@ namespace astre::render
          * @param value 3D float Vector value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::vec3 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Vec3 & value)= 0;
 
         /**
          * @brief Set the 4D float vector uniform value in the shader.
@@ -122,7 +122,7 @@ namespace astre::render
          * @param value 4D float Vector value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::vec4 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Vec4 & value)= 0;
 
         /**
          * @brief Set the 2D float matrix uniform value in the shader.
@@ -131,7 +131,7 @@ namespace astre::render
          * @param value 2D float Matrix value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::mat2 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Mat2 & value)= 0;
 
         /**
          * @brief Set the 3D float matrix uniform value in the shader.
@@ -140,7 +140,7 @@ namespace astre::render
          * @param value 3D float Matrix value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::mat3 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Mat3 & value)= 0;
 
         /**
          * @brief Set the 4D float matrix uniform value in the shader.
@@ -149,7 +149,7 @@ namespace astre::render
          * @param value 4D float Matrix value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const glm::mat4 & value)= 0;
+        virtual void setUniform(const std::string & name, const math::Mat4 & value)= 0;
 
         /**
          * @brief Set the 4D float matrix array uniform value in the shader.
@@ -158,7 +158,7 @@ namespace astre::render
          * @param value 4D float Matrix array value of the uniform.
          * 
          */
-        virtual void setUniform(const std::string & name, const std::vector<glm::mat4> & values)= 0;
+        virtual void setUniform(const std::string & name, const std::vector<math::Mat4> & values)= 0;
 
         /**
          * @brief Set the texture uniform value in the shader.
@@ -211,14 +211,14 @@ namespace astre::render
             inline void setUniform(const std::string & name, int value) override { return base::impl().setUniform(name, value);}
             inline void setUniform(const std::string & name, float value) override { return base::impl().setUniform(name, value);}
 
-            inline void setUniform(const std::string & name, const glm::vec2 & value) override { return base::impl().setUniform(name, value);}
-            inline void setUniform(const std::string & name, const glm::vec3 & value) override { return base::impl().setUniform(name, value);}
-            inline void setUniform(const std::string & name, const glm::vec4 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const math::Vec2 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const math::Vec3 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const math::Vec4 & value) override { return base::impl().setUniform(name, value);}
 
-            inline void setUniform(const std::string & name, const glm::mat2 & value) override { return base::impl().setUniform(name, value);}
-            inline void setUniform(const std::string & name, const glm::mat3 & value) override { return base::impl().setUniform(name, value);}
-            inline void setUniform(const std::string & name, const glm::mat4 & value) override { return base::impl().setUniform(name, value);}
-            inline void setUniform(const std::string & name, const std::vector<glm::mat4> & values) override { return base::impl().setUniform(name, values);}
+            inline void setUniform(const std::string & name, const math::Mat2 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const math::Mat3 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const math::Mat4 & value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, const std::vector<math::Mat4> & values) override { return base::impl().setUniform(name, values);}
 
             inline void setUniform(const std::string & name, unsigned int unit, const ITexture & value) override { return base::impl().setUniform(name, unit, value);}
             inline void setUniform(const std::string & name, unsigned int unit, const std::vector<ITexture*> & values) override { return base::impl().setUniform(name, unit, values);}

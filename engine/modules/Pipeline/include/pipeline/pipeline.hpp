@@ -96,8 +96,8 @@ namespace astre::pipeline
     struct GamePipelineState
     {
         ecs::Registry & registry;
-        asset::ComponentLoaderRegistry & loader;
-        asset::ComponentSerializerRegistry & serializer;
+        asset::EntityLoader & loader;
+        asset::EntitySerializer & serializer;
     };
 
     class GamePipeline
@@ -107,8 +107,8 @@ namespace astre::pipeline
             asio::awaitable<R> run(F && fnc, Args && ... args)
             {
                 ecs::Registry registry;
-                asset::ComponentLoaderRegistry loader;
-                asset::ComponentSerializerRegistry serializer;
+                asset::EntityLoader loader;
+                asset::EntitySerializer serializer;
 
                 // create systems
 

@@ -143,8 +143,8 @@ namespace astre::render
         const float radius = 0.5f;
         const float height = 1.0f;
         const float halfHeight = height * 0.5f;
-        const glm::vec3 apex = {0.0f, halfHeight, 0.0f};
-        const glm::vec3 base_center = {0.0f, -halfHeight, 0.0f};
+        const math::Vec3 apex = {0.0f, halfHeight, 0.0f};
+        const math::Vec3 base_center = {0.0f, -halfHeight, 0.0f};
 
         // Base center vertex
         cone.vertices.push_back({base_center, {0, -1, 0}, {0.5f, 0.5f}});
@@ -154,12 +154,12 @@ namespace astre::render
 
         // Base ring
         for (unsigned int i = 0; i < segments; ++i) {
-            float angle = (float)i / segments * glm::two_pi<float>();
+            float angle = (float)i / segments * math::two_pi<float>();
             float x = cos(angle) * radius;
             float z = sin(angle) * radius;
 
-            glm::vec3 pos = {x, -halfHeight, z};
-            glm::vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
+            math::Vec3 pos = {x, -halfHeight, z};
+            math::Vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
 
             // Flat normal for the base
             cone.vertices.push_back({pos, {0, -1, 0}, uv});
@@ -178,23 +178,23 @@ namespace astre::render
         unsigned int base_offset = cone.vertices.size();
 
         for (unsigned int i = 0; i < segments; ++i) {
-            float angle = (float)i / segments * glm::two_pi<float>();
-            float nextAngle = (float)(i + 1) / segments * glm::two_pi<float>();
+            float angle = (float)i / segments * math::two_pi<float>();
+            float nextAngle = (float)(i + 1) / segments * math::two_pi<float>();
 
             // Compute side positions
-            glm::vec3 base1 = {cos(angle) * radius, -halfHeight, sin(angle) * radius};
-            glm::vec3 base2 = {cos(nextAngle) * radius, -halfHeight, sin(nextAngle) * radius};
+            math::Vec3 base1 = {cos(angle) * radius, -halfHeight, sin(angle) * radius};
+            math::Vec3 base2 = {cos(nextAngle) * radius, -halfHeight, sin(nextAngle) * radius};
 
             // Direction from base ring point to apex
-            glm::vec3 dir1 = glm::normalize(apex - base1);
-            glm::vec3 dir2 = glm::normalize(apex - base2);
+            math::Vec3 dir1 = math::normalize(apex - base1);
+            math::Vec3 dir2 = math::normalize(apex - base2);
 
             // Per-vertex normal: perpendicular to the surface
-            glm::vec3 sideNormal1 = glm::normalize(glm::cross(glm::cross(dir1, {0, 1, 0}), dir1));
-            glm::vec3 sideNormal2 = glm::normalize(glm::cross(glm::cross(dir2, {0, 1, 0}), dir2));
+            math::Vec3 sideNormal1 = math::normalize(math::cross(math::cross(dir1, {0, 1, 0}), dir1));
+            math::Vec3 sideNormal2 = math::normalize(math::cross(math::cross(dir2, {0, 1, 0}), dir2));
 
             // Apex duplicated per triangle with averaged normal
-            glm::vec3 apexNormal = glm::normalize(sideNormal1 + sideNormal2);
+            math::Vec3 apexNormal = math::normalize(sideNormal1 + sideNormal2);
 
             // Build triangle (correct CCW winding when viewed from outside)
             unsigned int i0 = cone.vertices.size(); // base1
@@ -226,10 +226,10 @@ namespace astre::render
 
         unsigned int top_ring_start = cyl.vertices.size();
         for (unsigned int i = 0; i < segments; ++i) {
-            float angle = (float)i / segments * glm::two_pi<float>();
+            float angle = (float)i / segments * math::two_pi<float>();
             float x = cos(angle) * radius;
             float z = sin(angle) * radius;
-            glm::vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
+            math::Vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
             cyl.vertices.push_back({{x, y_top, z}, {0, 1, 0}, uv});
         }
 
@@ -247,10 +247,10 @@ namespace astre::render
 
         unsigned int bottom_ring_start = cyl.vertices.size();
         for (unsigned int i = 0; i < segments; ++i) {
-            float angle = (float)i / segments * glm::two_pi<float>();
+            float angle = (float)i / segments * math::two_pi<float>();
             float x = cos(angle) * radius;
             float z = sin(angle) * radius;
-            glm::vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
+            math::Vec2 uv = {x * 0.5f + 0.5f, z * 0.5f + 0.5f};
             cyl.vertices.push_back({{x, y_bottom, z}, {0, -1, 0}, uv});
         }
 
@@ -265,10 +265,10 @@ namespace astre::render
         // ---------- Side wall (smooth normals) ----------
         unsigned int side_start = cyl.vertices.size();
         for (unsigned int i = 0; i <= segments; ++i) {
-            float angle = (float)i / segments * glm::two_pi<float>();
+            float angle = (float)i / segments * math::two_pi<float>();
             float x = cos(angle) * radius;
             float z = sin(angle) * radius;
-            glm::vec3 normal = glm::normalize(glm::vec3(x, 0.0f, z));
+            math::Vec3 normal = math::normalize(math::Vec3(x, 0.0f, z));
             float u = float(i) / segments;
 
             cyl.vertices.push_back({{x, y_top, z}, normal, {u, 0.0f}});
@@ -299,16 +299,16 @@ namespace astre::render
         auto& mesh = cache[subdivisions];
 
         // Golden ratio
-        const float t = (1.0f + glm::sqrt(5.0f)) / 2.0f;
+        const float t = (1.0f + math::sqrt(5.0f)) / 2.0f;
 
-        std::vector<glm::vec3> positions = {
+        std::vector<math::Vec3> positions = {
             {-1,  t,  0}, { 1,  t,  0}, {-1, -t,  0}, { 1, -t,  0},
             { 0, -1,  t}, { 0,  1,  t}, { 0, -1, -t}, { 0,  1, -t},
             { t,  0, -1}, { t,  0,  1}, {-t,  0, -1}, {-t,  0,  1}
         };
 
         for (auto& p : positions)
-            p = glm::normalize(p);
+            p = math::normalize(p);
 
         std::vector<std::array<uint32_t, 3>> faces = {
             {0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
@@ -325,7 +325,7 @@ namespace astre::render
             if (it != midpoint_cache.end())
                 return it->second;
 
-            glm::vec3 midpoint = glm::normalize((positions[a] + positions[b]) * 0.5f);
+            math::Vec3 midpoint = math::normalize((positions[a] + positions[b]) * 0.5f);
             positions.push_back(midpoint);
             uint32_t idx = static_cast<uint32_t>(positions.size() - 1);
             midpoint_cache[key] = idx;
@@ -366,8 +366,8 @@ namespace astre::render
             for (int j = 0; j < 3; ++j) {
                 uint32_t idx = ordered[j];
                 if (remap[idx] == uint32_t(-1)) {
-                    glm::vec3 pos = positions[idx];
-                    glm::vec3 normal = inward_normals ? -pos : pos;
+                    math::Vec3 pos = positions[idx];
+                    math::Vec3 normal = inward_normals ? -pos : pos;
                     remap[idx] = static_cast<uint32_t>(mesh.vertices.size());
                     mesh.vertices.push_back({pos, normal, {0, 0}});
                 }

@@ -4,8 +4,7 @@
 #include <algorithm>
 #include <array>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
+#include "math/math.hpp"
 
 #include <absl/container/flat_hash_map.h>
 
@@ -19,9 +18,9 @@ namespace astre::render
      */
     struct Vertex 
     {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec2 uv;
+        math::Vec3 position;
+        math::Vec3 normal;
+        math::Vec2 uv;
     };
     #pragma pack(pop) // each vertex is now exactly 8 floats = 32 bytes, no extra padding
 

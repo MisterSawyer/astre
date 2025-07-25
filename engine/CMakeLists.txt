@@ -35,7 +35,8 @@ target_link_libraries("${PROJECT_NAME}Engine"
         ECS_proto
         astre::Asset
         astre::Pipeline
-
+        astre::World
+        
     PUBLIC
         spdlog
         asio

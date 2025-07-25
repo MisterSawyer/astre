@@ -12,10 +12,11 @@ add_module(NAME "Render"
     DEPENDENCIES
         asio
         glew
-        glm
+        #glm
         absl::flat_hash_map
         spdlog::spdlog
 
+        astre::Math
         astre::Native
         astre::Async
         astre::Formatter

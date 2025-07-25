@@ -1,4 +1,4 @@
-#include "asset/component_loader.hpp"
+#include "asset/entity_loader.hpp"
 
 namespace astre::asset
 {
@@ -19,55 +19,55 @@ namespace astre::asset
             };
     }
 
-    ComponentLoaderRegistry::ComponentLoaderRegistry()
+    EntityLoader::EntityLoader()
     {
-        registerLoader("TransformComponent", 
+        registerComponentLoader("TransformComponent", 
             _constructComponentLoader<ecs::TransformComponent>(
                 &ecs::EntityDefinition::has_transform, &ecs::EntityDefinition::transform)
         );
 
-        registerLoader("VisualComponent",
+        registerComponentLoader("VisualComponent",
             _constructComponentLoader<ecs::VisualComponent>(
                 &ecs::EntityDefinition::has_visual, &ecs::EntityDefinition::visual)
         );
 
-        registerLoader("InputComponent",
+        registerComponentLoader("InputComponent",
             _constructComponentLoader<ecs::InputComponent>(
                 &ecs::EntityDefinition::has_input, &ecs::EntityDefinition::input)
         );
 
-        registerLoader("HealthComponent", 
+        registerComponentLoader("HealthComponent", 
             _constructComponentLoader<ecs::HealthComponent>(
                 &ecs::EntityDefinition::has_health, &ecs::EntityDefinition::health)
         );
 
-        registerLoader("CameraComponent", 
+        registerComponentLoader("CameraComponent", 
             _constructComponentLoader<ecs::CameraComponent>(
                 &ecs::EntityDefinition::has_camera, &ecs::EntityDefinition::camera)
         );
 
-        registerLoader("TerrainComponent", 
+        registerComponentLoader("TerrainComponent", 
             _constructComponentLoader<ecs::TerrainComponent>(
                 &ecs::EntityDefinition::has_terrain, &ecs::EntityDefinition::terrain)
         );
 
-        registerLoader("LightComponent", 
+        registerComponentLoader("LightComponent", 
             _constructComponentLoader<ecs::LightComponent>(
                 &ecs::EntityDefinition::has_light, &ecs::EntityDefinition::light)
         );
 
-        registerLoader("ScriptComponent", 
+        registerComponentLoader("ScriptComponent", 
             _constructComponentLoader<ecs::ScriptComponent>(
                 &ecs::EntityDefinition::has_script, &ecs::EntityDefinition::script)
         );
     }
 
-    void ComponentLoaderRegistry::registerLoader(const std::string& name, ComponentLoader loader) 
+    void EntityLoader::registerComponentLoader(const std::string& name, ComponentLoader loader) 
     {
         _loaders[name] = std::move(loader);
     }
 
-    void ComponentLoaderRegistry::loadComponents(const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) const 
+    void EntityLoader::loadEntity(const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) const 
     {
         for (const auto& [name, loader] : _loaders)
         {
