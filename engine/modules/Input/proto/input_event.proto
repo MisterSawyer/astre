@@ -1,0 +1,141 @@
+syntax="proto3";
+
+package astre.input;
+
+enum InputCode
+{
+    UNKNOWN_InputCode = 0;
+
+    // Letters
+    KEY_A = 1;
+    KEY_B = 2;
+    KEY_C = 3;
+    KEY_D = 4;
+    KEY_E = 5;
+    KEY_F = 6;
+    KEY_G = 7;
+    KEY_H = 8;
+    KEY_I = 9;
+    KEY_J = 10;
+    KEY_K = 11;
+    KEY_L = 12;
+    KEY_M = 13;
+    KEY_N = 14;
+    KEY_O = 15;
+    KEY_P = 16;
+    KEY_Q = 17;
+    KEY_R = 18;
+    KEY_S = 19;
+    KEY_T = 20;
+    KEY_U = 21;
+    KEY_V = 22;
+    KEY_W = 23;
+    KEY_X = 24;
+    KEY_Y = 25;
+    KEY_Z = 26;
+
+    // Numbers (Top row)
+    KEY_0 = 27;
+    KEY_1 = 28;
+    KEY_2 = 29;
+    KEY_3 = 30;
+    KEY_4 = 31;
+    KEY_5 = 32;
+    KEY_6 = 33;
+    KEY_7 = 34;
+    KEY_8 = 35;
+    KEY_9 = 36;
+
+    // Function keys
+    KEY_F1 = 37;
+    KEY_F2 = 38;
+    KEY_F3 = 39;
+    KEY_F4 = 40;
+    KEY_F5 = 41;
+    KEY_F6 = 42;
+    KEY_F7 = 43;
+    KEY_F8 = 44;
+    KEY_F9 = 45;
+    KEY_F10 = 46;
+    KEY_F11 = 47;
+    KEY_F12 = 48;
+
+    // Arrows
+    KEY_UP = 49;
+    KEY_DOWN = 50;
+    KEY_LEFT = 51;
+    KEY_RIGHT = 52;
+
+    // Modifiers - with L/R distinction
+    KEY_LSHIFT = 53;
+    KEY_RSHIFT = 54;
+    KEY_LCTRL = 55;
+    KEY_RCTRL = 56;
+    KEY_LALT = 57;
+    KEY_RALT = 58;
+
+    KEY_SPACE = 59;
+    KEY_TAB = 60;
+    KEY_ENTER = 61;
+    KEY_ESCAPE = 62;
+    KEY_BACKSPACE = 63;
+
+    // Special
+    KEY_CAPSLOCK = 64;
+    KEY_INSERT = 65;
+    KEY_DELETE = 66;
+    KEY_HOME = 67;
+    KEY_END = 68;
+    KEY_PAGEUP = 69;
+    KEY_PAGEDOWN = 70;
+
+    // Numpad
+    KEY_NUMPAD_0 = 71;
+    KEY_NUMPAD_1 = 72;
+    KEY_NUMPAD_2 = 73;
+    KEY_NUMPAD_3 = 74;
+    KEY_NUMPAD_4 = 75;
+    KEY_NUMPAD_5 = 76;
+    KEY_NUMPAD_6 = 77;
+    KEY_NUMPAD_7 = 78;
+    KEY_NUMPAD_8 = 79;
+    KEY_NUMPAD_9 = 80;
+    KEY_NUMPAD_ADD = 81;
+    KEY_NUMPAD_SUB = 82;
+    KEY_NUMPAD_MUL = 83;
+    KEY_NUMPAD_DIV = 84;
+    KEY_NUMPAD_ENTER = 85;
+
+    // Mouse buttons
+    MOUSE_LEFT = 100;
+    MOUSE_RIGHT = 101;
+    MOUSE_MIDDLE = 102;
+    MOUSE_X1 = 103;
+    MOUSE_X2 = 104;
+}
+
+message MouseData
+{
+    float x = 1; // X position
+    float y = 2; // Y position
+    float dx = 3; // X delta position
+    float dy = 4; // Y delta position
+};
+
+enum InputEventType 
+{
+    UNKNOWN_InputEventType = 0;
+
+    Pressed = 1;
+    Released = 2;
+    MouseMove = 3;
+};
+
+message InputEvent
+{
+    InputEventType type = 1;
+    // Key
+    InputCode code = 2;
+    // Mouse
+    MouseData mouse = 3;
+}

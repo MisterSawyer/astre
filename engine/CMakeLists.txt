@@ -29,6 +29,8 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Process
         astre::Window
         astre::Render
+        astre::Input
+        Input_proto
         astre::ECS
         ECS_proto
         astre::Asset

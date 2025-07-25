@@ -14,6 +14,7 @@ add_module(NAME "ECS"
         astre::Math
         astre::Native
         astre::Type
+        astre::Input
 )
 
 protobuf_generate(NAME "ECS_proto"
@@ -26,6 +27,6 @@ protobuf_generate(NAME "ECS_proto"
         ${CMAKE_BINARY_DIR}/generated
 )
 
-target_link_libraries(ECS_proto PUBLIC Math_proto)
+target_link_libraries(ECS_proto PUBLIC Math_proto Input_proto)
 
 target_link_libraries(ECS PUBLIC "ECS_proto")

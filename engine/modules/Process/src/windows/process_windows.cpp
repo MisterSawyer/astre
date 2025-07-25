@@ -595,7 +595,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onResize != nullptr)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onResize((int)LOWORD(lparam), (int)HIWORD(lparam)));
+                window_callbacks.context.co_spawn(window_callbacks.onResize((unsigned int)LOWORD(lparam), (unsigned int)HIWORD(lparam)));
             }
             return handling_result;
         }

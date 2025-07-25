@@ -15,4 +15,5 @@ add_module(NAME "Pipeline"
         astre::Render
         astre::ECS
         astre::Asset
+        astre::Input
 )

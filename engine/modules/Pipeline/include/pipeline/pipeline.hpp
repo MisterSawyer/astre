@@ -10,6 +10,7 @@
 #include "render/render.hpp"
 #include "ecs/ecs.hpp"
 #include "asset/asset.hpp"
+#include "input/input.hpp"
 
 namespace astre::pipeline
 {
@@ -18,6 +19,8 @@ namespace astre::pipeline
         process::IProcess & process;
         window::IWindow & window;
         render::IRenderer & renderer;
+
+        input::InputService & input_service;
     };
 
     class WindowApp
@@ -33,25 +36,61 @@ namespace astre::pipeline
             window::Window window = co_await window::createWindow(process, _title, _width, _height);
             render::Renderer renderer = co_await render::createRenderer(*window);
 
+            // input system
+            async::AsyncContext input_context(process.getExecutionContext());
+            input::InputService input_service(input_context);
+
             co_await process.setWindowCallbacks(window->getHandle(), 
-            process::WindowCallbacks{.context = async::AsyncContext(process.getExecutionContext()),
-                .onDestroy = [&]() -> asio::awaitable<void>
+            process::WindowCallbacks{.context = input_context,
+                .onDestroy = [&window, &renderer]() -> asio::awaitable<void>
                 {
                     renderer->join();
                     co_await window->close();
+                },
+                .onResize = [&window, &renderer](unsigned int width, unsigned int height) -> asio::awaitable<void>
+                {
+                    //co_await window->resize(width, height); is it even needed?
+                    co_await renderer->updateViewportSize(width, height);
+                },
+                .onKeyPress = [&input_service](int key) -> asio::awaitable<void>
+                {
+                    co_await input_service.recordKeyPressed(input::keyToInputCode(key));
+                },
+                .onKeyRelease = [&input_service](int key) -> asio::awaitable<void>
+                {
+                    co_await input_service.recordKeyReleased(input::keyToInputCode(key));
+                },
+                .onMouseButtonDown = [&input_service](int key) -> asio::awaitable<void>
+                {
+                    co_await input_service.recordKeyPressed(input::keyToInputCode(key));
+                },
+                .onMouseButtonUp = [&input_service](int key) -> asio::awaitable<void>
+                {
+                    co_await input_service.recordKeyReleased(input::keyToInputCode(key));
+                },
+                .onMouseMove = [&input_service](int x, int y, float dx, float dy) -> asio::awaitable<void>
+                {
+                    co_await input_service.recordMouseMoved((float)x, (float)y, dx, dy);
                 }
             });
 
             co_await window->show();
 
-            co_return co_await fnc(WindowAppState{.process = process, .window = *window, .renderer = *renderer}, std::forward<Args>(args)...);
+            co_return co_await fnc(
+                WindowAppState
+                {
+                    .process = process,
+                    .window = *window,
+                    .renderer = *renderer,
+                    .input_service = input_service
+                },
+                std::forward<Args>(args)...);
         }
 
         private:
             std::string _title;
             unsigned int _width;
             unsigned int _height;
-
     };
 
     struct GamePipelineState
@@ -71,8 +110,16 @@ namespace astre::pipeline
                 asset::ComponentLoaderRegistry loader;
                 asset::ComponentSerializerRegistry serializer;
 
-                co_return co_await fnc(GamePipelineState{.registry = registry, .loader = loader, .serializer = serializer}, std::forward<Args>(args)...);
-            }
+                // create systems
 
+                co_return co_await fnc(
+                    GamePipelineState
+                    {
+                        .registry = registry,
+                        .loader = loader,
+                        .serializer = serializer
+                    },
+                    std::forward<Args>(args)...);
+            }
     };
 }
