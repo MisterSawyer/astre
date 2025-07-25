@@ -32,35 +32,43 @@ namespace astre::tests
     };
 
     template <typename ExecutionContextType, typename T>
-    auto sync_await(ExecutionContextType & ctx, asio::awaitable<T> && awaitable) 
-    { 
-        std::promise<bool> promise;
-        std::optional<T> result;
-        asio::co_spawn(ctx, 
+    T sync_await(ExecutionContextType & ctx, asio::awaitable<T> && awaitable)
+    {
+        std::promise<T> promise;
+
+        asio::co_spawn(ctx,
             [&]() -> asio::awaitable<void> {
-                spdlog::info("awaiting...");
-                result = co_await std::move(awaitable);
-                spdlog::info("sync_await finished");
+                try {
+                    T value = co_await std::move(awaitable);
+                    promise.set_value(std::move(value));
+                } catch (...) {
+                    promise.set_exception(std::current_exception());
+                }
+                co_return;
             },
-            [&promise](std::exception_ptr) {
-                promise.set_value(true);
-            }
+            asio::detached
         );
-        promise.get_future().get();
-        return std::move(*result);
+
+        return promise.get_future().get();
     }
 
     template <typename ExecutionContextType>
-    inline void sync_await(ExecutionContextType & ctx, asio::awaitable<void> && awaitable) {
-        std::promise<bool> promise;
+    void sync_await(ExecutionContextType & ctx, asio::awaitable<void> && awaitable)
+    {
+        std::promise<void> promise;
+
         asio::co_spawn(ctx, 
             [&]() -> asio::awaitable<void> {
-                co_await std::move(awaitable);
+                try {
+                    co_await std::move(awaitable);
+                    promise.set_value();
+                } catch (...) {
+                    promise.set_exception(std::current_exception());
+                }
             },
-            [&promise](std::exception_ptr) {
-                promise.set_value(true);
-            }
+            asio::detached
         );
+
         promise.get_future().get();
     }
 
