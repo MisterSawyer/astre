@@ -9,11 +9,13 @@ add_module(NAME "World"
     DEPENDENCIES
         asio
         absl::flat_hash_map
-        #glm
+        spdlog
 
+        astre::Async
         astre::Math
         astre::Native
         astre::Type
+        astre::Process
         astre::ECS
         astre::Asset
 )

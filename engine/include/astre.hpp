@@ -14,6 +14,7 @@
 #include "asset/asset.hpp"
 #include "input/input.hpp"
 #include "pipeline/pipeline.hpp"
+#include "world/world.hpp"
 
 namespace astre
 {

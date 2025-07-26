@@ -1,23 +1,29 @@
 #include <cmath>
 
+#include <spdlog/spdlog.h>
+
 #include "world/world.hpp"
 
 namespace astre::world {
 
     static constexpr std::int32_t LOAD_RADIUS = 2;
 
-    WorldStreamer::WorldStreamer(ecs::Registry& registry,
-                                 asset::EntityLoader& loader,
-                                 asset::EntitySerializer& serializer,
-                                 SaveArchive& archive,
-                                 float chunk_size,
-                                 unsigned int max_loaded_chunks)
-        : _registry(registry),
-          _loader(loader),
-          _serializer(serializer),
-          _archive(archive),
-          _chunk_size(chunk_size),
-          _max_loaded_chunks(max_loaded_chunks)
+    WorldStreamer::WorldStreamer(
+        async::AsyncContext<process::IProcess::execution_context_type> & async_context,
+        std::filesystem::path path,
+        ecs::Registry& registry,
+        asset::EntityLoader& loader,
+        asset::EntitySerializer& serializer,
+        float chunk_size,
+        unsigned int max_loaded_chunks
+    )
+        :   _async_context(async_context),
+            _archive(std::move(path)), 
+            _registry(registry),
+            _loader(loader),
+            _serializer(serializer),
+            _chunk_size(chunk_size),
+            _max_loaded_chunks(max_loaded_chunks)
     {}
 
     static inline ChunkID toChunkID(const math::Vec3& pos, float size) {
@@ -28,7 +34,16 @@ namespace astre::world {
         };
     }
 
-    void WorldStreamer::updatePlayerPosition(const math::Vec3 & pos) {
+    asio::awaitable<void> WorldStreamer::addEntityToChunk(ecs::Entity entity, ChunkID chunk_id)
+    {
+        co_await _async_context.ensureOnStrand();
+        _loaded[chunk_id].insert(entity);
+    }
+
+    asio::awaitable<void> WorldStreamer::updateLoadPosition(const math::Vec3 & pos)
+    {
+        co_await _async_context.ensureOnStrand();
+
         const ChunkID center = toChunkID(pos, _chunk_size);
 
         absl::flat_hash_set<ChunkID> required;
@@ -56,10 +71,13 @@ namespace astre::world {
             unloadChunk(cid);
             _loaded.erase(cid);
         }
+
+        co_return;
     }
 
-    void WorldStreamer::loadChunk(const ChunkID& id) {
-        auto defs = _archive.readChunk(id, asset::use_binary);
+    void WorldStreamer::loadChunk(const ChunkID& id) 
+    {
+        auto defs = _archive.readChunk(id, asset::use_json);
         if (!defs.has_value()) return;
 
         absl::flat_hash_set<ecs::Entity> chunk_entities;
@@ -80,16 +98,31 @@ namespace astre::world {
             _registry.destroyEntity(e);
         }
     }
+    
+    std::vector<ecs::EntityDefinition> WorldStreamer::createEntityDeps(const absl::flat_hash_set<ecs::Entity> & entities) const
+    {
+        std::vector<ecs::EntityDefinition> defs;
+        for (ecs::Entity e : entities) {
+            defs.emplace_back(_serializer.serializeEntity(e, _registry));
+        }
+        return defs;
+    }
 
-    void WorldStreamer::saveAll() {
+    asio::awaitable<void> WorldStreamer::saveAll(asset::use_binary_t)
+    {
+        co_await _async_context.ensureOnStrand();
         for (const auto& [chunk, entities] : _loaded) {
-            std::vector<ecs::EntityDefinition> defs;
-            for (ecs::Entity e : entities) {
-                defs.emplace_back(_serializer.serializeEntity(e, _registry));
-            }
-            _archive.writeChunk(chunk, defs, asset::use_binary);
+            _archive.writeChunk(chunk, createEntityDeps(entities), asset::use_binary);
         }
         _archive.saveIndex();
     }
 
+    asio::awaitable<void> WorldStreamer::saveAll(asset::use_json_t)
+    {
+        co_await _async_context.ensureOnStrand();
+        for (const auto& [chunk, entities] : _loaded) {
+            _archive.writeChunk(chunk, createEntityDeps(entities), asset::use_json);
+        }
+    }
+    
 } // namespace astre::world

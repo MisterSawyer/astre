@@ -18,3 +18,8 @@ target_link_libraries("${PROJECT_NAME}Game"
 install(TARGETS "${PROJECT_NAME}Game"
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# make install target of resources directory
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources/"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}/resources/"
+)

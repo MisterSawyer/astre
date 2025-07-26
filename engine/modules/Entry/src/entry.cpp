@@ -13,6 +13,17 @@
 
 using namespace astre;
 
+namespace astre::entry
+{
+    AppPaths::AppPaths(const std::filesystem::path& baseDir)
+        :   base(baseDir),
+            resources(base / "resources"),
+            assets(base / "assets"),
+            saves(base / "saves"),
+            logs(base / "logs")
+    {}
+}
+
 static const std::string & _getAsciiLogo()
 {
     static const std::string logo =
@@ -77,13 +88,12 @@ int main(int argc, char* argv[])
     GOOGLE_PROTOBUF_VERIFY_VERSION;
     #endif
     
-    const std::filesystem::path bin_path = std::filesystem::path(argv[0]).parent_path();
-    const std::filesystem::path logs_dir = bin_path / "logs";
-    _configureLogger(logs_dir);
+    entry::AppPaths paths(std::filesystem::path(argv[0]).parent_path());
+    _configureLogger(paths.logs);
 
     spdlog::info("{}", _getAsciiLogo());
 
-    const std::string build_timestamp = _loadBuildTimestamp(bin_path / "build_timestamp");
+    const std::string build_timestamp = _loadBuildTimestamp(paths.base / "build_timestamp");
     spdlog::debug("Build timestamp: {}", build_timestamp);
     spdlog::debug("Version: {}.{}.{}", version::MAJOR_VERSION, version::MINOR_VERSION, version::PATCH_VERSION);
 
@@ -103,7 +113,7 @@ int main(int argc, char* argv[])
         process::Process process(process::createProcess(used_cores));
 
         asio::co_spawn(process->getExecutionContext(), 
-            entry::main(*process), 
+            entry::main(paths, *process), 
             // when main ended spawn process->close()
             // and set return values
             [&process, &external_main_promise](std::exception_ptr, int r)

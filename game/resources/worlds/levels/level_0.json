@@ -1,0 +1,299 @@
+{
+    "name": "level_0",
+    "entities": [
+        {
+          "name": "terrain",
+          "transform": {
+             "position": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+             },
+             "scale": {
+                "x": "100.0",
+                "y": "0.1",
+                "z": "100.0"
+             }
+          },
+          "visual": {
+             "visible": true,
+             "vertex_buffer_name": "cube_prefab",
+             "shader_name": "deferred_shader",
+             "color" : {"x" : 1.0, "y" : 1.0, "z" : 1.0, "w": 1.0 }
+          },
+          "terrain": {
+             "width": 20,
+             "length": 20,
+             "tile_size": 10
+          }
+       },
+       {
+        "name" : "wall",
+        "transform": {
+            "position": {
+               "x": 0,
+               "y": 16,
+               "z": -10
+            },
+            "scale": {
+               "x": "32.0",
+               "y": "32.0",
+               "z": "0.1"
+            }
+        },
+        "visual": {
+            "visible": true,
+            "vertex_buffer_name": "cube_prefab",
+            "shader_name": "deferred_shader",
+            "color" : {"x" : 1.0, "y" : 1.0, "z" : 1.0, "w": 1.0 }
+        }
+        },
+        {
+            "name" : "ceiling",
+            "transform": {
+                "position": {
+                   "x": 0,
+                   "y": 32,
+                   "z": 6
+                },
+                "scale": {
+                   "x": "32.0",
+                   "y": "0.1",
+                   "z": "32.0"
+                }
+            },
+            "visual": {
+                "visible": true,
+                "vertex_buffer_name": "cube_prefab",
+                "shader_name": "deferred_shader",
+                "color" : {"x" : 1.0, "y" : 1.0, "z" : 1.0, "w": 1.0 }
+            }
+        },
+       {
+          "name": "player",
+          "transform": {
+             "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+             },
+             "position": {
+                "x": 0,
+                "y": 5,
+                "z": 1.2
+             }
+          },
+          "health": {
+             "health": 100,
+             "alive": false
+          },
+          "visual": {
+             "visible": true,
+             "vertex_buffer_name": "cube_prefab",
+             "shader_name": "deferred_shader",
+             "color" : {"x" : 0.0, "y" : 1.0, "z" : 0.0, "w": 1.0 }
+          },
+          "light":{
+             "type": "SPOT",
+             "cast_shadows": true,
+         
+             "color_r": 1.0,
+             "color_g": 0.9,
+             "color_b": 0.7,
+             "intensity": 20.0,
+         
+             "constant": 1.0,
+             "linear": 0.09,
+             "quadratic": 0.032,
+            
+             "inner_cutoff": 0.95,
+             "outer_cutoff": 0.85
+ 
+          },
+          "input": {
+          },
+          "script" : {
+            "name" : "player_script"
+          }
+       },
+       {
+          "name": "camera",
+          "input": {
+          },
+          "transform": {
+             "position": {
+                "x": 0,
+                "y": 3,
+                "z": 15
+             }
+          },
+          "camera": {
+             "fov": "60.0",
+             "near_plane": "0.1",
+             "far_plane": "1000.0",
+             "is_primary": true
+          },
+          "script":{
+            "name": "camera_script"
+          },
+          "light":{
+            "type": "SPOT",
+            "cast_shadows": true,
+        
+            "color_r": 1.0,
+            "color_g": 0.9,
+            "color_b": 0.7,
+            "intensity": 4.0,
+        
+            "constant": 1.0,
+            "linear": 0.09,
+            "quadratic": 0.032,
+           
+            "inner_cutoff": 0.95,
+            "outer_cutoff": 0.70710678
+
+         }
+       },
+       {
+          "name": "enemy0",
+          "transform": {
+             "position": {
+                "x": 10,
+                "y": 2,
+                "z": 0
+             },
+             "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+             },
+             "rotation":
+             {
+                "w" : 0.7071068,
+                "x" : 0.7071068,
+                "y" : 0,
+                "z" : 0
+             }
+          },
+          "visual": {
+             "visible": true,
+             "vertex_buffer_name": "cylinder_prefab",
+             "shader_name": "deferred_shader",
+             "color" : {"x" : 1.0, "y" : 0.0, "z" : 0.0, "w": 1.0 }
+          },
+          "light":{
+            "type": "SPOT",
+            "cast_shadows": true,
+        
+            "color_r": 1.0,
+            "color_g": 0.9,
+            "color_b": 0.7,
+            "intensity": 20.0,
+        
+            "constant": 1.0,
+            "linear": 0.09,
+            "quadratic": 0.032,
+           
+            "inner_cutoff": 0.95,
+            "outer_cutoff": 0.85
+         }
+       },
+       {
+          "name": "enemy1",
+          "transform": {
+             "position": {
+                "x": -5,
+                "y": 2,
+                "z": 3
+             },
+             "scale": {
+                "x": 1,
+                "y": 2,
+                "z": 1
+             }
+          },
+          "visual": {
+             "visible": true,
+             "vertex_buffer_name": "cone_prefab",
+             "shader_name": "deferred_shader",
+             "color" : {"x" : 1.0, "y" : 1.0, "z" : 0.0, "w": 1.0 }
+          },
+          "light":{
+             "type": "POINT",
+             "cast_shadows": false,
+         
+             "color_r": 0.0,
+             "color_g": 1.0,
+             "color_b": 0.7,
+             "intensity": 4.0,
+         
+             "constant": 1.0,
+             "linear": 0.09,
+             "quadratic": 0.032
+          }
+       },
+       {
+        "name": "enemy2",
+        "transform": {
+           "position": {
+              "x": 5,
+              "y": 3,
+              "z": 7
+           },
+           "scale": {
+              "x": 2,
+              "y": 2,
+              "z": 2
+           }
+        },
+        "visual": {
+           "visible": true,
+           "vertex_buffer_name": "icosphere3_prefab",
+           "shader_name": "deferred_shader",
+           "color" : {"x" : 1.0, "y" : 0.0, "z" : 1.0, "w": 1.0 }
+        }
+     },
+     {
+        "name": "enemy3",
+        "transform": {
+           "position": {
+              "x": 7,
+              "y": 2,
+              "z": -3
+           },
+           "scale": {
+              "x": 2,
+              "y": 2,
+              "z": 2
+           }
+        },
+        "visual": {
+           "visible": true,
+           "vertex_buffer_name": "icosphere3_prefab",
+           "shader_name": "deferred_shader",
+           "color" : {"x" : 1.0, "y" : 1.0, "z" : 1.0, "w": 1.0 }
+        }
+     },
+     {
+        "name": "enemy4",
+        "transform": {
+           "position": {
+              "x": 9,
+              "y": 6,
+              "z": -1
+           },
+           "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+           }
+        },
+        "visual": {
+           "visible": true,
+           "vertex_buffer_name": "icosphere3_prefab",
+           "shader_name": "deferred_shader",
+           "color" : {"x" : 1.0, "y" : 0.5, "z" : 0.5, "w": 1.0 }
+        }
+     }
+    ]
+ }

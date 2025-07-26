@@ -8,7 +8,7 @@ namespace astre::asset
             std::function<const ComponentType &(const ecs::EntityDefinition*)> get_component) 
     {
         return 
-            [&has_component, &get_component]
+            [has_component, get_component]
             (const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) 
             {
                 if (!has_component(&entity_def)) return;

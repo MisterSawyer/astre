@@ -8,13 +8,19 @@ namespace astre::asset
     static ComponentSerializer _constructComponentSerializer(std::function<ComponentType *(ecs::EntityDefinition *)> mutable_component)
     {
         return 
-            [&mutable_component]
+            [mutable_component]
             (const ecs::Entity entity, const ecs::Registry & registry, ecs::EntityDefinition & entity_def)
             {
                 if (!registry.hasComponent<ComponentType>(entity)) return;
 
                 const ComponentType * const component = registry.getComponent<ComponentType>(entity);
-                mutable_component(&entity_def)->CopyFrom(*component);
+                auto* target = mutable_component(&entity_def);
+                if (!target)
+                {
+                    spdlog::error("Entity {} has null mutable component", entity);
+                    throw std::runtime_error("mutable_component returned nullptr");
+                }
+                target->CopyFrom(*component);
             };
     }
 

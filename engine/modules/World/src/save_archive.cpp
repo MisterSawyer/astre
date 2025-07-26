@@ -2,6 +2,7 @@
 
 #include <google/protobuf/util/delimited_message_util.h>
 #include <google/protobuf/util/json_util.h>
+#include <spdlog/spdlog.h>
 
 namespace astre::world 
 {
@@ -18,7 +19,18 @@ namespace astre::world
 
         _stream.clear(); // Reset error flags (e.g. after EOF)
 
-        _stream.open(_file_path, mode | std::ios::binary);
+        if (!std::filesystem::exists(_file_path))
+        {
+            // Create file by opening with out only
+            std::ofstream create(_file_path);
+            if (!create) 
+            {
+                spdlog::error("Failed to create file");
+                return false;
+            }
+        }
+
+        _stream.open(_file_path, mode);
 
         return _stream.is_open() && _stream.good();
     }
@@ -27,7 +39,12 @@ namespace astre::world
                                  const std::vector<ecs::EntityDefinition>& entities,
                                  asset::use_binary_t)
     {
-        if (!openStream(std::ios::in | std::ios::out | std::ios::app)) return false;
+        if (!openStream(std::ios::in | std::ios::out | std::ios::app | std::ios::binary))
+        {
+            spdlog::error("Failed to open stream for writing");
+            return false;
+        }
+
         _stream.seekp(0, std::ios::end);
         std::uint64_t offset = _stream.tellp();
 
@@ -48,18 +65,23 @@ namespace astre::world
                                  const std::vector<ecs::EntityDefinition>& entities,
                                  asset::use_json_t) 
     {
-        if (!openStream(std::ios::in | std::ios::out | std::ios::app)) return false;
+        if (!openStream(std::ios::in | std::ios::out | std::ios::app))
+        {
+            spdlog::error("Failed to open stream for writing");
+            return false;
+        }
+
         _stream.seekp(0, std::ios::end);
         std::uint64_t offset = _stream.tellp();
 
         for (const auto& entity : entities) {
             std::string json;
             google::protobuf::util::JsonPrintOptions options;
-            options.add_whitespace = false;
+            options.add_whitespace = true;  // pretty-print
+            options.always_print_fields_with_no_presence = true; // ensures e.g. `health: 0` shows
+            options.preserve_proto_field_names = true; // ensures field names are not converted to camelCase
 
             google::protobuf::util::MessageToJsonString(entity, &json, options);
-            uint32_t len = static_cast<uint32_t>(json.size());
-            _stream.write(reinterpret_cast<const char*>(&len), sizeof(len));
             _stream.write(json.data(), json.size());
         }
 
@@ -75,8 +97,17 @@ namespace astre::world
     std::optional<std::vector<ecs::EntityDefinition>>
     SaveArchive::readChunk(const ChunkID & id, asset::use_binary_t)
     {
-        if (!_chunk_index.contains(id)) return std::nullopt;
-        if (!openStream(std::ios::in)) return std::nullopt;
+        if (!_chunk_index.contains(id)) 
+        {
+            spdlog::error("Chunk not found");
+            return std::nullopt;
+        }
+
+        if (!openStream(std::ios::in))
+        {
+            spdlog::error("Failed to open stream for reading");
+            return std::nullopt;
+        }
 
         const auto [offset, size] = _chunk_index[id];
         _stream.seekg(offset);
@@ -102,8 +133,17 @@ namespace astre::world
     std::optional<std::vector<ecs::EntityDefinition>>
     SaveArchive::readChunk(const ChunkID & id, asset::use_json_t)
     {
-        if (!_chunk_index.contains(id)) return std::nullopt;
-        if (!openStream(std::ios::in)) return std::nullopt;
+        if (!_chunk_index.contains(id))
+        {
+            spdlog::error("Chunk not found");
+            return std::nullopt;
+        }
+
+        if (!openStream(std::ios::in)) 
+        {
+            spdlog::error("Failed to open stream for reading");
+            return std::nullopt;
+        }
 
         const auto [offset, size] = _chunk_index[id];
         _stream.seekg(offset);
@@ -137,7 +177,11 @@ namespace astre::world
 
     bool SaveArchive::loadIndex()
     {
-        if (!openStream(std::ios::in)) return false;
+        if (!openStream(std::ios::in))
+        {
+            spdlog::error("Failed to open stream for reading");
+            return false;
+        }
 
         _stream.seekg(0, std::ios::end);
         std::streampos end = _stream.tellg();
@@ -150,7 +194,9 @@ namespace astre::world
         uint32_t magic_end = 0;
         _stream.read(reinterpret_cast<char*>(&magic_end), sizeof(magic_end));
 
-        if (magic_end != MAGIC) {
+        if (magic_end != MAGIC)
+        {
+            spdlog::error("Invalid file format");
             _stream.close();
             return false; // Invalid file format
         }
@@ -170,7 +216,9 @@ namespace astre::world
         _stream.seekg(cursor);
         uint32_t magic_start = 0;
         _stream.read(reinterpret_cast<char*>(&magic_start), sizeof(magic_start));
-        if (magic_start != MAGIC) {
+        if (magic_start != MAGIC)
+        {
+            spdlog::error("Invalid file format");
             _stream.close();
             return false;
         }
@@ -195,14 +243,19 @@ namespace astre::world
     
     bool SaveArchive::saveIndex()
     {
-        if (!openStream(std::ios::in | std::ios::out | std::ios::app)) return false;
+        if (!openStream(std::ios::in | std::ios::out | std::ios::app))
+        {
+            spdlog::error("Failed to open stream for writing");
+            return false;
+        }
 
         uint32_t count = static_cast<uint32_t>(_chunk_index.size());
 
         _stream.write(reinterpret_cast<const char*>(&MAGIC), sizeof(MAGIC));
         _stream.write(reinterpret_cast<const char*>(&count), sizeof(count));
 
-        for (const auto& [chunk, entry] : _chunk_index) {
+        for (const auto& [chunk, entry] : _chunk_index) 
+        {
             _stream.write(reinterpret_cast<const char*>(&chunk.x), sizeof(chunk.x));
             _stream.write(reinterpret_cast<const char*>(&chunk.y), sizeof(chunk.y));
             _stream.write(reinterpret_cast<const char*>(&entry.offset), sizeof(entry.offset));

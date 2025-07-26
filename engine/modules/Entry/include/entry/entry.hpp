@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "native/native.h"
 #include <asio.hpp>
 
@@ -7,7 +9,17 @@
 
 namespace astre::entry
 {
-    extern asio::awaitable<int> main(process::IProcess & process);
+    struct AppPaths {
+        const std::filesystem::path base;
+        const std::filesystem::path resources;
+        const std::filesystem::path assets;
+        const std::filesystem::path saves;
+        const std::filesystem::path logs;
+
+        explicit AppPaths(const std::filesystem::path& baseDir);
+    };
+
+    extern asio::awaitable<int> main(const AppPaths& paths, process::IProcess & process);
 }
 
 int main(int argc, char** argv);
