@@ -21,6 +21,5 @@ namespace astre::asset
 
     asio::awaitable<bool> loadVertexBuffersPrefabs(render::IRenderer & renderer);
 
-    asio::awaitable<std::optional<std::size_t>> loadShaderFromFile(render::IRenderer & renderer, const std::filesystem::path shader_path);
-    asio::awaitable<bool> loadShadersFromDir(render::IRenderer & renderer, const std::filesystem::path shader_path);
+    asio::awaitable<std::optional<std::size_t>> loadShaderFromDir(render::IRenderer & renderer, const std::filesystem::path shader_dir);
 }

@@ -36,6 +36,7 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Asset
         astre::Pipeline
         astre::World
+        World_proto
         
     PUBLIC
         spdlog

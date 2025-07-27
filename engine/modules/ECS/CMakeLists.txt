@@ -6,14 +6,17 @@ add_module(NAME "ECS"
         "include"
     SOURCE_DIRS
         "src"
+        "src/system"
     
     DEPENDENCIES
         asio
         absl::flat_hash_map
 
+        astre::Async
         astre::Math
         astre::Native
         astre::Type
+        astre::Render
         astre::Input
 )
 

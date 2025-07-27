@@ -70,7 +70,7 @@ namespace astre::asset
     }
 
 
-    asio::awaitable<std::optional<std::size_t>> loadShaderFromFile(render::IRenderer & renderer, const std::filesystem::path shader_dir)
+    asio::awaitable<std::optional<std::size_t>> loadShaderFromDir(render::IRenderer & renderer, const std::filesystem::path shader_dir)
     {
         if(!std::filesystem::exists(shader_dir)) {
             spdlog::error("Shader directory does not exist: {}", shader_dir.string());
@@ -151,29 +151,5 @@ namespace astre::asset
             spdlog::error("Vertex shader file is empty: {}", vs_path.string());
             co_return std::nullopt;
         }
-    }
-
-    asio::awaitable<bool> loadShadersFromDir(render::IRenderer & renderer, const std::filesystem::path shader_dir)
-    {
-        if(!std::filesystem::exists(shader_dir) || !std::filesystem::is_directory(shader_dir)) {
-            spdlog::error("Shader directory does not exist: {}", shader_dir.string());
-            co_return false;
-        }
-
-        spdlog::info("Loading shaders from {}", shader_dir.string());
-
-        for (const std::filesystem::path & shader_path : std::filesystem::directory_iterator(shader_dir)) {
-            if (!std::filesystem::is_directory(shader_path)) {
-                continue;
-            }
-
-            auto shader_id = co_await loadShaderFromFile(renderer, shader_path);
-            if (!shader_id) {
-                spdlog::warn(std::format("Failed to load shader from {}", shader_path.string()) );
-                continue;
-            }
-        }
-
-        co_return true;
     }
 }

@@ -31,11 +31,6 @@ message(STATUS "bin/ directory ${CMAKE_INSTALL_BINDIR}")
 add_subdirectory(engine)
 add_subdirectory(game)
 
-# make install target of resources directory
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources/"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/"
-)
-
 # Generate version config
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"

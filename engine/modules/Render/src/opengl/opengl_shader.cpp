@@ -182,7 +182,9 @@ namespace astre::render::opengl
     OpenGLShader::OpenGLShader(OpenGLShader && other)
     :   _shader_program_ID{std::move(other._shader_program_ID)},
         _vertex_stage{std::move(other._vertex_stage)},
-        _fragment_stage{std::move(other._fragment_stage)}
+        _fragment_stage{std::move(other._fragment_stage)},
+        _uniforms{std::move(other._uniforms)},
+        _attributes{std::move(other._attributes)}
     {
         other._shader_program_ID = 0;
     }
@@ -326,13 +328,13 @@ namespace astre::render::opengl
         {
             GLSLVariable var;
             glGetActiveAttrib(
-                _shader_program_ID,              // program
-                i,                       // uniform index
+                _shader_program_ID,         // program
+                i,                          // uniform index
                 GLSLVariable::buffer_size,  // max length of name buffer
-                &var.length,             // actual name length
-                &var.size,               // array size (e.g. [4] is size 4)
-                &var.type,               // type: GL_FLOAT, GL_FLOAT_VEC3, etc.
-                var.name                 // output name
+                &var.length,                // actual name length
+                &var.size,                  // array size (e.g. [4] is size 4)
+                &var.type,                  // type: GL_FLOAT, GL_FLOAT_VEC3, etc.
+                var.name                    // output name
             );
             GLint location = glGetAttribLocation(_shader_program_ID, var.name);
 

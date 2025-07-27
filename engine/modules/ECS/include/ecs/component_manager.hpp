@@ -7,7 +7,6 @@
 
 #include "type/type.hpp"
 
-
 #include "ecs/entity.hpp"
 #include "ecs/entity_manager.hpp"
 #include "ecs/component_type.hpp"
@@ -125,7 +124,7 @@ namespace astre::ecs
                 getOrCreateStorage<Component>()->add(entity, component);
 
                 // Update entity mask
-                uint32_t type_ID = ComponentTypeManager::getTypeID<Component>();
+                uint32_t type_ID = ComponentTypesList::template getTypeID<Component>();
                 assert(type_ID < MAX_COMPONENT_TYPES);
                 assert(_entity_manager != nullptr);
                 _entity_manager->addComponentBit(entity, type_ID);

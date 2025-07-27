@@ -6,6 +6,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <glm/gtc/quaternion.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/quaternion.hpp>
+
 #include "generated/Math/proto/math.pb.h"
 
 namespace astre::math
@@ -64,12 +68,45 @@ namespace astre::math
     // template<typename T>
     // inline auto length(T&& v) { return glm::length(std::forward<T>(v)); }
 
-    // template<typename T>
-    // inline auto radians(T&& v) { return glm::radians(std::forward<T>(v)); }
+    template<typename T>
+    inline auto radians(T&& v) { return glm::radians(std::forward<T>(v)); }
 
-    // template<typename T>
-    // inline auto degrees(T&& v) { return glm::degrees(std::forward<T>(v)); }
+    template<typename T>
+    inline auto degrees(T&& v) { return glm::degrees(std::forward<T>(v)); }
+
+    template<class T, glm::qualifier Q>
+    inline auto lerp(const glm::qua<T, Q> &x, const glm::qua<T, Q> &y, T a){return glm::lerp(x, y, std::move(a));}
+
+    template<class T>
+    inline auto perspective(T fovy, T aspect, T zNear, T zFar){return glm::perspective(fovy, aspect, zNear, zFar);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto translate(const glm::mat<4, 4, T, Q> & m, const glm::vec<3, T, Q> & v){return glm::translate(m, v);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto scale(const glm::mat<4, 4, T, Q> & m, const glm::vec<3, T, Q> & v){return glm::scale(m, v);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto toMat4(const glm::qua<T, Q> & x){return glm::toMat4(x);}
 
     template<typename T>
     inline auto value_ptr(T&& v) { return glm::value_ptr(std::forward<T>(v)); }
+
+
+
+    Vec2Serialized serialize(const Vec2& v);
+    Vec3Serialized serialize(const Vec3& v);
+    Vec4Serialized serialize(const Vec4& v);
+    QuatSerialized serialize(const Quat& v);
+    Mat2Serialized serialize(const Mat2& mat2);
+    Mat3Serialized serialize(const Mat3& mat3);
+    Mat4Serialized serialize(const Mat4& mat4);
+
+    Vec2 deserialize(const Vec2Serialized& v2Serialized);
+    Vec3 deserialize(const Vec3Serialized& v3Serialized);
+    Vec4 deserialize(const Vec4Serialized& v4Serialized);
+    Quat deserialize(const QuatSerialized& qSerialized);
+    Mat2 deserialize(const Mat2Serialized& mat2Serialized);
+    Mat3 deserialize(const Mat3Serialized& mat3Serialized);
+    Mat4 deserialize(const Mat4Serialized& mat4Serialized);
 }

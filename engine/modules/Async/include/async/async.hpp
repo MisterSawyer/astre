@@ -2,6 +2,8 @@
 
 #include "native/native.h"
 #include <asio.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
+using namespace asio::experimental::awaitable_operators;
 
 #include <chrono>
 using namespace std::chrono_literals;

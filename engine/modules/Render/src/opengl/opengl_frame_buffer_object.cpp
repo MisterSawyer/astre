@@ -41,7 +41,10 @@ namespace astre::render::opengl
     }
     
     OpenGLFrameBufferObject::OpenGLFrameBufferObject(OpenGLFrameBufferObject && other)
-    :   _FBO(other._FBO), _resolution(std::move(other._resolution))
+        :   _FBO(other._FBO),
+            _resolution(std::move(other._resolution)),
+            _attached_textures(std::move(other._attached_textures)),
+            _attached_render_buffers(std::move(other._attached_render_buffers))
     {
         other._FBO = 0;
     }

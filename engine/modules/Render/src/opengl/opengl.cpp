@@ -506,7 +506,7 @@ namespace astre::render::opengl
         }
     }
 
-    asio::awaitable<void> OpenGLRenderer::clearScreen(glm::vec4 color, std::optional<std::size_t> fbo)
+    asio::awaitable<void> OpenGLRenderer::clearScreen(math::Vec4 color, std::optional<std::size_t> fbo)
     {
         if(good() == false)co_return;
 

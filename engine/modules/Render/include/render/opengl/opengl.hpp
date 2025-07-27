@@ -78,7 +78,7 @@ namespace astre::render::opengl
                 ShaderInputs shader_inputs,
                 RenderOptions options,
                 std::optional<std::size_t> fbo);
-                
+            
             asio::awaitable<void> present();
             asio::awaitable<void> updateViewportSize(unsigned int width, unsigned int height);
             std::pair<unsigned int, unsigned int> getViewportSize() const;

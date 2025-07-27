@@ -1,4 +1,4 @@
-#include "ecs/ecs.hpp"
+#include "ecs/registry.hpp"
 
 #include <spdlog/spdlog.h>
 

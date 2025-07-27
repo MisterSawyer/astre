@@ -11,9 +11,9 @@
 #include "ecs/ecs.hpp"
 #include "asset/asset.hpp"
 
-#include "world/chunk.hpp"
 #include "world/save_archive.hpp"
 
+#include "generated/World/proto/world_chunk.pb.h"
 
 namespace astre::world
 {
@@ -28,7 +28,7 @@ namespace astre::world
             float chunk_size,
             unsigned int max_loaded_chunks);
 
-        asio::awaitable<void> addEntityToChunk(ecs::Entity entity, ChunkID chunk_id);
+        asio::awaitable<void> addEntitiesToChunk(ChunkID chunk_id, std::vector<ecs::Entity> entities);
 
         asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
         asio::awaitable<void> saveAll(asset::use_binary_t);
@@ -37,8 +37,6 @@ namespace astre::world
     private:
         void loadChunk(const ChunkID& id);
         void unloadChunk(const ChunkID& id);
-
-        std::vector<ecs::EntityDefinition> createEntityDeps(const absl::flat_hash_set<ecs::Entity> & entities) const;
 
         async::AsyncContext<process::IProcess::execution_context_type> & _async_context;
 
@@ -51,6 +49,7 @@ namespace astre::world
         float _chunk_size;
         unsigned int _max_loaded_chunks;
 
-        absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _loaded;
+        absl::flat_hash_map<ChunkID, WorldChunk> _loaded_chunks;
+        absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _chunk_entities;
     };
 }

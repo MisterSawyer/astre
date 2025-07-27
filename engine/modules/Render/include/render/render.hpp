@@ -1,5 +1,8 @@
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+
+#include "math/math.hpp"
 #include "type/type.hpp"
 #include "process/process.hpp"
 #include "window/window.hpp"
@@ -18,6 +21,22 @@
 
 namespace astre::render
 {
+    struct RenderProxy
+    {
+        std::size_t vertex_buffer;
+        std::size_t shader;
+        ShaderInputs inputs;
+    };
+
+    struct Frame
+    {
+        std::chrono::steady_clock::time_point sim_time;
+        math::Vec3 camera_position;
+        math::Mat4 view_matrix;
+        math::Mat4 proj_matrix;
+        absl::flat_hash_map<std::size_t, RenderProxy> render_proxies;
+    };
+
     class IRenderer : public type::InterfaceBase
     {
     public:
@@ -75,7 +94,7 @@ namespace astre::render
                 ShaderInputs shader_inputs = ShaderInputs{},
                 RenderOptions options = RenderOptions{},
                 std::optional<std::size_t> fbo = std::nullopt) = 0;
-        
+
         /**
          * @brief Present the rendered frame
          * 
@@ -400,4 +419,13 @@ namespace astre::render
 
 
     asio::awaitable<render::Renderer> createRenderer(window::IWindow & window);
+
+    // render interpolates frames N-2 and N-1
+    asio::awaitable<void> renderInterpolated(   
+        const render::Frame & N2,
+        const render::Frame & N1,
+        float alpha,
+        IRenderer & renderer,
+        const render::RenderOptions options,
+        const std::optional<std::size_t> fbo = std::nullopt);
 }

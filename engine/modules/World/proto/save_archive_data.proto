@@ -1,0 +1,10 @@
+syntax="proto3";
+
+package astre.world;
+
+import "World/proto/world_chunk.proto";
+
+message SaveArchiveData
+{
+    repeated WorldChunk chunks = 1;
+};
