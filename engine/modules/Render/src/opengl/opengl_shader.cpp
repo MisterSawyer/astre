@@ -389,6 +389,16 @@ namespace astre::render::opengl
         glUniform1i(_uniforms.at(name).first, value);
     }
 
+    void OpenGLShader::setUniform(const std::string & name, std::uint32_t value)
+    {
+        if(_uniforms.contains(name) == false)
+        {
+            spdlog::error("Uniform {} not found in shader program {}", name, _shader_program_ID);
+            return;
+        }
+        glUniform1ui(_uniforms.at(name).first, value);
+    }
+
     void OpenGLShader::setUniform(const std::string & name, float value)
     {
         if(_uniforms.contains(name) == false)
@@ -461,6 +471,8 @@ namespace astre::render::opengl
 
     void OpenGLShader::setUniform(const std::string & name, const std::vector<math::Mat4> & values)
     {
+        if(values.empty())return;
+
         const std::string array_name = name + "[0]";
         if(_uniforms.contains(array_name) == false)
         {
@@ -469,7 +481,7 @@ namespace astre::render::opengl
         }
 
         const auto & glsl_var = _uniforms.at(array_name).second;
-        if(values.size() >= glsl_var.size)
+        if(values.size() > glsl_var.size)
         {
             spdlog::error("Uniform {} size {} is greater than the shader uniform array size {}", name, values.size(), glsl_var.size);
             return;
@@ -495,6 +507,8 @@ namespace astre::render::opengl
 
     void OpenGLShader::setUniform(const std::string & name, unsigned int unit, const std::vector<ITexture*> & values)
     {
+        if(values.empty())return;
+
         const std::string array_name = name + "[0]";
 
         if(_uniforms.contains(array_name) == false)
@@ -504,7 +518,7 @@ namespace astre::render::opengl
         }
 
         const auto & glsl_var = _uniforms.at(array_name).second;
-        if(values.size() >= glsl_var.size)
+        if(values.size() > glsl_var.size)
         {
             spdlog::error("Uniform {} size {} is greater than the shader uniform array size {}", name, values.size(), glsl_var.size);
             return;

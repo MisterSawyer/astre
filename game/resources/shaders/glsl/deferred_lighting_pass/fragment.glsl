@@ -25,14 +25,14 @@ struct GPULight {
 layout(std430, binding = 2) buffer LightBuffer {
     GPULight lights[];
 };
-uniform int lightCount;
+uniform uint lightCount;
 
 // Shadow Map
 #define MAX_SHADOW_CASTERS 16
 
 layout(binding = 3) uniform sampler2DShadow shadowMaps[MAX_SHADOW_CASTERS];
 uniform mat4 lightSpaceMatrices[MAX_SHADOW_CASTERS];
-uniform int shadowCastersCount;
+uniform uint shadowCastersCount;
 
 in vec2 TexCoord;
 out vec4 FragColor;
@@ -83,10 +83,10 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
 
     vec3 lighting = vec3(0.0);
-    for (int i = 0; i < lightCount; ++i)
+    for (uint i = 0; i < lightCount; ++i)
     {
         float shadow = 1.0;
-        if (lights[i].castShadows.x > 0 && int(lights[i].castShadows.y) < shadowCastersCount)
+        if (lights[i].castShadows.x > 0 && uint(lights[i].castShadows.y) < shadowCastersCount)
         {
             int shadowIndex = int(lights[i].castShadows.y);
             shadow = calculateShadow(FragPos, shadowIndex);

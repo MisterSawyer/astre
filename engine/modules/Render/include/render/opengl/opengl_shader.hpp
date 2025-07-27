@@ -37,6 +37,7 @@ namespace astre::render::opengl
         void setUniform(const std::string & name, bool value);
 
         void setUniform(const std::string & name, int value);
+        void setUniform(const std::string & name, std::uint32_t value);
         void setUniform(const std::string & name, float value);
 
         void setUniform(const std::string & name, const math::Vec2 & value);

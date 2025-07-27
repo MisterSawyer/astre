@@ -18,13 +18,14 @@ namespace astre::ecs::system
     LightSystem::LightSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
         :   System(registry, execution_context)
     {
-        _shadowmaps_space_matrices.resize(MAX_SHADOW_CASTERS);
     }
 
     asio::awaitable<void> LightSystem::run(render::Frame & frame)
     {
         co_await getAsyncContext().ensureOnStrand();
         frame.gpu_lights.clear();
+        frame.light_space_matrices.clear();
+        frame.light_space_matrices.reserve(MAX_SHADOW_CASTERS);
 
         ecs::Registry & registry = getRegistry();
 
@@ -36,8 +37,8 @@ namespace astre::ecs::system
             std::size_t light_id = 0;
             render::GPULight gpu_light{};
 
-            LightComponent * light_component = nullptr;
-            TransformComponent * transform_component = nullptr;
+            const LightComponent * light_component = nullptr;
+            const TransformComponent * transform_component = nullptr;
 
             for (const auto& [entity, mask] : registry.getAllEntities())
             {
@@ -153,14 +154,15 @@ namespace astre::ecs::system
                 shadow_caster.castShadows.y = static_cast<float>(shadow_caster_id);
 
                 // store light space matrix
-                _shadowmaps_space_matrices[shadow_caster_id] = projection_matrix * view_matrix;
+                frame.light_space_matrices.emplace_back(projection_matrix * view_matrix);
 
                 shadow_caster_id++;
 
+                assert(shadow_caster_id == frame.light_space_matrices.size());
                 assert(shadow_caster_id <= MAX_SHADOW_CASTERS);
             }
 
-            _shadow_casters_count = shadow_caster_id;
+            frame.shadow_casters_count = shadow_caster_id;
         }
         co_return;
     }

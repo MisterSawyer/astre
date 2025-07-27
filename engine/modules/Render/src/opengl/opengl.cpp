@@ -418,6 +418,11 @@ namespace astre::render::opengl
         {
             _shaders.at(shader_ID)->setUniform(name, val);
         }
+        for(const auto & [name, val] : shader_inputs.in_uint)
+        {
+            _shaders.at(shader_ID)->setUniform(name, val);
+        }
+        
         for(const auto & [name, val] : shader_inputs.in_float)
         {
             _shaders.at(shader_ID)->setUniform(name, val);
@@ -555,6 +560,8 @@ namespace astre::render::opengl
         if(good() == false)co_return;
 
         co_await _render_context->ensureOnStrand();
+
+        if(good() == false)co_return;
 
         if(fbo)
         {

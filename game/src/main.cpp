@@ -20,6 +20,7 @@ namespace astre::entry
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
+        co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
 
         auto deferred_fbo_res = co_await game_state.app_state.renderer.createFrameBufferObject("fbo::deferred",
             std::make_pair(1280, 728), 
@@ -55,6 +56,33 @@ namespace astre::entry
             co_return;
         }
         const std::size_t & shadow_shader = *shadow_shader_res;
+
+        // create shadow maps
+        std::vector<std::size_t> shadow_map_fbos;
+        for(unsigned int i = 0; i < ecs::system::LightSystem::MAX_SHADOW_CASTERS; ++i)
+        {
+            const auto new_fbo = co_await game_state.app_state.renderer.createFrameBufferObject(
+                "fbo::shadow_map" + std::to_string(i), std::make_pair(1280, 728),
+                {{render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Depth, render::TextureFormat::Depth_32F}});
+            
+            if(!new_fbo)
+            {
+                spdlog::error("Failed to create shadow map fbo {}", i);
+                co_return;
+            }
+
+            shadow_map_fbos.emplace_back(*new_fbo);
+        }
+
+        // fetch shadow map textures from frame buffer objects
+        std::vector<std::size_t> shadow_map_textures;
+        shadow_map_textures.reserve(ecs::system::LightSystem::MAX_SHADOW_CASTERS);
+        for(const auto & shader_map_fbo : shadow_map_fbos)
+        {
+            auto tex_res = game_state.app_state.renderer.getFrameBufferObjectTextures(shader_map_fbo);
+            assert(tex_res.size() == 1 && "Shadow map fbo should only have one texture" );
+            shadow_map_textures.emplace_back(tex_res.at(0));
+        }
 
         auto NDC_quad_res = game_state.app_state.renderer.getVertexBuffer("NDC_quad_prefab");
         if(!NDC_quad_res)
@@ -94,7 +122,7 @@ namespace astre::entry
         int current_sim_index = 0;  // this is N
         int render_from_index = (current_sim_index + 1) % 3; // N-2
         int render_to_index   = (current_sim_index + 2) % 3; // N-1
-
+        float alpha = 0.0f;
         std::chrono::steady_clock::time_point now;
 
         while(game_state.app_state.window.good())
@@ -118,27 +146,76 @@ namespace astre::entry
 
             co_await game_state.app_state.renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
             
-            // Spawn render task for frames N-2 and N-1
+            alpha = accumulator / fixed_dt;
+            //  render interpolated frames N-2 and N-1
             // render to Gbuffer
-            main_loop_context.co_spawn(
-                render::renderInterpolated(
+            
+                co_await render::renderInterpolated(
                     game_state.frames[(current_sim_index + 1) % 3],  // N−2
                     game_state.frames[(current_sim_index + 2) % 3],  // N−1
-                    accumulator / fixed_dt,
+                    alpha,
                     game_state.app_state.renderer,
-                    render::RenderOptions{.mode = render::RenderMode::Solid},
-                    deferred_fbo
-                ));
+                    render::RenderOptions{.mode = render::RenderMode::Solid}
+                    //deferred_fbo
+                );
+            /*
+            const render::Frame & frame = alpha <= 0.5 ? 
+                game_state.frames[(current_sim_index + 1) % 3] : game_state.frames[(current_sim_index + 2) % 3];
+
+            // for every shadow caster we need to render whole scene 
+            // so all entities with visual component
+            // using simplified shadow shader
+            const ecs::TransformComponent * transform_component = nullptr;
+            const ecs::VisualComponent * visual_component = nullptr;
+            std::optional<std::size_t> vb_id;
+            for(std::size_t shadow_caster_id = 0; shadow_caster_id < frame.shadow_casters_count; ++shadow_caster_id)
+            {
+                co_await game_state.app_state.renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, shadow_map_fbos.at(shadow_caster_id));
+
+                for(const auto & [entity, mask] : game_state.registry.getAllEntities())
+                {
+                    if(!mask.test(ecs::system::VisualSystem::MASK_BIT) ||
+                        !mask.test(ecs::system::TransformSystem::MASK_BIT)) continue;
+
+                    visual_component = game_state.registry.getComponent<ecs::VisualComponent>(entity);
+                    transform_component = game_state.registry.getComponent<ecs::TransformComponent>(entity);
+                    assert(visual_component != nullptr && transform_component != nullptr);
+
+                    if(visual_component->visible() == false) continue;
+                    if(transform_component->has_transform_matrix() == false) continue;
+
+                    vb_id = game_state.app_state.renderer.getVertexBuffer(visual_component->vertex_buffer_name());
+                    if(!vb_id) continue;
+
+                    // render depth information to shadow map fbo
+                    co_await game_state.app_state.renderer.render(*vb_id, shadow_shader, 
+                        render::ShaderInputs{
+                            .in_mat4 = {
+                                {"uModel", math::deserialize(transform_component->transform_matrix())},
+                                {"uLightSpaceMatrix", frame.light_space_matrices[shadow_caster_id]}
+                            }
+                        },
+                        render::RenderOptions{
+                            .mode = render::RenderMode::Solid,
+                            .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
+                        },
+                        shadow_map_fbos.at(shadow_caster_id)
+                    );
+                }
+            }
+
+            co_await game_state.app_state.renderer.updateShaderStorageBuffer(
+                light_ssbo, sizeof(render::GPULight) * frame.gpu_lights.size(), frame.gpu_lights.data());
 
             // render GBuffer to screen
             co_await game_state.app_state.renderer.render(NDC_quad, deferred_lighting_pass,
                 render::ShaderInputs{
-                    .in_int = {
-                        //{"lightCount", (int)light_system.getLightsCount()},
-                        //{"shadowCastersCount", (int)light_system.getShadowCastersCount()}
+                    .in_uint = {
+                        {"lightCount", (std::uint32_t)frame.gpu_lights.size()},
+                        {"shadowCastersCount", frame.shadow_casters_count}
                     },
                     .in_mat4_array = {
-                        //{"lightSpaceMatrices", light_system.getShadowMapLightSpaceMatrices()}
+                        {"lightSpaceMatrices", frame.light_space_matrices}
                     },
                     .in_samplers = {
                         {"gPosition",   gbuffer_textures.at(0)},
@@ -146,7 +223,7 @@ namespace astre::entry
                         {"gAlbedoSpec", gbuffer_textures.at(2)}
                     },
                     .in_samplers_array = {
-                        //{"shadowMaps", light_system.getShadowMapTextures()}
+                        {"shadowMaps", shadow_map_textures}
                     },
                     .storage_buffers = {
                         light_ssbo
@@ -156,7 +233,7 @@ namespace astre::entry
                     .mode = render::RenderMode::Solid
                 }
             );
-
+            */
             co_await game_state.app_state.renderer.present();
         };
     }

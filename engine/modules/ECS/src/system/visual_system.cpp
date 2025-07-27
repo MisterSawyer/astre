@@ -50,8 +50,10 @@ namespace astre::ecs::system
 
                 frame.render_proxies[entity].inputs.in_bool["useTexture"] = false;
 
-                if(visual_component->has_color()){
-                    frame.render_proxies[entity].inputs.in_vec4["uColor"] = math::deserialize(visual_component->color());
+                if(visual_component->has_color())
+                {
+                    math::Vec4 color = math::deserialize(visual_component->color());
+                    frame.render_proxies[entity].inputs.in_vec4["uColor"] = color;
                 }
                 else{
                     frame.render_proxies[entity].inputs.in_vec4["uColor"] = math::Vec4(1.0f, 0.0f, 1.0f, 1.0f);

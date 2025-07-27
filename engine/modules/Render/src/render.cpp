@@ -24,6 +24,15 @@ namespace astre::render
                 r.in_int[key] = va;
         }
 
+        // in_uint
+        for (const auto& [key, va] : ra.in_uint)
+        {
+            if (auto it = rb.in_int.find(key); it != rb.in_int.end())
+                r.in_int[key] = va * (1.0f - t) + it->second * t;
+            else
+                r.in_int[key] = va;
+        }
+
         // in_float
         for (const auto& [key, va] : ra.in_float)
         {
@@ -71,9 +80,10 @@ namespace astre::render
 
         // Non-interpolatable or statically chosen fields
         r.in_bool            = t <= 0.5 ? ra.in_bool : rb.in_bool;
-        //r.in_mat2            = t <= 0.5 ? ra.in_mat2;
-        //r.in_mat3            = t <= 0.5 ? ra.in_mat3;
-        //r.in_mat4_array      = t <= 0.5 ? ra.in_mat4_array;
+        r.in_mat2            = ra.in_mat2;
+        r.in_mat3            = ra.in_mat3;
+        r.in_mat4            = ra.in_mat4;
+        r.in_mat4_array      = ra.in_mat4_array;
         r.in_samplers        = t <= 0.5 ? ra.in_samplers : rb.in_samplers;
         r.in_samplers_array  = t <= 0.5 ? ra.in_samplers_array : rb.in_samplers_array;
         r.storage_buffers    = t <= 0.5 ? ra.storage_buffers : rb.storage_buffers;
@@ -91,7 +101,8 @@ namespace astre::render
     {
         if(renderer.good() == false) co_return;
 
-        render::Frame interpolated_frame;
+        render::Frame interpolated_frame = N2;
+        /*
         if(alpha <= 0.5f)
         {
             // N2 is primary
@@ -130,7 +141,7 @@ namespace astre::render
                 }
             }
         }
-
+        */
         // render interpolated frame
         for(const auto & [_, proxy] : interpolated_frame.render_proxies)
         {

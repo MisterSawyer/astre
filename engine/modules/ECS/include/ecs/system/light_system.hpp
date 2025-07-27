@@ -20,9 +20,5 @@ namespace astre::ecs::system
         ~LightSystem() = default;
 
         asio::awaitable<void> run(render::Frame & frame);
-
-    private:
-        std::vector<math::Mat4> _shadowmaps_space_matrices;
-        std::size_t _shadow_casters_count;
     };
 }

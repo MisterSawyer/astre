@@ -22,6 +22,7 @@ namespace astre::render
         absl::flat_hash_map<std::string, bool> in_bool;
 
         absl::flat_hash_map<std::string, int> in_int;
+        absl::flat_hash_map<std::string, std::uint32_t> in_uint;
         absl::flat_hash_map<std::string, float> in_float;
 
         absl::flat_hash_map<std::string, math::Vec2> in_vec2;
@@ -87,6 +88,15 @@ namespace astre::render
          * 
          */
         virtual void setUniform(const std::string & name, int value) = 0;
+
+        /**
+         * @brief Set the unsigned integer uniform value in the shader.
+         * 
+         * @param name The name of the uniform.
+         * @param value Unsigned integer value of the uniform.
+         * 
+         */
+        virtual void setUniform(const std::string & name, std::uint32_t value) = 0;
 
         /**
          * @brief Set the float uniform value in the shader.
@@ -209,6 +219,7 @@ namespace astre::render
             inline void setUniform(const std::string & name, bool value) override { return base::impl().setUniform(name, value);}
 
             inline void setUniform(const std::string & name, int value) override { return base::impl().setUniform(name, value);}
+            inline void setUniform(const std::string & name, std::uint32_t value) override { return base::impl().setUniform(name, value);}
             inline void setUniform(const std::string & name, float value) override { return base::impl().setUniform(name, value);}
 
             inline void setUniform(const std::string & name, const math::Vec2 & value) override { return base::impl().setUniform(name, value);}
