@@ -107,27 +107,24 @@ int main(int argc, char* argv[])
     assert(used_cores <= hardware_cores);
 
     // start external entry point
-    std::promise<int> external_main_promise;
+    int return_value;
     {
         // Create a process
         process::Process process(process::createProcess(used_cores));
 
         asio::co_spawn(process->getExecutionContext(), 
             entry::main(paths, *process), 
-            // when main ended spawn process->close()
-            // and set return values
-            [&process, &external_main_promise](std::exception_ptr, int r)
+            // when main ended set return values
+            [&return_value](std::exception_ptr, int r)
             {
-                // wait for process to close
-                asio::co_spawn(process->getExecutionContext(), process->close(), asio::use_future).get();
-                external_main_promise.set_value(r);
+                return_value = r;
             }
         );
 
+        // wait for process to end
         process->join();
     }
 
-    int return_value = external_main_promise.get_future().get();
     spdlog::debug("Program finished with code {}", return_value);
 
     #ifdef GOOGLE_PROTOBUF_VERSION

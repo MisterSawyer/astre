@@ -8,10 +8,14 @@ add_module(NAME "Async"
     
     DEPENDENCIES
         asio
+        spdlog
+        absl::flat_hash_map
 
         astre::Native
 )
 
+# spdlog-src\include\spdlog\fmt\bundled\core.h(418): warning C6239
+target_compile_options(Async PRIVATE /wd6239)
 # asio-src\asio\include\asio\detail\impl\win_event.ipp(56): warning C6387
 target_compile_options(Async PRIVATE /wd6387)
 #asio-src\asio\include\asio\detail\impl\win_thread.ipp(49): warning C6258
@@ -24,3 +28,5 @@ target_compile_options(Async PRIVATE /wd6255)
 target_compile_options(Async PRIVATE /wd6031)
 #asio-src\asio\include\asio\thread_pool.hpp(659): warning C6313
 target_compile_options(Async PRIVATE /wd6313)
+#asio-src\asio\include\asio\detail\chrono_time_traits.hpp(165): warning C6326
+target_compile_options(Async PRIVATE /wd6326)

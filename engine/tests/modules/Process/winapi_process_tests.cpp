@@ -35,8 +35,7 @@ TEST_F(WinapiProcessTest, RegisterAndUnregisterWindow)
 TEST_F(WinapiProcessTest, SetWindowCallbacksWorks) {
     auto window = sync_await(process.getExecutionContext(), process.registerWindow("CallbackTest", 100, 100));
     ASSERT_NE(window, nullptr);
-
-    WindowCallbacks callbacks{.context = astre::async::AsyncContext(process.getExecutionContext())};
+    WindowCallbacks callbacks{};
     callbacks.onResize = [](int, int) -> asio::awaitable<void> { co_return; };
 
     auto result = sync_await(process.getExecutionContext(), process.setWindowCallbacks(window, std::move(callbacks)));

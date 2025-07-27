@@ -21,6 +21,7 @@ namespace astre::entry
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
+        co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
 
         auto deferred_fbo_res = co_await game_state.app_state.renderer.createFrameBufferObject("fbo::deferred",
             std::make_pair(1280, 728), 
@@ -92,13 +93,13 @@ namespace astre::entry
         }
         const std::size_t & NDC_quad = *NDC_quad_res;
 
-        const auto deferred_lighting_pass_res = game_state.app_state.renderer.getShader("deferred_lighting_pass");
-        if(!deferred_lighting_pass_res)
+        const auto NDC_shader_res = game_state.app_state.renderer.getShader("deferred_lighting_pass");
+        if(!NDC_shader_res)
         {
-            spdlog::error("Failed to get deferred lighting pass shader");
+            spdlog::error("Failed to get NDC shader");
             co_return;
         } 
-        const std::size_t & deferred_lighting_pass = *deferred_lighting_pass_res;
+        const std::size_t & NDC_shader = *NDC_shader_res;
 
 
         co_await game_state.app_state.renderer.enableVSync();
@@ -120,14 +121,73 @@ namespace astre::entry
         std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
         
         int current_sim_index = 0;  // this is N
-        int render_from_index = (current_sim_index + 1) % 3; // N-2
-        int render_to_index   = (current_sim_index + 2) % 3; // N-1
         float alpha = 0.0f;
         std::chrono::steady_clock::time_point now;
+
+        auto camera_entity = game_state.registry.getEntity("camera");
+        if(!camera_entity)
+        {
+            spdlog::error("Failed to get camera entity");
+            co_return;
+        }
+        const auto & camera = *camera_entity;
+        float camera_rot = 0;
 
         while(game_state.app_state.window.good())
         {
             co_await main_loop_context.ensureOnStrand();
+            
+            co_await game_state.app_state.input_service.update();
+
+            const auto pos = game_state.registry.getComponent<ecs::TransformComponent>(camera)->position();
+
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_A))
+            {
+                spdlog::debug("A key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_x(pos.x() + 1.0f);
+            }
+
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_D))
+            {
+                spdlog::debug("D key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_x(pos.x() - 1.0f);
+            }
+
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_W))
+            {
+                spdlog::debug("W key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_z(pos.z() + 1.0f);
+            }
+
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_S))
+            {
+                spdlog::debug("S key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_z(pos.z() - 1.0f);
+            }
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_Q))
+            {
+                spdlog::debug("Q key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_y(pos.y() - 1.0f);
+            }
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_E))
+            {
+                spdlog::debug("E key pressed");
+                game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_position()->set_y(pos.y() + 1.0f);
+            }
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_C))
+            {
+                spdlog::debug("C key pressed");
+                camera_rot--;
+            }
+            if(game_state.app_state.input_service.isKeyPressed(input::InputCode::KEY_Z))
+            {
+                spdlog::debug("Z key pressed");
+                camera_rot++;
+            }
+
+            game_state.registry.getComponent<ecs::TransformComponent>(camera)->mutable_rotation()->
+                CopyFrom(math::serialize(glm::angleAxis(glm::radians(camera_rot), glm::vec3{0, 1, 0})));
+
 
             now = std::chrono::steady_clock::now();
             accumulator += std::chrono::duration<float>(now - last_time).count();
@@ -137,30 +197,38 @@ namespace astre::entry
             while (accumulator >= fixed_dt)
             {
                 // Spawn simulation task for frame N
-                main_loop_context.co_spawn(_simulateFrame(game_state.systems, game_state.frames[current_sim_index]));
+                co_await _simulateFrame(game_state.systems, game_state.frames[current_sim_index]);
 
                 // Rotate ring buffer
                 current_sim_index = (current_sim_index + 1) % 3;
                 accumulator -= fixed_dt;
             }
 
-            co_await game_state.app_state.renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
-            
+            const render::Frame & frame = game_state.frames[current_sim_index];
+
             alpha = accumulator / fixed_dt;
+
             //  render interpolated frames N-2 and N-1
             // render to Gbuffer
-            
-                co_await render::renderInterpolated(
-                    game_state.frames[(current_sim_index + 1) % 3],  // N−2
-                    game_state.frames[(current_sim_index + 2) % 3],  // N−1
-                    alpha,
-                    game_state.app_state.renderer,
-                    render::RenderOptions{.mode = render::RenderMode::Solid}
-                    //deferred_fbo
-                );
-            /*
-            const render::Frame & frame = alpha <= 0.5 ? 
-                game_state.frames[(current_sim_index + 1) % 3] : game_state.frames[(current_sim_index + 2) % 3];
+            // co_await render::renderInterpolated(
+            //     game_state.frames[(current_sim_index + 1) % 3],  // N−2
+            //     game_state.frames[(current_sim_index + 2) % 3],  // N−1
+            //     alpha,
+            //     game_state.app_state.renderer,
+            //     render::RenderOptions{.mode = render::RenderMode::Solid},
+            //     deferred_fbo
+            // );
+        co_await game_state.app_state.renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, deferred_fbo);
+        for(const auto & [_, proxy] : frame.render_proxies)
+        {
+            co_await game_state.app_state.renderer.render( 
+                proxy.vertex_buffer,
+                proxy.shader,
+                proxy.inputs,
+                render::RenderOptions{.mode = render::RenderMode::Solid},
+                deferred_fbo
+            );
+        }
 
             // for every shadow caster we need to render whole scene 
             // so all entities with visual component
@@ -203,12 +271,13 @@ namespace astre::entry
                     );
                 }
             }
-
+            
             co_await game_state.app_state.renderer.updateShaderStorageBuffer(
                 light_ssbo, sizeof(render::GPULight) * frame.gpu_lights.size(), frame.gpu_lights.data());
 
             // render GBuffer to screen
-            co_await game_state.app_state.renderer.render(NDC_quad, deferred_lighting_pass,
+            co_await game_state.app_state.renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
+            co_await game_state.app_state.renderer.render(NDC_quad, NDC_shader,
                 render::ShaderInputs{
                     .in_uint = {
                         {"lightCount", (std::uint32_t)frame.gpu_lights.size()},
@@ -233,22 +302,26 @@ namespace astre::entry
                     .mode = render::RenderMode::Solid
                 }
             );
-            */
+
             co_await game_state.app_state.renderer.present();
         };
     }
 
     asio::awaitable<void> appMain(const pipeline::WindowAppState & app_state, const entry::AppPaths & paths)
     {
+        spdlog::debug("[pipeline] GamePipeline running");
         co_await pipeline::GamePipeline{app_state}.run<void>(gameMain, paths);
+        spdlog::debug("[pipeline] GamePipeline ended");
     }
 
     asio::awaitable<int> main(const entry::AppPaths & paths, process::IProcess & process)
     {
         spdlog::set_level(spdlog::level::debug);
         spdlog::info("astre game started");
-
+        
+        spdlog::debug("[pipeline] WindowApp running");
         co_await pipeline::WindowApp{process, "astre game", 1280, 720}.run<void>(appMain, paths);
+        spdlog::debug("[pipeline] WindowApp ended");
 
         co_return 0;
     }

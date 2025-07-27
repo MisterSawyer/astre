@@ -1,13 +1,22 @@
 #pragma once
 
-#include "native/native.h"
-#include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
-using namespace asio::experimental::awaitable_operators;
+#include <utility>
+#include <exception>
+#include <stdexcept>
+#include <variant>
+#include <unordered_map>
 
 #include <chrono>
 using namespace std::chrono_literals;
 #include <thread>
+
+#include "native/native.h"
+#include <asio.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
+using namespace asio::experimental::awaitable_operators;
+#include <asio/experimental/concurrent_channel.hpp>
+#include <spdlog/spdlog.h>
+#include <absl/container/flat_hash_map.h>
 
 namespace astre::async
 {
@@ -24,13 +33,25 @@ namespace astre::async
             using executor_type = typename context_type::executor_type;
         
             explicit inline AsyncContext(context_type & context) 
-                : _strand(asio::make_strand(context.get_executor())) 
+                : _strand(asio::make_strand(context.get_executor()))
             {}
-            inline AsyncContext(const AsyncContext &) = default;
-            inline AsyncContext(AsyncContext &&) = default;
-            inline AsyncContext & operator=(const AsyncContext &) = default;
-            inline AsyncContext & operator=(AsyncContext &&) = default;
 
+            inline AsyncContext(AsyncContext && other)
+            : _strand(std::move(other._strand))
+            {}
+
+            inline AsyncContext & operator=(AsyncContext && other)
+            {
+                if(this == &other) return *this;
+                _strand = std::move(other._strand);
+                return *this;
+            }
+
+            AsyncContext(const AsyncContext & other) = delete;
+
+            AsyncContext & operator=(const AsyncContext & other) = delete;
+
+            // awaitable factory
             inline asio::awaitable<void> ensureOnStrand() const
             {
                 if(!_strand.running_in_this_thread()) {
@@ -39,9 +60,12 @@ namespace astre::async
                 return noop();
             }
 
+            // spawn new coroutine
             template<typename T>
-            void co_spawn(asio::awaitable<T> && awaitable) const
+            inline void co_spawn(asio::awaitable<T> && awaitable)
             {
+                assert(awaitable.valid() && "awaitable is invalid (possibly moved-from)");
+
                 asio::co_spawn(_strand, std::forward<typename asio::awaitable<T>>(awaitable), asio::detached);
             }
 
@@ -49,7 +73,10 @@ namespace astre::async
             asio::strand<executor_type> _strand;
     };
 
-    class ThreadContext
+    template<class Executor>
+    AsyncContext(Executor & ) -> AsyncContext<Executor>;
+
+    class ThreadContext : public asio::io_context
     {
         public:
             ThreadContext();
@@ -59,7 +86,7 @@ namespace astre::async
             asio::awaitable<void> ensureOnStrand() const;
 
             template<typename Awaitable>
-            void co_spawn(Awaitable&& awaitable) const
+            void co_spawn(Awaitable&& awaitable)
             {
                 _async_context.co_spawn(std::move(awaitable));
             }
@@ -75,13 +102,8 @@ namespace astre::async
             void close();
         
             bool running() const;
-            
-            void run();
-            
-            void poll();
 
         private:
-            asio::io_context _io_context;
             asio::executor_work_guard<asio::io_context::executor_type> _work_guard;
             AsyncContext<asio::io_context> _async_context;
 

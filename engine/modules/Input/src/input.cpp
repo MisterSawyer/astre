@@ -122,6 +122,8 @@ namespace astre::input
 
     asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
     {
+        if(_closed.test())co_return;
+
         InputEvent event;
         event.set_type(InputEventType::Pressed);
         event.set_code(key);
@@ -134,6 +136,8 @@ namespace astre::input
 
     asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
     {
+        if(_closed.test())co_return;
+
         InputEvent event;
         event.set_type(InputEventType::Released);
         event.set_code(key);
@@ -146,6 +150,8 @@ namespace astre::input
 
     asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
     {
+        if(_closed.test())co_return;
+
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
         event.mutable_mouse()->set_x(x);
@@ -158,6 +164,50 @@ namespace astre::input
         co_return;
     }
 
+    bool InputService::isKeyPressed(InputCode key) const
+    {
+        if(_closed.test())return false;
 
+        return isInputPresent(key, _held_keys);
+    }
+
+    void InputService::close()
+    {
+        _closed.test_and_set();
+        spdlog::debug("[input-service] closed");
+    }
+
+    asio::awaitable<void> InputService::update()
+    {
+        if(_closed.test())co_return;
+
+        co_await _input_context.ensureOnStrand();
+
+        std::deque<InputEvent> events;
+        std::swap(events, _event_queue); // fast, av
+        absl::flat_hash_set<InputCode> just_pressed;
+        absl::flat_hash_set<InputCode> just_released;
+
+        for (const auto& event : events)
+        {
+            switch (event.type()) 
+            {
+                case InputEventType::Pressed:
+                    if(event.code() == InputCode::UNKNOWN_InputCode) break;
+                    if (_held_keys.insert(event.code()).second)
+                    {
+                        just_pressed.insert(event.code());
+                    }
+                    break;
+                case InputEventType::Released:
+                    if(event.code() == InputCode::UNKNOWN_InputCode) break;
+                    if (_held_keys.erase(event.code()) > 0)
+                    {
+                        just_released.insert(event.code());
+                    }
+                    break;
+            }
+        }
+    }
 
 }

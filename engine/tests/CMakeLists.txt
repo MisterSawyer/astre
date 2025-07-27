@@ -13,6 +13,8 @@ add_executable(${PROJECT_NAME}Tests
     "src/unit_tests.cpp"
 
     # Components Tests
+    "modules/Async/async_tests.cpp"
+
     "modules/Native/native_tests.cpp"
     "modules/Type/type_tests.cpp"
     "modules/Process/process_tests.cpp"
@@ -23,6 +25,7 @@ add_executable(${PROJECT_NAME}Tests
     "modules/Render/opengl_shader_tests.cpp"
 
     "modules/World/save_archive_tests.cpp"
+    
 )
 
 if(WIN32)

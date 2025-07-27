@@ -40,6 +40,21 @@ namespace astre::ecs::system
 
             frame.render_proxies[entity].vertex_buffer = *vb_id;
             frame.render_proxies[entity].shader = *sh_id;
+            
+            // TODO right now every render proxy will copy uView and uProjection
+            frame.render_proxies[entity].inputs.in_mat4["uView"] = frame.view_matrix;
+            frame.render_proxies[entity].inputs.in_mat4["uProjection"] = frame.proj_matrix;
+
+            frame.render_proxies[entity].inputs.in_bool["useTexture"] = false;
+
+            if(visual_component->has_color())
+            {
+                math::Vec4 color = math::deserialize(visual_component->color());
+                frame.render_proxies[entity].inputs.in_vec4["uColor"] = color;
+            }
+            else{
+                frame.render_proxies[entity].inputs.in_vec4["uColor"] = math::Vec4(1.0f, 0.0f, 1.0f, 1.0f);
+            }
 
             // if also has a transform component
             // update transform matrix
@@ -47,21 +62,6 @@ namespace astre::ecs::system
             {
                 transform_component = registry.getComponent<TransformComponent>(entity);
                 assert(transform_component != nullptr);
-
-                frame.render_proxies[entity].inputs.in_bool["useTexture"] = false;
-
-                if(visual_component->has_color())
-                {
-                    math::Vec4 color = math::deserialize(visual_component->color());
-                    frame.render_proxies[entity].inputs.in_vec4["uColor"] = color;
-                }
-                else{
-                    frame.render_proxies[entity].inputs.in_vec4["uColor"] = math::Vec4(1.0f, 0.0f, 1.0f, 1.0f);
-                }
-
-                // TODO right now every render proxy will copy uView and uProjection
-                frame.render_proxies[entity].inputs.in_mat4["uView"] = frame.view_matrix;
-                frame.render_proxies[entity].inputs.in_mat4["uProjection"] = frame.proj_matrix;
                 frame.render_proxies[entity].inputs.in_mat4["uModel"] = math::deserialize(transform_component->transform_matrix());
             }
         }

@@ -8,9 +8,7 @@
 namespace astre::process
 {
     struct WindowCallbacks
-    {
-        async::AsyncContext<asio::thread_pool> context;
-        
+    {        
         std::function<asio::awaitable<void>()> onDestroy;
         std::function<asio::awaitable<void>(unsigned int, unsigned int)> onResize;
         std::function<asio::awaitable<void>()> onMove;

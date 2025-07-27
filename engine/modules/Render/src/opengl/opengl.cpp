@@ -209,7 +209,7 @@ namespace astre::render::opengl
     bool OpenGLRenderer::good() const
     {
         return  _oglctx_handle != nullptr && _render_context != nullptr &&
-                _render_context != nullptr && _render_context->running();
+                _render_context->running();
     }
 
     asio::awaitable<void> OpenGLRenderer::enableVSync()
@@ -516,6 +516,8 @@ namespace astre::render::opengl
         if(good() == false)co_return;
 
         co_await _render_context->ensureOnStrand();
+        
+        if(good() == false)co_return;
 
         if(fbo)
         {

@@ -31,9 +31,32 @@ namespace astre::ecs::system
             transform_component = registry.getComponent<TransformComponent>(entity);
             assert(transform_component != nullptr);
 
-            pos = math::deserialize(transform_component->position());
-            rot = math::deserialize(transform_component->rotation());
-            scale = math::deserialize(transform_component->scale());
+            if(transform_component->has_position())
+            {
+                pos = math::deserialize(transform_component->position());
+            }else
+            {
+                pos = math::Vec3(0.0f);
+            }
+
+            if(transform_component->has_rotation())
+            {
+                rot = math::deserialize(transform_component->rotation());
+            }
+            else
+            {
+                // TODO
+                rot = math::Quat(1.0f, 0.0f, 0.0f, 0.0f);
+            }
+
+            if(transform_component->has_scale())
+            {
+                scale = math::deserialize(transform_component->scale());
+            }
+            else 
+            {
+                scale = math::Vec3(1.0f);
+            }
 
             transform_component->mutable_transform_matrix()->CopyFrom(
                 math::serialize(

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <queue>
 #include <deque>
 
@@ -39,8 +40,14 @@ namespace astre::input
 
             asio::awaitable<void> recordMouseMoved(float x, float y, float dx, float dy);
 
-        private:
+            bool isKeyPressed(InputCode key) const;
 
+            void close();
+
+            asio::awaitable<void> update();
+
+        private:
+            std::atomic_flag _closed = ATOMIC_FLAG_INIT;
             async::AsyncContext<process::IProcess::execution_context_type> & _input_context;
 
             std::deque<InputEvent> _event_queue;

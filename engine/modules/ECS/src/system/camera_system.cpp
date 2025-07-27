@@ -39,6 +39,8 @@ namespace astre::ecs::system
             co_return;
         }
 
+        frame.camera_position = math::deserialize(transform_component->position());
+        frame.view_matrix = math::deserialize(transform_component->transform_matrix());
         frame.proj_matrix = math::perspective(math::radians(camera_component->fov()), camera_component->aspect(), camera_component->near_plane(), camera_component->far_plane());
 
         co_return;

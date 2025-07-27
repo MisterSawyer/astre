@@ -3,9 +3,9 @@
 namespace astre::async
 {
     ThreadContext::ThreadContext()
-        :   _io_context(1),
-            _work_guard(asio::make_work_guard(_io_context)),
-            _async_context(_io_context)
+        :   asio::io_context(1),
+            _work_guard(asio::make_work_guard(*this)),
+            _async_context(*this)
     {}
 
     ThreadContext::~ThreadContext()
@@ -35,15 +35,5 @@ namespace astre::async
         if(_work_guard.owns_work() == false)return false;
         if(_thread.joinable() == false)return false;
         return true;
-    }
-            
-    void ThreadContext::run()
-    {
-        _io_context.run();
-    }
-            
-    void ThreadContext::poll()
-    {
-        _io_context.poll();
     }
 }

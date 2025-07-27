@@ -20,6 +20,17 @@ namespace astre::process
 
 namespace astre::process::windows
 {
+
+    static std::string _to_utf8(const wchar_t* wide_str)
+    {
+        if (!wide_str) return "";
+
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, nullptr, 0, nullptr, nullptr);
+        std::string result(size_needed - 1, 0);  // -1 to remove null terminator
+        WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, result.data(), size_needed, nullptr, nullptr);
+        return result;
+    }
+
     // -------------------------------------------
     // ProcedureContext
     // -------------------------------------------
@@ -96,8 +107,7 @@ namespace astre::process::windows
     {
         spdlog::debug("[winapi]WinapiProcess destructor called");
 
-        join();
-
+        assert(_procedure_context.stopped() == true && "ProcedureContext not stopped. Probably join() was not called");
         assert(_window_handles.empty() == true);
         assert(_registered_classes.empty() == true);
         assert(_oglctx_handles.empty() == true);
@@ -117,27 +127,32 @@ namespace astre::process::windows
 
     void WinapiProcess::join()
     {
+        spdlog::debug("[winapi]WinApi waiting for consumers threads to end");
         // wait for all consumers tasks to finish
         _execution_context.join();
         
-        spdlog::debug("[winapi]WinApi process joining");
-
+        spdlog::debug("[winapi]WinApi spawning close task");
         // request thread to close
         _procedure_context.co_spawn(close());
 
+        spdlog::debug("[winapi]WinApi procedure thread joining");
         // join IO thread
         _procedure_context.join();
         
-        spdlog::debug("[winapi] WinApi process thread joined");
+        spdlog::debug("[winapi] WinApi process joined");
     }
 
     asio::awaitable<void> WinapiProcess::close()
     {
+        co_await _procedure_context.ensureOnStrand();
+        
         spdlog::debug("[winapi] WinapiProcess clearing data");
-
+        
         while(_oglctx_handles.empty() == false){
             co_await unregisterOGLContext(*(_oglctx_handles.begin()));
         }
+        
+        co_await _procedure_context.ensureOnStrand();
         _default_oglctx_handle = nullptr;
 
         for(const auto & [window_handle, callbacks] : _window_handles)
@@ -327,7 +342,6 @@ namespace astre::process::windows
             spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
             co_return false;
         }
-
         _window_handles.at(window) = std::move(callbacks);
         co_return true;
     }
@@ -571,11 +585,15 @@ namespace astre::process::windows
             {
                 // spawn onDestroy callback on window_callbacks executor
                 // it will handle the window destruction
-                window_callbacks.context.co_spawn(window_callbacks.onDestroy());
+                spdlog::debug(std::format("[winapi-procedure] Schedule onDestroy callback for window {}", window));
+                asio::co_spawn(_execution_context, window_callbacks.onDestroy(), asio::detached);
+                // since window is closed, we can remove callbacks for it
+                _window_handles.at(window) = std::nullopt;
             }
             else
             {
                 // if no callback is set, destroy window synchronously
+                spdlog::debug(std::format("[winapi-procedure] No onDestroy callback specified for window {}, destroy synchronously", window));
                 _window_handles.at(window) = std::nullopt;
                 return DefWindowProc(window, message, wparam, lparam); 
             } 
@@ -595,7 +613,10 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onResize != nullptr)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onResize((unsigned int)LOWORD(lparam), (unsigned int)HIWORD(lparam)));
+                asio::co_spawn(_execution_context,
+                    window_callbacks.onResize((unsigned int)LOWORD(lparam), (unsigned int)HIWORD(lparam)),
+                    asio::detached);
+
             }
             return handling_result;
         }
@@ -607,7 +628,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onKeyPress != nullptr)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onKeyPress(key));
+                asio::co_spawn(_execution_context, window_callbacks.onKeyPress(key), asio::detached);
             }
             return handling_result;
         }
@@ -619,7 +640,7 @@ namespace astre::process::windows
             auto handling_result = DefWindowProc(window, message, wparam, lparam);
             if(window_callbacks.onKeyRelease != nullptr)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onKeyRelease(key));
+                asio::co_spawn(_execution_context, window_callbacks.onKeyRelease(key), asio::detached);
             }
             return handling_result;
         }
@@ -645,12 +666,14 @@ namespace astre::process::windows
                 POINT client_pos = screen_pos;
                 ScreenToClient(window, &client_pos);
 
-                if(window_callbacks.onMouseMove != nullptr){
-                    window_callbacks.context.co_spawn(
+                if(window_callbacks.onMouseMove != nullptr)
+                {
+                    asio::co_spawn(_execution_context,
                         window_callbacks.onMouseMove(
                             (float)client_pos.x, (float)client_pos.y,
                             (float)dx, (float)dy
-                        )
+                        ),
+                        asio::detached
                     );
                 }
             }
@@ -676,7 +699,7 @@ namespace astre::process::windows
         {
             if (window_callbacks.onMouseButtonDown)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onMouseButtonDown(MK_LBUTTON));
+                asio::co_spawn(_execution_context, window_callbacks.onMouseButtonDown(MK_LBUTTON), asio::detached);
             }
             return 0;
         }
@@ -685,7 +708,7 @@ namespace astre::process::windows
         {
             if (window_callbacks.onMouseButtonUp)
             {
-                window_callbacks.context.co_spawn(window_callbacks.onMouseButtonUp(MK_LBUTTON));
+                asio::co_spawn(_execution_context, window_callbacks.onMouseButtonUp(MK_LBUTTON), asio::detached);
             }
             return 0;
         }

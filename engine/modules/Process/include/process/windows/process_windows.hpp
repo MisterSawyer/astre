@@ -77,9 +77,11 @@ namespace astre::process::windows
             bool _cursor_visible;
 
             // IO thread
+            // run in the same thread as procedure and specificProcedure
             ProcedureContext _procedure_context;
 
             // Consumers execution context
+            // runs in thread pool - can run on different threads
             IProcess::execution_context_type _execution_context;
     };
 }

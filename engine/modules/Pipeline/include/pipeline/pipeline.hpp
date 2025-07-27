@@ -42,9 +42,10 @@ namespace astre::pipeline
             input::InputService input_service(input_context);
 
             co_await _process.setWindowCallbacks(window->getHandle(), 
-            process::WindowCallbacks{.context = input_context,
-                .onDestroy = [&window, &renderer]() -> asio::awaitable<void>
+            process::WindowCallbacks{
+                .onDestroy = [&window, &renderer, &input_service]() -> asio::awaitable<void>
                 {
+                    input_service.close();
                     renderer->join();
                     co_await window->close();
                 },
@@ -158,7 +159,23 @@ namespace astre::pipeline
                     },
                     std::forward<Args>(args)...);
             }
+
         private:
             WindowAppState _app_state;
     };
+
+    struct DefferedRenderPipelineState
+    {
+    };
+
+    // class DefferedRenderPipeline
+    // {
+    //     public:
+    //         DefferedRenderPipeline(const WindowAppState & app_state)
+    //             : _app_state(app_state)
+    //         {}
+
+    //     private:
+    // };
+
 }
