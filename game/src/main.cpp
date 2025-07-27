@@ -9,6 +9,7 @@ namespace astre::entry
         co_await systems.camera.run(frame);
 
         co_await systems.visual.run(frame);
+        co_await systems.light.run(frame);
 
         co_return;
     }
@@ -18,8 +19,9 @@ namespace astre::entry
         co_await asset::loadVertexBuffersPrefabs(game_state.app_state.renderer);
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
         co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
+        co_await asset::loadShaderFromDir(game_state.app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
 
-        auto deferred_fbo_res = co_await game_state.app_state.renderer.createFrameBufferObject("deferred_fbo",
+        auto deferred_fbo_res = co_await game_state.app_state.renderer.createFrameBufferObject("fbo::deferred",
             std::make_pair(1280, 728), 
             {
                 {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},    // gPosition
@@ -36,6 +38,23 @@ namespace astre::entry
         const std::size_t & deferred_fbo = *deferred_fbo_res;
         const auto & gbuffer_textures = game_state.app_state.renderer.getFrameBufferObjectTextures(deferred_fbo);
         assert(gbuffer_textures.size() == 3);
+
+        // binding point 2 in shader
+        auto light_ssbo_res = co_await game_state.app_state.renderer.createShaderStorageBuffer("ssbo::light", 2, 0, nullptr);
+        if(!light_ssbo_res)
+        {
+            spdlog::error("Failed to create light shader storage buffer");
+            co_return;
+        }
+        const std::size_t & light_ssbo = *light_ssbo_res;
+
+        auto shadow_shader_res = game_state.app_state.renderer.getShader("shadow_depth");
+        if(!shadow_shader_res)
+        {
+            spdlog::error("Failed to get shadow pass shader");
+            co_return;
+        }
+        const std::size_t & shadow_shader = *shadow_shader_res;
 
         auto NDC_quad_res = game_state.app_state.renderer.getVertexBuffer("NDC_quad_prefab");
         if(!NDC_quad_res)
@@ -109,7 +128,7 @@ namespace astre::entry
                     game_state.app_state.renderer,
                     render::RenderOptions{.mode = render::RenderMode::Solid},
                     deferred_fbo
-                    ));
+                ));
 
             // render GBuffer to screen
             co_await game_state.app_state.renderer.render(NDC_quad, deferred_lighting_pass,
@@ -130,7 +149,7 @@ namespace astre::entry
                         //{"shadowMaps", light_system.getShadowMapTextures()}
                     },
                     .storage_buffers = {
-                        //light_system.getLightShaderBufferID()
+                        light_ssbo
                     }
                 },
                 render::RenderOptions{

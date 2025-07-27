@@ -5,7 +5,7 @@
 
 namespace astre::ecs::system
 {
-    VisualSystem::VisualSystem(render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
+    VisualSystem::VisualSystem(const render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
         :   System(registry, execution_context),
             _renderer(renderer)
     {}

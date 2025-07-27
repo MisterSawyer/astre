@@ -1,6 +1,9 @@
 #pragma once
 
+#include <vector>
+
 #include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 
 #include "math/math.hpp"
 #include "type/type.hpp"
@@ -28,6 +31,17 @@ namespace astre::render
         ShaderInputs inputs;
     };
 
+    #pragma pack(push, 1)
+    struct GPULight {
+        math::Vec4 position;     // w unused
+        math::Vec4 direction;    // w = type
+        math::Vec4 color;        // w = intensity
+        math::Vec4 attenuation;  // x=constant, y=linear, z=quadratic, w=unused
+        math::Vec2 cutoff;       // x=inner, y=outer
+        math::Vec2 castShadows;  // x=enabled, y=shadowMapIndex
+    };
+    #pragma pack(pop)
+
     struct Frame
     {
         std::chrono::steady_clock::time_point sim_time;
@@ -35,6 +49,7 @@ namespace astre::render
         math::Mat4 view_matrix;
         math::Mat4 proj_matrix;
         absl::flat_hash_map<std::size_t, RenderProxy> render_proxies;
+        std::vector<GPULight> gpu_lights;
     };
 
     class IRenderer : public type::InterfaceBase

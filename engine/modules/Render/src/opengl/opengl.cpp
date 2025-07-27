@@ -516,7 +516,7 @@ namespace astre::render::opengl
         {
             if(_frame_buffer_objects.contains(*fbo) == false)
             {
-                spdlog::error("Frame buffer object not found");
+                spdlog::error("clearScreen() : Frame buffer object not found");
                 co_return;
             }
             if(_frame_buffer_objects.at(*fbo)->enable() == false)
@@ -560,7 +560,7 @@ namespace astre::render::opengl
         {
             if(_frame_buffer_objects.contains(*fbo) == false)
             {
-                spdlog::error("Frame buffer object not found");
+                spdlog::error("render() : Frame buffer object not found");
                 co_return;
             }
             if(_frame_buffer_objects.at(*fbo)->enable() == false)

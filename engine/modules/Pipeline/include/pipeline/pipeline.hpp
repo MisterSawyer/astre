@@ -132,6 +132,7 @@ namespace astre::pipeline
                 ecs::system::TransformSystem transform_system(registry, _app_state.process.getExecutionContext());
                 ecs::system::VisualSystem visual_system(_app_state.renderer, registry, _app_state.process.getExecutionContext());
                 ecs::system::CameraSystem camera_system(registry, _app_state.process.getExecutionContext());
+                ecs::system::LightSystem light_system(registry, _app_state.process.getExecutionContext());
 
                 std::array<render::Frame, 3> frames;
 
@@ -148,7 +149,8 @@ namespace astre::pipeline
                         .systems = ecs::Systems{
                             .transform = transform_system,
                             .camera = camera_system,
-                            .visual = visual_system
+                            .visual = visual_system,
+                            .light = light_system
                         },
 
                         // frames

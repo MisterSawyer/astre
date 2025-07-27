@@ -1,14 +1,9 @@
 #include <spdlog/spdlog.h>
 
-#include "math/math.hpp"
-
 #include "ecs/system/transform_system.hpp"
 
 namespace astre::ecs::system
 {
-    constexpr static const math::Vec3 BASE_FORWARD_DIRECTION(0.0f, 0.0f, -1.0f);
-    constexpr static const math::Vec3 BASE_UP_DIRECTION(0.0f, 1.0f, 0.0f);
-
     TransformSystem::TransformSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
         : System(registry, execution_context)
     {}

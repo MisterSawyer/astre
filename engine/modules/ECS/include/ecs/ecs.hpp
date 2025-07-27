@@ -7,6 +7,7 @@
 #include "ecs/system/transform_system.hpp"
 #include "ecs/system/camera_system.hpp"
 #include "ecs/system/visual_system.hpp"
+#include "ecs/system/light_system.hpp"
 
 namespace astre::ecs
 {
@@ -15,5 +16,6 @@ namespace astre::ecs
         system::TransformSystem & transform;
         system::CameraSystem & camera;
         system::VisualSystem & visual;
+        system::LightSystem & light;
     };
 }

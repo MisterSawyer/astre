@@ -10,16 +10,16 @@
 
 namespace astre::ecs::system
 {
-    class VisualSystem : public System<astre::ecs::VisualComponent>
+    class VisualSystem : public System<VisualComponent>
     {
     public:
-        VisualSystem(render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        VisualSystem(const render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
         ~VisualSystem() = default;
         
         asio::awaitable<void> run(render::Frame & frame);
         
     private:
-        render::IRenderer & _renderer;
+        const render::IRenderer & _renderer;
     };
 }
