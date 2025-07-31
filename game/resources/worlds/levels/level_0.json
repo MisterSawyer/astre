@@ -122,8 +122,8 @@
           "transform": {
             "position": {
               "x": 0,
-              "y": 3,
-              "z": 15
+              "y": -10,
+              "z": -15
             }
           },
           "camera": {

@@ -41,7 +41,7 @@ namespace astre::async
     {
         co_return;
     }
-
+    
     // tells where async operations should run
     template<class AsioContext>
     class AsyncContext : public asio::strand<typename AsioContext::executor_type> {

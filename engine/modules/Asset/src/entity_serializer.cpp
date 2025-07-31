@@ -20,7 +20,7 @@ namespace astre::asset
                     throw std::runtime_error("mutable_component returned nullptr");
                 }
 
-                co_await registry.runOnSingleWithComponent<ComponentType>(entity, [&target](const ComponentType & component){
+                co_await registry.runOnSingleWithComponents<ComponentType>(entity, [&target](const ecs::Entity entity, const ComponentType & component){
                     target->CopyFrom(component);
                 });
 

@@ -124,27 +124,19 @@ namespace astre::input
     asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
         if(cs.cancelled() != asio::cancellation_type::none)
         {
             spdlog::debug("[input-service] recordKeyPressed cancelled");
             co_return;
         }
-
-        spdlog::debug("[input-service] recordKeyPressed");
 
         InputEvent event;
         event.set_type(InputEventType::Pressed);
         event.set_code(key);
 
         co_await _input_context.ensureOnStrand();
-        cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordKeyPressed cancelled");
-            co_return;
-        }
-
-        spdlog::debug("[input-service] recordKeyPressed adding to event queue");
+        
         _event_queue.emplace_back(std::move(event));
         co_return;
     }
@@ -152,27 +144,19 @@ namespace astre::input
     asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
         if(cs.cancelled() != asio::cancellation_type::none)
         {
             spdlog::debug("[input-service] recordKeyReleased cancelled");
             co_return;
         }
-
-        spdlog::debug("[input-service] recordKeyReleased");
 
         InputEvent event;
         event.set_type(InputEventType::Released);
         event.set_code(key);
 
         co_await _input_context.ensureOnStrand();
-        cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordKeyReleased cancelled");
-            co_return;
-        }
 
-        spdlog::debug("[input-service] recordKeyReleased adding to event queue");
         _event_queue.emplace_back(std::move(event));
         co_return;
     }
@@ -180,13 +164,12 @@ namespace astre::input
     asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
         if(cs.cancelled() != asio::cancellation_type::none)
         {
             spdlog::debug("[input-service] recordMouseMoved cancelled");
             co_return;
         }
-
-        spdlog::debug("[input-service] recordMouseMoved");
 
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
@@ -196,14 +179,6 @@ namespace astre::input
         event.mutable_mouse()->set_dy(dy);
 
         co_await _input_context.ensureOnStrand();
-        cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordMouseMoved cancelled");
-            co_return;
-        }
-
-        spdlog::debug("[input-service] recordMouseMoved adding to event queue");
 
         _event_queue.emplace_back(std::move(event));
         co_return;
@@ -219,13 +194,12 @@ namespace astre::input
     asio::awaitable<void> InputService::update()
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
         if(cs.cancelled() != asio::cancellation_type::none)
         {
             spdlog::debug("[input-service] update cancelled");
             co_return;
         }
-
-        spdlog::debug("[input-service] update started");
 
         absl::flat_hash_set<InputCode> just_pressed;
         absl::flat_hash_set<InputCode> just_released;
@@ -233,14 +207,6 @@ namespace astre::input
         std::deque<InputEvent> events;
 
         co_await _input_context.ensureOnStrand();
-        cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] update cancelled");
-            co_return;
-        }
-
-        spdlog::debug("[input-service] handling received events");
 
         std::swap(events, _event_queue); // fast, av
 

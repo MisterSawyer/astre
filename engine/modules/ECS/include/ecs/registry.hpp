@@ -54,22 +54,28 @@ namespace astre::ecs
                 co_return _entities.getComponentMask(entity).test(ComponentTypesList::template getTypeID<ComponentType>());
             }
 
-            template<typename ComponentType>
-            asio::awaitable<void> runOnSingleWithComponent(const Entity entity, std::function<void(ComponentType&)> callable) 
+            template<class ... ComponentTypes, class F>
+            asio::awaitable<void> runOnSingleWithComponents(const Entity entity, F && callable) 
             {
                 co_await _async_context.ensureOnStrand();
-                ComponentType* component = _components.getComponent<ComponentType>(entity);
-                if(component == nullptr)co_return;
-                callable(*component);
+                if(_entities.entityExists(entity) == false) co_return;
+                
+                const auto& mask = _entities.getComponentMask(entity);
+                const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
+                if (has_all_components)
+                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
-            template<typename ComponentType>
-            asio::awaitable<void> runOnSingleWithComponent(const Entity entity, std::function<void(const ComponentType&)> callable) const
+            template<class ... ComponentTypes, class F>
+            asio::awaitable<void> runOnSingleWithComponents(const Entity entity, F && callable) const
             {
                 co_await _async_context.ensureOnStrand();
-                const ComponentType* component = _components.getComponent<ComponentType>(entity);
-                if(component == nullptr)co_return;
-                callable(*component);
+                if(_entities.entityExists(entity) == false) co_return;
+
+                const auto& mask = _entities.getComponentMask(entity);
+                const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
+                if (has_all_components)
+                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
             template<class ... ComponentTypes, class F>

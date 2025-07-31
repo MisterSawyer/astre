@@ -46,14 +46,13 @@ namespace astre::world {
     asio::awaitable<void> WorldStreamer::updateLoadPosition(const math::Vec3 & pos)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
         if(cs.cancelled() != asio::cancellation_type::none)
         {
             spdlog::debug("[world-streamer] updateLoadPosition cancelled");
             co_return;
         }
-
         co_await _async_context.ensureOnStrand();
-        spdlog::debug("[world-streamer] updateLoadPosition");
 
         const ChunkID center = toChunkID(pos, _chunk_size);
 
@@ -73,14 +72,18 @@ namespace astre::world {
             }
         }
 
-        spdlog::debug("[world-streamer] required chunks: {}", required.size());
         // Load missing chunks
         for (const ChunkID& cid : required) {
-            if (!_loaded_chunks.contains(cid)) {
+            if (!_loaded_chunks.contains(cid))
+            {
+                if(cs.cancelled() != asio::cancellation_type::none)
+                {
+                    spdlog::debug("[world-streamer] updateLoadPosition cancelled");
+                    co_return;
+                }
                 co_await loadChunk(cid);
             }
         }
-        spdlog::debug("[world-streamer] loaded chunks: {}", _loaded_chunks.size());
 
         // Unload chunks no longer needed
         std::vector<ChunkID> toRemove;
@@ -89,18 +92,31 @@ namespace astre::world {
                 toRemove.push_back(cid);
             }
         }
-        spdlog::debug("[world-streamer] unloading chunks: {}", toRemove.size());
-        for (const ChunkID& cid : toRemove) {
+        for (const ChunkID& cid : toRemove) 
+        {
+            if(cs.cancelled() != asio::cancellation_type::none)
+            {
+                spdlog::debug("[world-streamer] updateLoadPosition cancelled");
+                co_return;
+            }
             co_await unloadChunk(cid);
         }
 
-        spdlog::debug("[world-streamer] updateLoadPosition done");
         co_return;
     }
 
     asio::awaitable<void> WorldStreamer::loadChunk(const ChunkID& id) 
     {
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[world-streamer] loadChunk cancelled");
+            co_return;
+        }
         co_await _async_context.ensureOnStrand();
+
+        if(_loaded_chunks.contains(id)) co_return;
 
         spdlog::debug("Loading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
@@ -114,6 +130,11 @@ namespace astre::world {
         // load chunk entites
         for (const auto& entity_def : (*chunk).entities()) 
         {
+            if(cs.cancelled() != asio::cancellation_type::none)
+            {
+                spdlog::debug("[world-streamer] loadChunk cancelled");
+                co_return;
+            }
             std::optional<ecs::Entity> entity = co_await _registry.createEntity(entity_def.name());
             co_await _async_context.ensureOnStrand();
 
@@ -130,6 +151,13 @@ namespace astre::world {
 
     asio::awaitable<void> WorldStreamer::unloadChunk(const ChunkID& id) 
     {
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[world-streamer] unloadChunk cancelled");
+            co_return;
+        }
         co_await _async_context.ensureOnStrand();
         spdlog::debug("Unloading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
@@ -148,6 +176,13 @@ namespace astre::world {
     
     asio::awaitable<void> WorldStreamer::saveAll(asset::use_binary_t)
     {
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[world-streamer] saveAll use_binary cancelled");
+            co_return;
+        }
         co_await _async_context.ensureOnStrand();
         for (const auto& [_, chunk] : _loaded_chunks) {
             _archive.writeChunk(chunk, asset::use_binary);
@@ -156,6 +191,13 @@ namespace astre::world {
 
     asio::awaitable<void> WorldStreamer::saveAll(asset::use_json_t)
     {
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[world-streamer] saveAll use_json cancelled");
+            co_return;
+        }
         co_await _async_context.ensureOnStrand();
         for (const auto& [_, chunk] : _loaded_chunks) {
             _archive.writeChunk(chunk, asset::use_json);

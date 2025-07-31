@@ -150,17 +150,14 @@ namespace astre::entry
         
         orchestrator.setLogicSubstage<0>([&](GameFrame & frame, GameState & state) -> asio::awaitable<void>
         {
-            spdlog::debug("Logic substage");
-
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
                 co_return;
             }
-
-            co_await (state.app_state.input.update() && state.world.updateLoadPosition({0.0f, 0.0f, 0.0f})),
-            cs = co_await asio::this_coro::cancellation_state;
+            co_await (state.app_state.input.update() && state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}));
+            
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
@@ -168,48 +165,49 @@ namespace astre::entry
             }
             // ECS stage
             co_await state.systems.transform.run();
-            cs = co_await asio::this_coro::cancellation_state;
+            
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
                 co_return;
             }
             co_await state.systems.camera.run(frame.render_frame);
-            cs = co_await asio::this_coro::cancellation_state;
+            
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
                 co_return;
             }
-
             // 
-            co_await (state.systems.visual.run(frame.render_frame) && state.systems.light.run(frame.render_frame)),
-
+            co_await (state.systems.visual.run(frame.render_frame) && state.systems.light.run(frame.render_frame));
+            
+            if(cs.cancelled() != asio::cancellation_type::none)
+            {
+                spdlog::debug("Logic stage cancelled");
+                co_return;
+            }
             // update light SSBO
             co_await state.app_state.renderer.updateShaderStorageBuffer(
                   frame.render_frame.light_ssbo, sizeof(render::GPULight) * frame.render_frame.gpu_lights.size(), frame.render_frame.gpu_lights.data());
         });
 
         orchestrator.setRenderStage([&](const GameFrame& prev, const GameFrame& curr, GameState & state) -> asio::awaitable<void> {
-            spdlog::debug("Render stage");
-
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
                 co_return;
             }
-
             // Render interpolated frame using prev + curr
             co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, curr.render_frame, state.render_resources);
-            cs = co_await asio::this_coro::cancellation_state;
+            
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
                 co_return;
             }
             co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, curr.render_frame, state.render_resources);
-            cs = co_await asio::this_coro::cancellation_state;
+            
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
@@ -221,7 +219,6 @@ namespace astre::entry
         });
 
         orchestrator.setPostSync([&](GameState & state) -> asio::awaitable<void> {
-            spdlog::debug("Sync stage");
             co_await app_state.renderer.present(); // Swap buffers
         });
 

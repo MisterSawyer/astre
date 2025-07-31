@@ -34,6 +34,11 @@ namespace astre::ecs
         _masks.erase(entity);
     }
 
+    bool EntityManager::entityExists(Entity entity) const
+    {
+        return _masks.contains(entity);
+    }
+
     void EntityManager::addComponentBit(Entity entity, uint32_t component_type_ID)
     {
         assert(component_type_ID < MAX_COMPONENT_TYPES);

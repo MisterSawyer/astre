@@ -97,7 +97,6 @@ namespace astre::pipeline
 
             co_await window->show();
 
-
             auto cancel_slot = fnc_token.getSlot();
             // Run fnc in its own coroutine
             co_await asio::co_spawn(
@@ -194,34 +193,21 @@ namespace astre::pipeline
                 for(std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
                     logic_substages_calls.at(logic_idx) = _logic_substages.at(logic_idx)(logic_frame, _stage_state);
 
-                cs = co_await asio::this_coro::cancellation_state;
                 if(cs.cancelled() != asio::cancellation_type::none)
                 {
                     spdlog::debug("[pipeline] Pipeline cancelled");
                     token.markFinished();
                     co_return;
                 }
+                co_await (_logic_substages.at(0)(logic_frame, _stage_state) && _render(render_prev, render_curr, _stage_state));
 
-                spdlog::debug("[pipeline] Running logic and render stages");
-                co_await (_logic_substages.at(0)(logic_frame, _stage_state) && _render(render_prev, render_curr, _stage_state)),
-                cs = co_await asio::this_coro::cancellation_state;
                 if(cs.cancelled() != asio::cancellation_type::none)
                 {
                     spdlog::debug("[pipeline] Pipeline cancelled");
                     token.markFinished();
                     co_return;
                 }
-
-                spdlog::debug("[pipeline] Running sync stage");
                 if (_post_sync) co_await _post_sync(_stage_state);
-
-                cs = co_await asio::this_coro::cancellation_state;
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("[pipeline] Pipeline cancelled");
-                    token.markFinished();
-                    co_return;
-                }
 
                 _buffer.rotate();
             }
