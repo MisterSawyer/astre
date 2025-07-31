@@ -20,11 +20,9 @@ namespace astre::world
     class WorldStreamer {
     public:
         WorldStreamer(
-            async::AsyncContext<process::IProcess::execution_context_type> & async_context,
+            process::IProcess::execution_context_type & execution_context,
             std::filesystem::path path,
             ecs::Registry& registry,
-            asset::EntityLoader& loader,
-            asset::EntitySerializer& serializer,
             float chunk_size,
             unsigned int max_loaded_chunks);
 
@@ -35,14 +33,14 @@ namespace astre::world
         asio::awaitable<void> saveAll(asset::use_json_t);
 
     private:
-        void loadChunk(const ChunkID& id);
-        void unloadChunk(const ChunkID& id);
+        asio::awaitable<void> loadChunk(const ChunkID& id);
+        asio::awaitable<void> unloadChunk(const ChunkID& id);
 
-        async::AsyncContext<process::IProcess::execution_context_type> & _async_context;
+        async::AsyncContext<process::IProcess::execution_context_type> _async_context;
 
         ecs::Registry& _registry;
-        asset::EntityLoader & _loader;
-        asset::EntitySerializer & _serializer;
+        asset::EntityLoader  _loader;
+        asset::EntitySerializer _serializer;
 
         SaveArchive _archive;
 

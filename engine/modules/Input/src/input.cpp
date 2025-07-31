@@ -116,41 +116,77 @@ namespace astre::input
         return InputCode::UNKNOWN_InputCode;
     }
 
-    InputService::InputService(async::AsyncContext<process::IProcess::execution_context_type> & ctx)
-    : _input_context(ctx)
+    InputService::InputService(async::LifecycleToken & lifecycle, process::IProcess & process)
+    :   _lifecycle(lifecycle),
+        _input_context(process.getExecutionContext())
     {}
 
     asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
     {
-        if(_closed.test())co_return;
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordKeyPressed cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordKeyPressed");
 
         InputEvent event;
         event.set_type(InputEventType::Pressed);
         event.set_code(key);
 
         co_await _input_context.ensureOnStrand();
-        spdlog::debug("[input-service] recordKeyPressed");
+        cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordKeyPressed cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordKeyPressed adding to event queue");
         _event_queue.emplace_back(std::move(event));
         co_return;
     }
 
     asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
     {
-        if(_closed.test())co_return;
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordKeyReleased cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordKeyReleased");
 
         InputEvent event;
         event.set_type(InputEventType::Released);
         event.set_code(key);
 
         co_await _input_context.ensureOnStrand();
-        spdlog::debug("[input-service] recordKeyReleased");
+        cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordKeyReleased cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordKeyReleased adding to event queue");
         _event_queue.emplace_back(std::move(event));
         co_return;
     }
 
     asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
     {
-        if(_closed.test())co_return;
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordMouseMoved cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordMouseMoved");
 
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
@@ -160,33 +196,53 @@ namespace astre::input
         event.mutable_mouse()->set_dy(dy);
 
         co_await _input_context.ensureOnStrand();
+        cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] recordMouseMoved cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] recordMouseMoved adding to event queue");
+
         _event_queue.emplace_back(std::move(event));
         co_return;
     }
 
     bool InputService::isKeyPressed(InputCode key) const
     {
-        if(_closed.test())return false;
+        if(_lifecycle.isFinished())return false;
 
         return isInputPresent(key, _held_keys);
     }
 
-    void InputService::close()
-    {
-        _closed.test_and_set();
-        spdlog::debug("[input-service] closed");
-    }
-
     asio::awaitable<void> InputService::update()
     {
-        if(_closed.test())co_return;
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] update cancelled");
+            co_return;
+        }
 
-        co_await _input_context.ensureOnStrand();
+        spdlog::debug("[input-service] update started");
 
-        std::deque<InputEvent> events;
-        std::swap(events, _event_queue); // fast, av
         absl::flat_hash_set<InputCode> just_pressed;
         absl::flat_hash_set<InputCode> just_released;
+
+        std::deque<InputEvent> events;
+
+        co_await _input_context.ensureOnStrand();
+        cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[input-service] update cancelled");
+            co_return;
+        }
+
+        spdlog::debug("[input-service] handling received events");
+
+        std::swap(events, _event_queue); // fast, av
 
         for (const auto& event : events)
         {

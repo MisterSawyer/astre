@@ -2,10 +2,12 @@
 
 #include <array>
 #include <functional>
+#include <atomic>
 
 #include "native/native.h"
 #include <asio.hpp>
 
+#include "async/async.hpp"
 #include "process/process.hpp"
 #include "window/window.hpp"
 #include "render/render.hpp"
@@ -15,167 +17,246 @@
 
 namespace astre::pipeline
 {
-    struct WindowAppState
+    struct AppState
     {
+        async::LifecycleToken & lifecycle;
+
         process::IProcess & process;
         window::IWindow & window;
         render::IRenderer & renderer;
-
-        input::InputService & input_service;
+        input::InputService & input;
     };
 
-    class WindowApp
+    class App
     {
         public:
-        WindowApp(process::IProcess & process, std::string title, unsigned int width, unsigned int height)
-            : _process(process), _title(std::move(title)), _width(width), _height(height)
+        App(process::IProcess & process, std::string title, unsigned int width, unsigned int height)
+                :   _process(process),
+                    _title(std::move(title)),
+                    _width(width), _height(height)
         {};
 
-        template<class R, class F, class... Args>
-        asio::awaitable<R> run(F && fnc, Args && ... args)
+        template<class F, class... Args>
+        asio::awaitable<void> run(F && fnc, Args && ... args)
         {
             window::Window window = co_await window::createWindow(_process, _title, _width, _height);
+            // will spawn its own render thread
+            // but getExecutionContext is a thread pool, so we never know on which thread it will spawn
             render::Renderer renderer = co_await render::createRenderer(*window);
+            
+            // it is stack local to coroutine - but this coroutine encapsulates the whole app
+            async::LifecycleToken fnc_token;
+            async::LifecycleToken app_token;
 
-            // input system
-            async::AsyncContext input_context(_process.getExecutionContext());
-            input::InputService input_service(input_context);
+            input::InputService input(fnc_token, _process);
 
             co_await _process.setWindowCallbacks(window->getHandle(), 
             process::WindowCallbacks{
-                .onDestroy = [&window, &renderer, &input_service]() -> asio::awaitable<void>
+                .onDestroy = [this, &app_token, &fnc_token, &window, &renderer, &input]() -> asio::awaitable<void>
                 {
-                    input_service.close();
+                    // we should schedule closing of the fnc
+                    fnc_token.requestStop();
+
+                    // Wait until fnc coroutine exits
+                    while (!fnc_token.isFinished()) {
+                        co_await asio::post(_process.getExecutionContext(), asio::use_awaitable);
+                    }
+
                     renderer->join();
                     co_await window->close();
+
+                    app_token.requestStop();
+                    app_token.markFinished();
                 },
                 .onResize = [&window, &renderer](unsigned int width, unsigned int height) -> asio::awaitable<void>
                 {
                     //co_await window->resize(width, height); is it even needed?
                     co_await renderer->updateViewportSize(width, height);
                 },
-                .onKeyPress = [&input_service](int key) -> asio::awaitable<void>
+                .onKeyPress = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_await input_service.recordKeyPressed(input::keyToInputCode(key));
+                    co_await input.recordKeyPressed(input::keyToInputCode(key));
                 },
-                .onKeyRelease = [&input_service](int key) -> asio::awaitable<void>
+                .onKeyRelease = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_await input_service.recordKeyReleased(input::keyToInputCode(key));
+                    co_await input.recordKeyReleased(input::keyToInputCode(key));
                 },
-                .onMouseButtonDown = [&input_service](int key) -> asio::awaitable<void>
+                .onMouseButtonDown = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_await input_service.recordKeyPressed(input::keyToInputCode(key));
+                    co_await input.recordKeyPressed(input::keyToInputCode(key));
                 },
-                .onMouseButtonUp = [&input_service](int key) -> asio::awaitable<void>
+                .onMouseButtonUp = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_await input_service.recordKeyReleased(input::keyToInputCode(key));
+                    co_await input.recordKeyReleased(input::keyToInputCode(key));
                 },
-                .onMouseMove = [&input_service](int x, int y, float dx, float dy) -> asio::awaitable<void>
+                .onMouseMove = [&input](int x, int y, float dx, float dy) -> asio::awaitable<void>
                 {
-                    co_await input_service.recordMouseMoved((float)x, (float)y, dx, dy);
+                    co_await input.recordMouseMoved((float)x, (float)y, dx, dy);
                 }
             });
 
             co_await window->show();
 
-            co_return co_await fnc(
-                WindowAppState
-                {
-                    .process = _process,
-                    .window = *window,
-                    .renderer = *renderer,
-                    .input_service = input_service
-                },
-                std::forward<Args>(args)...);
+
+            auto cancel_slot = fnc_token.getSlot();
+            // Run fnc in its own coroutine
+            co_await asio::co_spawn(
+                _process.getExecutionContext(),
+                fnc(
+                    AppState{
+                        .lifecycle = fnc_token,
+                        .process = _process,
+                        .window = *window,
+                        .renderer = *renderer,
+                        .input = input
+                    },
+                    std::forward<Args>(args)...
+                ),
+                asio::bind_cancellation_slot(cancel_slot, asio::use_awaitable)
+            );
+            
+            // Wait for app exit
+            while (!app_token.isFinished()) {
+                co_await asio::post(_process.getExecutionContext(), asio::use_awaitable);
+            }
+
+            spdlog::debug("[pipeline] App ended");
         }
 
         private:
             process::IProcess & _process;
+
             std::string _title;
             unsigned int _width;
             unsigned int _height;
     };
 
-    struct GamePipelineState
-    {
-        pipeline::WindowAppState & app_state;
 
-        asset::EntityLoader & loader;
-        asset::EntitySerializer & serializer;
+    template <typename T, std::size_t Count = 3>
+    class FramesBuffer : public std::array<T, Count>
+    {
+    public:        
+        static_assert(Count >= 2, "Need at least 2 frames for interpolation");
+
+        T& current()                    { return std::array<T, Count>::at(_index); }
+        const T& previous() const       { return std::array<T, Count>::at((_index + Count - 1) % Count); }
+        const T& beforePrevious() const { return std::array<T, Count>::at((_index + Count - 2) % Count); }
+
+        void rotate() { _index = (_index + 1) % Count; }
+        std::size_t index() const { return _index; }
+
+    private:
+        std::size_t _index = 0;
+    };
+
+    template<typename FrameState, typename StageState, std::size_t LogicSubstagesCount = 1>
+    class PipelineOrchestrator
+    {
+    public:
+        using LogicSubStage = std::function<asio::awaitable<void>(FrameState&, StageState&)>;
+        using RenderStage = std::function<asio::awaitable<void>(const FrameState&, const FrameState&, StageState&)>;
+        using SyncStage = std::function<asio::awaitable<void>(StageState&)>;
+
+        PipelineOrchestrator(process::IProcess & process, FramesBuffer<FrameState>& buffer, StageState && init_state)
+            : _process(process), _buffer(buffer), _stage_state(std::move(init_state))
+        {}
         
-        // ecs 
-        ecs::Registry & registry;
+        template<std::size_t Index>
+        void setLogicSubstage(LogicSubStage stage)
+        {
+            static_assert(Index < LogicSubstagesCount, "Index out of range"); 
+            _logic_substages.at(Index) = (std::move(stage));
+        }
+        void setRenderStage(RenderStage stage) { _render = std::move(stage); }
+        void setPostSync(SyncStage sync)      { _post_sync = std::move(sync); }
 
-        // ecs systems
-        ecs::Systems systems;
+        asio::awaitable<void> runLoop(async::LifecycleToken & token) 
+        {        
+            float accumulator = 0.0f;
+            std::chrono::steady_clock::time_point now;
 
-        // frames
-        std::array<render::Frame, 3> & frames;
-    };
+            std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
 
-    class GamePipeline
-    {
-        public:
-            GamePipeline(const WindowAppState & app_state)
-                : _app_state(app_state)
-            {}
+            std::array<asio::awaitable<void>, LogicSubstagesCount> logic_substages_calls;
+            
+            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
-            template<class R, class F, class... Args>
-            asio::awaitable<R> run(F && fnc, Args && ... args)
+            while (cs.cancelled() == asio::cancellation_type::none) 
             {
-                asset::EntityLoader loader;
-                asset::EntitySerializer serializer;
-                
-                // ecs
-                ecs::Registry registry;
+                now = std::chrono::steady_clock::now();
+                accumulator += std::chrono::duration<float>(now - last_time).count();
+                last_time = now;
 
-                // create ECS systems
-                ecs::system::TransformSystem transform_system(registry, _app_state.process.getExecutionContext());
-                ecs::system::VisualSystem visual_system(_app_state.renderer, registry, _app_state.process.getExecutionContext());
-                ecs::system::CameraSystem camera_system(registry, _app_state.process.getExecutionContext());
-                ecs::system::LightSystem light_system(registry, _app_state.process.getExecutionContext());
+                FrameState& logic_frame = _buffer.current();
+                const FrameState& render_curr = _buffer.previous();
+                const FrameState& render_prev = _buffer.beforePrevious();
 
-                std::array<render::Frame, 3> frames;
+                for(std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
+                    logic_substages_calls.at(logic_idx) = _logic_substages.at(logic_idx)(logic_frame, _stage_state);
 
-                co_return co_await fnc(
-                    GamePipelineState
-                    {
-                        .app_state = _app_state,
+                cs = co_await asio::this_coro::cancellation_state;
+                if(cs.cancelled() != asio::cancellation_type::none)
+                {
+                    spdlog::debug("[pipeline] Pipeline cancelled");
+                    token.markFinished();
+                    co_return;
+                }
 
-                        .loader = loader,
-                        .serializer = serializer,
-                        .registry = registry,
+                spdlog::debug("[pipeline] Running logic and render stages");
+                co_await (_logic_substages.at(0)(logic_frame, _stage_state) && _render(render_prev, render_curr, _stage_state)),
+                cs = co_await asio::this_coro::cancellation_state;
+                if(cs.cancelled() != asio::cancellation_type::none)
+                {
+                    spdlog::debug("[pipeline] Pipeline cancelled");
+                    token.markFinished();
+                    co_return;
+                }
 
-                        // ecs systems
-                        .systems = ecs::Systems{
-                            .transform = transform_system,
-                            .camera = camera_system,
-                            .visual = visual_system,
-                            .light = light_system
-                        },
+                spdlog::debug("[pipeline] Running sync stage");
+                if (_post_sync) co_await _post_sync(_stage_state);
 
-                        // frames
-                        .frames = frames
-                    },
-                    std::forward<Args>(args)...);
+                cs = co_await asio::this_coro::cancellation_state;
+                if(cs.cancelled() != asio::cancellation_type::none)
+                {
+                    spdlog::debug("[pipeline] Pipeline cancelled");
+                    token.markFinished();
+                    co_return;
+                }
+
+                _buffer.rotate();
             }
+            token.markFinished();
+            co_return;
+        }
 
-        private:
-            WindowAppState _app_state;
+    private:
+        process::IProcess & _process;
+        FramesBuffer<FrameState> & _buffer;
+        std::array<LogicSubStage, LogicSubstagesCount> _logic_substages;
+        RenderStage _render;
+        SyncStage _post_sync;
+        StageState _stage_state;
     };
 
-    struct DefferedRenderPipelineState
+    // const and where
+    // are valid during all frames 
+    struct RenderResources
     {
+        std::size_t deferred_fbo; // where
+        std::size_t shadow_map_shader; // const
+        std::vector<std::size_t> deferred_textures; // where
+
+        std::vector<std::size_t> shadow_map_fbos; // where
+        std::vector<std::size_t> shadow_map_textures; // where
+
+        std::size_t screen_quad_vb; // where
+        std::size_t screen_quad_shader; // const
     };
 
-    // class DefferedRenderPipeline
-    // {
-    //     public:
-    //         DefferedRenderPipeline(const WindowAppState & app_state)
-    //             : _app_state(app_state)
-    //         {}
+    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
 
-    //     private:
-    // };
+    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
+    
+    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
 
 }

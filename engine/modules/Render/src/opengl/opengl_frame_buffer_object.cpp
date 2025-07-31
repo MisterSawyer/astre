@@ -111,7 +111,7 @@ namespace astre::render::opengl
         
         if(currently_bound_FBO != (GLint)_FBO)
         {
-            spdlog::warn("Disable OpenGL frame buffer object which is not currently bound");
+            spdlog::debug("Disable OpenGL frame buffer object which is not currently bound");
             return;
         }
         

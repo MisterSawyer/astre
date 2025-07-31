@@ -105,7 +105,7 @@ namespace astre::render::opengl
         
         if(currently_bound_SSBO != (GLint)_SSBO)
         {
-            spdlog::warn("Disable OpenGL shader storage buffer which is not currently bound");
+            spdlog::debug("Disable OpenGL shader storage buffer which is not currently bound");
             return;
         }
         

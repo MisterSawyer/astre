@@ -133,7 +133,7 @@ namespace astre::process::windows
         
         spdlog::debug("[winapi]WinApi spawning close task");
         // request thread to close
-        _procedure_context.co_spawn(close());
+        asio::co_spawn(_procedure_context, close(), asio::detached);
 
         spdlog::debug("[winapi]WinApi procedure thread joining");
         // join IO thread

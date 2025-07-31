@@ -27,7 +27,7 @@ namespace astre::input
     class InputService
     {
         public:
-            InputService(async::AsyncContext<process::IProcess::execution_context_type> & ctx);
+            InputService(async::LifecycleToken & lifecycle, process::IProcess & process);
             InputService(const InputService&) = delete;
             InputService(InputService&&) = delete;
             InputService& operator=(const InputService&) = delete;
@@ -42,13 +42,11 @@ namespace astre::input
 
             bool isKeyPressed(InputCode key) const;
 
-            void close();
-
             asio::awaitable<void> update();
 
         private:
-            std::atomic_flag _closed = ATOMIC_FLAG_INIT;
-            async::AsyncContext<process::IProcess::execution_context_type> & _input_context;
+            async::LifecycleToken & _lifecycle;
+            async::AsyncContext<process::IProcess::execution_context_type> _input_context;
 
             std::deque<InputEvent> _event_queue;
             absl::flat_hash_set<InputCode> _held_keys;

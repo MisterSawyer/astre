@@ -15,6 +15,15 @@ namespace astre::ecs::system
     public:
         VisualSystem(const render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
+        inline VisualSystem(VisualSystem && other)
+            : System(std::move(other)), _renderer(other._renderer)
+        {}
+
+        VisualSystem & operator=(VisualSystem && other) = delete;
+
+        VisualSystem(const VisualSystem &) = delete;
+        VisualSystem & operator=(const VisualSystem &) = delete;
+
         ~VisualSystem() = default;
         
         asio::awaitable<void> run(render::Frame & frame);

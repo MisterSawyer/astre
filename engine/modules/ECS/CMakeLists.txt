@@ -16,6 +16,7 @@ add_module(NAME "ECS"
         astre::Math
         astre::Native
         astre::Type
+        astre::Process
         astre::Render
         astre::Input
 )

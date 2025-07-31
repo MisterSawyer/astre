@@ -20,57 +20,51 @@ using namespace asio::experimental::awaitable_operators;
 
 namespace astre::async
 {
+    template <std::size_t... Is, typename T>
+    asio::awaitable<void> await_all_impl(std::index_sequence<Is...>, std::array<T, sizeof...(Is)> arr)
+    {
+        // Co_await all concurrently using awaitable && operator
+        return (std::move(arr.at(Is)) && ...);
+    }
+
+    template <typename T, std::size_t N>
+    asio::awaitable<void> await_all(std::array<T, N> arr)
+    {
+        if constexpr (N == 0)
+            return;
+        else
+            return await_all_impl(std::make_index_sequence<N>{}, std::move(arr));
+    }
+
+
     inline asio::awaitable<void> noop()
     {
         co_return;
     }
 
+    // tells where async operations should run
     template<class AsioContext>
-    class AsyncContext final
-    {
-        public:
-            using context_type = AsioContext;
-            using executor_type = typename context_type::executor_type;
-        
-            explicit inline AsyncContext(context_type & context) 
-                : _strand(asio::make_strand(context.get_executor()))
-            {}
+    class AsyncContext : public asio::strand<typename AsioContext::executor_type> {
+    public:
+        using executor_type = typename AsioContext::executor_type;
+        using base = asio::strand<executor_type>;
 
-            inline AsyncContext(AsyncContext && other)
-            : _strand(std::move(other._strand))
-            {}
+        explicit AsyncContext(AsioContext& ctx)
+            : base(asio::make_strand(ctx.get_executor())) {}
 
-            inline AsyncContext & operator=(AsyncContext && other)
-            {
-                if(this == &other) return *this;
-                _strand = std::move(other._strand);
-                return *this;
+        // async context is not copyable
+        AsyncContext(const AsyncContext&) = delete;
+        AsyncContext& operator=(const AsyncContext&) = delete;
+
+        AsyncContext(AsyncContext&&) noexcept = default;
+        AsyncContext& operator=(AsyncContext&&) noexcept = default;
+
+        asio::awaitable<void> ensureOnStrand() const {
+            if (!this->running_in_this_thread()) {
+                return asio::dispatch(asio::bind_executor(static_cast<base>(*this), asio::use_awaitable));
             }
-
-            AsyncContext(const AsyncContext & other) = delete;
-
-            AsyncContext & operator=(const AsyncContext & other) = delete;
-
-            // awaitable factory
-            inline asio::awaitable<void> ensureOnStrand() const
-            {
-                if(!_strand.running_in_this_thread()) {
-                    return asio::dispatch(asio::bind_executor(_strand, asio::use_awaitable));
-                }
-                return noop();
-            }
-
-            // spawn new coroutine
-            template<typename T>
-            inline void co_spawn(asio::awaitable<T> && awaitable)
-            {
-                assert(awaitable.valid() && "awaitable is invalid (possibly moved-from)");
-
-                asio::co_spawn(_strand, std::forward<typename asio::awaitable<T>>(awaitable), asio::detached);
-            }
-
-        private:
-            asio::strand<executor_type> _strand;
+            return noop();
+        }
     };
 
     template<class Executor>
@@ -84,12 +78,6 @@ namespace astre::async
             virtual ~ThreadContext();
 
             asio::awaitable<void> ensureOnStrand() const;
-
-            template<typename Awaitable>
-            void co_spawn(Awaitable&& awaitable)
-            {
-                _async_context.co_spawn(std::move(awaitable));
-            }
 
             template<class Func, class... Args>
             void start(Func && func, Args&&... args)
@@ -110,4 +98,49 @@ namespace astre::async
             std::thread _thread;
     };
 
+
+    class LifecycleToken 
+    {
+        public:
+
+        LifecycleToken()
+        {
+            spdlog::debug("[lifecycle-token] LifecycleToken created");
+        }
+        
+        // token is non transferable  
+        LifecycleToken(LifecycleToken && other) = delete;
+        LifecycleToken(LifecycleToken & other) = delete;
+        LifecycleToken & operator=(LifecycleToken && other) = delete;
+        LifecycleToken & operator=(LifecycleToken & other) = delete;
+
+        ~LifecycleToken() 
+        {
+            spdlog::debug("[lifecycle-token] LifecycleToken destroyed");
+        }
+
+        /**
+         * Request the cancellation of the current task
+         */
+        void requestStop() noexcept {
+            signal.emit(asio::cancellation_type::all);
+        }
+
+        /**
+         * Mark the current task as finished
+         */
+        void markFinished() noexcept { finished.test_and_set(); }
+
+        /**
+         * Check if the current task is finished
+         */
+        bool isFinished() const noexcept { return finished.test(); }
+
+        asio::cancellation_slot getSlot() { return signal.slot(); }
+        asio::cancellation_signal & getSignal() { return signal; }
+
+        private:
+            asio::cancellation_signal signal;
+            std::atomic_flag finished = ATOMIC_FLAG_INIT;
+    };
 }

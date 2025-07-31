@@ -11,9 +11,19 @@ namespace astre::ecs::system
     class CameraSystem : public System<astre::ecs::CameraComponent>
     {
     public:
-        CameraSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        CameraSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context, std::string active_camera_entity_name);
+
+        inline CameraSystem(CameraSystem && other)
+            : System(std::move(other)), _active_camera_entity_name(std::move(other._active_camera_entity_name))
+        {}
+
+        CameraSystem & operator=(CameraSystem && other) = delete;
+
+        CameraSystem(const CameraSystem &) = delete;
+        CameraSystem & operator=(const CameraSystem &) = delete;
 
         ~CameraSystem() = default;
+
 
         asio::awaitable<void> run(render::Frame & frame);
 

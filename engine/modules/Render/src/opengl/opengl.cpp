@@ -167,7 +167,7 @@ namespace astre::render::opengl
 
         spdlog::debug("[opengl] OpenGL renderer join");
         
-        _render_context->co_spawn(close());
+        asio::co_spawn(*_render_context, close(), asio::detached);
         
         // wait for render thread to finish
         _render_context->join();
@@ -515,6 +515,13 @@ namespace astre::render::opengl
     {
         if(good() == false)co_return;
 
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[renderer] clearScreen cancelled");
+            co_return;
+        }
+
         co_await _render_context->ensureOnStrand();
         
         if(good() == false)co_return;
@@ -560,6 +567,13 @@ namespace astre::render::opengl
             std::optional<std::size_t> fbo)
     {
         if(good() == false)co_return;
+
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[renderer] render cancelled");
+            co_return;
+        }
 
         co_await _render_context->ensureOnStrand();
 

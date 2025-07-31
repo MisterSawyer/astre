@@ -9,6 +9,7 @@ add_module(NAME "Pipeline"
     DEPENDENCIES
         asio
         
+        astre::Async
         astre::Native
         astre::Process
         astre::Window

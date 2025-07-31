@@ -151,7 +151,7 @@ namespace astre::render::opengl
         
         if(currently_bound_VAO != (GLint)_VAO)
         {
-            spdlog::warn("Disable OpenGL Vertex Buffer which is not currently bound");
+            spdlog::debug("Disable OpenGL Vertex Buffer which is not currently bound");
             return;
         }
         

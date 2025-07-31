@@ -19,7 +19,7 @@ namespace astre::entry
         explicit AppPaths(const std::filesystem::path& baseDir);
     };
 
-    extern asio::awaitable<int> main(const AppPaths& paths, process::IProcess & process);
+    extern asio::awaitable<int> main(process::IProcess & process, const AppPaths& paths);
 }
 
 int main(int argc, char** argv);

@@ -13,9 +13,9 @@ namespace astre::ecs
 {
     struct Systems
     {
-        system::TransformSystem & transform;
-        system::CameraSystem & camera;
-        system::VisualSystem & visual;
-        system::LightSystem & light;
+        system::TransformSystem transform;
+        system::CameraSystem camera;
+        system::VisualSystem visual;
+        system::LightSystem light;
     };
 }

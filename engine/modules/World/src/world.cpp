@@ -9,19 +9,17 @@ namespace astre::world {
     static constexpr int LOAD_RADIUS = 0;
 
     WorldStreamer::WorldStreamer(
-        async::AsyncContext<process::IProcess::execution_context_type> & async_context,
+        process::IProcess::execution_context_type & execution_context,
         std::filesystem::path path,
         ecs::Registry& registry,
-        asset::EntityLoader& loader,
-        asset::EntitySerializer& serializer,
         float chunk_size,
         unsigned int max_loaded_chunks
     )
-        :   _async_context(async_context),
+        :   _async_context(execution_context),
             _archive(std::move(path), asset::use_json),
             _registry(registry),
-            _loader(loader),
-            _serializer(serializer),
+            _loader(registry),
+            _serializer(registry),
             _chunk_size(chunk_size),
             _max_loaded_chunks(max_loaded_chunks)
     {}
@@ -36,17 +34,26 @@ namespace astre::world {
 
     asio::awaitable<void> WorldStreamer::addEntitiesToChunk(ChunkID chunk_id, std::vector<ecs::Entity> entities)
     {
-        co_await _async_context.ensureOnStrand();
         for(const auto & e : entities)
         {
+            co_await _async_context.ensureOnStrand();
+
             _chunk_entities[chunk_id].insert(e);
-            _loaded_chunks[chunk_id].add_entities()->CopyFrom(_serializer.serializeEntity(e, _registry));
+            _loaded_chunks[chunk_id].add_entities()->CopyFrom(co_await _serializer.serializeEntity(e));
         }
     }
 
     asio::awaitable<void> WorldStreamer::updateLoadPosition(const math::Vec3 & pos)
     {
+        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[world-streamer] updateLoadPosition cancelled");
+            co_return;
+        }
+
         co_await _async_context.ensureOnStrand();
+        spdlog::debug("[world-streamer] updateLoadPosition");
 
         const ChunkID center = toChunkID(pos, _chunk_size);
 
@@ -66,12 +73,14 @@ namespace astre::world {
             }
         }
 
+        spdlog::debug("[world-streamer] required chunks: {}", required.size());
         // Load missing chunks
         for (const ChunkID& cid : required) {
             if (!_loaded_chunks.contains(cid)) {
-                loadChunk(cid);
+                co_await loadChunk(cid);
             }
         }
+        spdlog::debug("[world-streamer] loaded chunks: {}", _loaded_chunks.size());
 
         // Unload chunks no longer needed
         std::vector<ChunkID> toRemove;
@@ -80,39 +89,59 @@ namespace astre::world {
                 toRemove.push_back(cid);
             }
         }
+        spdlog::debug("[world-streamer] unloading chunks: {}", toRemove.size());
         for (const ChunkID& cid : toRemove) {
-            unloadChunk(cid);
+            co_await unloadChunk(cid);
         }
 
+        spdlog::debug("[world-streamer] updateLoadPosition done");
         co_return;
     }
 
-    void WorldStreamer::loadChunk(const ChunkID& id) 
+    asio::awaitable<void> WorldStreamer::loadChunk(const ChunkID& id) 
     {
+        co_await _async_context.ensureOnStrand();
+
+        spdlog::debug("Loading chunk  ({};{};{})", id.x(), id.y(), id.z());
+
         auto chunk = _archive.readChunk(id, asset::use_json);
         if (!chunk.has_value())
         {
             spdlog::error("Failed to load chunk");
-            return;
+            co_return;
         }
 
         // load chunk entites
-        for (const auto& entity_def : (*chunk).entities()) {
-            auto entity = _registry.createEntity(entity_def.name());
+        for (const auto& entity_def : (*chunk).entities()) 
+        {
+            std::optional<ecs::Entity> entity = co_await _registry.createEntity(entity_def.name());
+            co_await _async_context.ensureOnStrand();
+
             if (entity.has_value()) {
-                _loader.loadEntity(entity_def, *entity, _registry);
                 _chunk_entities[id].insert(*entity);
+                co_await _loader.loadEntity(entity_def, *entity);
             }
         }
+        
+        co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk loaded  ({};{};{})", id.x(), id.y(), id.z());
         _loaded_chunks[id] = std::move(*chunk);
     }
 
-    void WorldStreamer::unloadChunk(const ChunkID& id) {
-        if (!_loaded_chunks.contains(id)) return;
-        for (ecs::Entity e : _chunk_entities[id]) {
-            _registry.destroyEntity(e);
+    asio::awaitable<void> WorldStreamer::unloadChunk(const ChunkID& id) 
+    {
+        co_await _async_context.ensureOnStrand();
+        spdlog::debug("Unloading chunk  ({};{};{})", id.x(), id.y(), id.z());
+
+        if (!_loaded_chunks.contains(id)) co_return;
+
+        const absl::flat_hash_set<astre::ecs::Entity> chunk = _chunk_entities[id];
+        for (ecs::Entity e : chunk)
+        {
+            co_await _registry.destroyEntity(e);
         }
+
+        co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk unloaded  ({};{};{})", id.x(), id.y(), id.z());
         _loaded_chunks.erase(id);
     }

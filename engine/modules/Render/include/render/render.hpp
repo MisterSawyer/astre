@@ -45,13 +45,15 @@ namespace astre::render
     struct Frame
     {
         std::chrono::steady_clock::time_point sim_time;
-        math::Vec3 camera_position;
-        math::Mat4 view_matrix;
-        math::Mat4 proj_matrix;
-        absl::flat_hash_map<std::size_t, RenderProxy> render_proxies;
-        std::vector<GPULight> gpu_lights;
-        std::vector<math::Mat4> light_space_matrices;
-        std::uint32_t shadow_casters_count = 0;
+        math::Vec3 camera_position; // in
+        math::Mat4 view_matrix; // in
+        math::Mat4 proj_matrix; // in
+        absl::flat_hash_map<std::size_t, RenderProxy> render_proxies; // in
+        
+        std::size_t light_ssbo; // in
+        std::vector<GPULight> gpu_lights; // ??? is it necessary ?
+        std::vector<math::Mat4> light_space_matrices; // in
+        std::uint32_t shadow_casters_count = 0; // in
     };
 
     class IRenderer : public type::InterfaceBase

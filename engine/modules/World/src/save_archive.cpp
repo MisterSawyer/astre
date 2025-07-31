@@ -6,7 +6,7 @@
 
 namespace astre::world 
 {
-    constexpr static const std::int32_t MAGIC = 0xABCD1234;
+    static constexpr std::int32_t MAGIC = 0xABCD1234;
 
     // layout of json file
     //chunks: [

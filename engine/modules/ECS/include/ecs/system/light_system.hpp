@@ -12,10 +12,19 @@ namespace astre::ecs::system
     class LightSystem : public System<LightComponent>
     {
     public:
-        static constexpr const uint16_t MAX_LIGHTS = 256;
-        static constexpr const uint16_t MAX_SHADOW_CASTERS = 16;
+        static constexpr uint16_t MAX_LIGHTS = 256;
+        static constexpr uint16_t MAX_SHADOW_CASTERS = 16;
 
         LightSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+
+        inline LightSystem(LightSystem && other)
+            : System(std::move(other))
+        {}
+
+        LightSystem & operator=(LightSystem && other) = delete;
+
+        LightSystem(const LightSystem &) = delete;
+        LightSystem & operator=(const LightSystem &) = delete;
 
         ~LightSystem() = default;
 

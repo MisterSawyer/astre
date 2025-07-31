@@ -67,7 +67,7 @@ namespace astre::render::opengl
                 ~Stage();
 
             private:
-                constexpr static const unsigned int _MAX_LOG_LENGTH = 1024;
+                static constexpr unsigned int _MAX_LOG_LENGTH = 1024;
 
                 GLint _result = 0;
                 GLenum _stage_type = GL_INVALID_ENUM;
@@ -84,7 +84,7 @@ namespace astre::render::opengl
         void fetchUniforms();
 
     private:
-        constexpr static const unsigned int _MAX_LOG_LENGTH = 4096;
+        static constexpr unsigned int _MAX_LOG_LENGTH = 4096;
 
         GLuint _shader_program_ID;
 

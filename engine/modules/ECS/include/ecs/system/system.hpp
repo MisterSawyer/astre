@@ -14,13 +14,22 @@ namespace astre::ecs::system
         public:
             using component_type = ComponentType;
 
-            static constexpr const std::uint32_t MASK_BIT = ComponentTypesList::template getTypeID<component_type>();
+            static constexpr std::uint32_t MASK_BIT = ComponentTypesList::template getTypeID<component_type>();
 
-            System(Registry & registry, process::IProcess::execution_context_type & execution_context)
+            inline System(Registry & registry, process::IProcess::execution_context_type & execution_context)
                 : _registry(registry),
                   _async_context(execution_context)
             {}
-            
+
+            inline System(System && other) 
+            : _registry(other._registry), _async_context(std::move(other._async_context))
+            {}
+
+            inline System & operator=(System && other) = delete;
+
+            System(const System &) = delete;
+            System & operator=(const System &) = delete;
+
             virtual ~System() = default;
 
         protected:

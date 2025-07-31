@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
         process::Process process(process::createProcess(used_cores));
 
         asio::co_spawn(process->getExecutionContext(), 
-            entry::main(paths, *process), 
+            entry::main(*process, paths), 
             // when main ended set return values
             [&return_value](std::exception_ptr, int r)
             {

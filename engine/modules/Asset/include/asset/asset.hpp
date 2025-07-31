@@ -14,10 +14,10 @@
 namespace astre::asset
 {
     struct use_json_t{};
-    constexpr const use_json_t use_json;
+    constexpr use_json_t use_json;
 
     struct use_binary_t{};
-    constexpr const use_binary_t use_binary;
+    constexpr use_binary_t use_binary;
 
     asio::awaitable<bool> loadVertexBuffersPrefabs(render::IRenderer & renderer);
 

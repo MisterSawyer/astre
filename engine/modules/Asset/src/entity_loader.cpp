@@ -9,17 +9,18 @@ namespace astre::asset
     {
         return 
             [has_component, get_component]
-            (const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) 
+            (const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) -> asio::awaitable<void>
             {
-                if (!has_component(&entity_def)) return;
+                if (!has_component(&entity_def)) co_return;
                 
                 ComponentType component;
                 component.CopyFrom(get_component(&entity_def));
-                registry.addComponent(entity, std::move(component));
+                co_await registry.addComponent(entity, std::move(component));
             };
     }
 
-    EntityLoader::EntityLoader()
+    EntityLoader::EntityLoader(ecs::Registry & registry)
+    : _registry(registry)
     {
         registerComponentLoader("TransformComponent", 
             _constructComponentLoader<ecs::TransformComponent>(
@@ -67,11 +68,11 @@ namespace astre::asset
         _loaders[name] = std::move(loader);
     }
 
-    void EntityLoader::loadEntity(const ecs::EntityDefinition & entity_def, ecs::Entity entity, ecs::Registry & registry) const 
+    asio::awaitable<void> EntityLoader::loadEntity(const ecs::EntityDefinition & entity_def, ecs::Entity entity) const 
     {
         for (const auto& [name, loader] : _loaders)
         {
-            loader(entity_def, entity, registry);
+            co_await loader(entity_def, entity, _registry);
         }
     }
 

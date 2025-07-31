@@ -9,22 +9,27 @@ namespace astre::asset
     {
         return 
             [mutable_component]
-            (const ecs::Entity entity, const ecs::Registry & registry, ecs::EntityDefinition & entity_def)
+            (const ecs::Entity entity, const ecs::Registry & registry, ecs::EntityDefinition & entity_def) -> asio::awaitable<void>
             {
-                if (!registry.hasComponent<ComponentType>(entity)) return;
+                if (!(co_await registry.hasComponent<ComponentType>(entity))) co_return;
 
-                const ComponentType * const component = registry.getComponent<ComponentType>(entity);
                 auto* target = mutable_component(&entity_def);
                 if (!target)
                 {
                     spdlog::error("Entity {} has null mutable component", entity);
                     throw std::runtime_error("mutable_component returned nullptr");
                 }
-                target->CopyFrom(*component);
+
+                co_await registry.runOnSingleWithComponent<ComponentType>(entity, [&target](const ComponentType & component){
+                    target->CopyFrom(component);
+                });
+
+                co_return; 
             };
     }
 
-    EntitySerializer::EntitySerializer()
+    EntitySerializer::EntitySerializer(const ecs::Registry & registry)
+    : _registry(registry)
     {
         registerComponentSerializer("TransformComponent",
             _constructComponentSerializer<ecs::TransformComponent>(&ecs::EntityDefinition::mutable_transform) 
@@ -64,17 +69,17 @@ namespace astre::asset
         _serializers[name] = std::move(serializer);
     }
 
-    ecs::EntityDefinition EntitySerializer::serializeEntity(const ecs::Entity entity, const ecs::Registry & registry) const {
+    asio::awaitable<ecs::EntityDefinition> EntitySerializer::serializeEntity(const ecs::Entity entity) const {
         ecs::EntityDefinition entity_def;
-        auto name_res = registry.getName(entity);
+        auto name_res = co_await _registry.getName(entity);
         if (name_res.has_value() == false) {
             spdlog::error("Entity {} has no name", entity);
             throw std::runtime_error("Entity has no name");
         }
         entity_def.set_name(name_res.value());
         for (const auto& [name, serializer] : _serializers) {
-            serializer(entity, registry, entity_def);
+            co_await serializer(entity, _registry, entity_def);
         }
-        return entity_def;
+        co_return entity_def;
     }
 }
