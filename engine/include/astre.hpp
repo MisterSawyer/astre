@@ -15,6 +15,7 @@
 #include "input/input.hpp"
 #include "pipeline/pipeline.hpp"
 #include "world/world.hpp"
+#include "script/script.hpp"
 
 namespace astre
 {

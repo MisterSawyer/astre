@@ -37,9 +37,9 @@ namespace astre::ecs::system
 
         // collect lights
         co_await getRegistry().runOnAllWithComponents<TransformComponent, LightComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const LightComponent & light_component)
+            [&](const Entity e, const TransformComponent & transform_component, const LightComponent & light_component) -> asio::awaitable<void>
             {
-                if(light_id >= MAX_LIGHTS) return;
+                if(light_id >= MAX_LIGHTS) co_return;
 
                 position = math::deserialize(transform_component.position());
                 rotation = math::deserialize(transform_component.rotation());
@@ -90,6 +90,7 @@ namespace astre::ecs::system
                 assert(frame.gpu_lights.size() <= MAX_LIGHTS);
                 assert(frame.gpu_lights.size() == light_id);
 
+                co_return;
             }
         );
 

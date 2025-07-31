@@ -20,8 +20,11 @@ namespace astre::asset
                     throw std::runtime_error("mutable_component returned nullptr");
                 }
 
-                co_await registry.runOnSingleWithComponents<ComponentType>(entity, [&target](const ecs::Entity entity, const ComponentType & component){
+                co_await registry.runOnSingleWithComponents<ComponentType>(entity, 
+                [&target](const ecs::Entity entity, const ComponentType & component) -> asio::awaitable<void>
+                {
                     target->CopyFrom(component);
+                    co_return;
                 });
 
                 co_return; 

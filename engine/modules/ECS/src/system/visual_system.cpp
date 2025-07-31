@@ -20,7 +20,7 @@ namespace astre::ecs::system
         std::optional<std::size_t> vb_id;
         std::optional<std::size_t> sh_id;
         co_await getRegistry().runOnAllWithComponents<TransformComponent, VisualComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const VisualComponent &visual_component)
+            [&](const Entity e, const TransformComponent & transform_component, const VisualComponent &visual_component)  -> asio::awaitable<void>
             {
                 vb_id = _renderer.getVertexBuffer(visual_component.vertex_buffer_name());
                 sh_id = _renderer.getShader(visual_component.shader_name());
@@ -28,7 +28,7 @@ namespace astre::ecs::system
                 if (!vb_id || !sh_id)
                 {
                     // if cannot find vertex buffer or shader, skip
-                    return;
+                    co_return;
                 }
                 
                 frame.render_proxies[e].vertex_buffer = *vb_id;
@@ -49,6 +49,8 @@ namespace astre::ecs::system
                 }
 
                 frame.render_proxies[e].inputs.in_mat4["uModel"] = math::deserialize(transform_component.transform_matrix());
+
+                co_return;
             }
 
         );

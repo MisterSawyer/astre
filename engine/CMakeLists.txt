@@ -37,7 +37,7 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::Pipeline
         astre::World
         World_proto
-        
+        astre::Script
     PUBLIC
         spdlog
         asio

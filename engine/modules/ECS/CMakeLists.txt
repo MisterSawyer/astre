@@ -10,6 +10,7 @@ add_module(NAME "ECS"
     
     DEPENDENCIES
         asio
+        spdlog
         absl::flat_hash_map
 
         astre::Async
@@ -19,6 +20,7 @@ add_module(NAME "ECS"
         astre::Process
         astre::Render
         astre::Input
+        astre::Script
 )
 
 protobuf_generate(NAME "ECS_proto"

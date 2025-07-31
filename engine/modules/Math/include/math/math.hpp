@@ -65,8 +65,8 @@ namespace astre::math
     // template<typename T, typename U>
     // inline auto dot(T&& a, U&& b) { return glm::dot(std::forward<T>(a), std::forward<U>(b)); }
 
-    // template<typename T>
-    // inline auto length(T&& v) { return glm::length(std::forward<T>(v)); }
+    template<typename T>
+    inline auto length(T&& v) { return glm::length(std::forward<T>(v)); }
 
     template<typename T>
     inline auto radians(T&& v) { return glm::radians(std::forward<T>(v)); }
@@ -88,6 +88,9 @@ namespace astre::math
 
 	template<typename T, glm::qualifier Q>
     inline auto toMat4(const glm::qua<T, Q> & x){return glm::toMat4(x);}
+
+    template<class T, glm::qualifier Q>
+    inline auto eulerAngles(const glm::qua<T, Q> & x) { return glm::eulerAngles(x); }
 
     template<typename T>
     inline auto value_ptr(T&& v) { return glm::value_ptr(std::forward<T>(v)); }

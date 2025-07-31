@@ -576,6 +576,12 @@ namespace astre::render::opengl
         }
 
         co_await _render_context->ensureOnStrand();
+        
+        if(cs.cancelled() != asio::cancellation_type::none)
+        {
+            spdlog::debug("[renderer] render cancelled");
+            co_return;
+        }
 
         if(good() == false)co_return;
 

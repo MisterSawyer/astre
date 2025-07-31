@@ -11,7 +11,7 @@ namespace astre::ecs::system
     class CameraSystem : public System<astre::ecs::CameraComponent>
     {
     public:
-        CameraSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context, std::string active_camera_entity_name);
+        CameraSystem(std::string active_camera_entity_name, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
         inline CameraSystem(CameraSystem && other)
             : System(std::move(other)), _active_camera_entity_name(std::move(other._active_camera_entity_name))

@@ -5,7 +5,7 @@
 
 namespace astre::ecs::system
 {
-    CameraSystem::CameraSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context, std::string active_camera_entity_name)
+    CameraSystem::CameraSystem(std::string active_camera_entity_name, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
         :   System(registry, execution_context),
             _active_camera_entity_name(std::move(active_camera_entity_name))
     {}
@@ -28,7 +28,7 @@ namespace astre::ecs::system
         co_await getAsyncContext().ensureOnStrand();
 
         co_await getRegistry().runOnSingleWithComponents<TransformComponent, CameraComponent>(*entity,
-            [&](const Entity e, const TransformComponent & transform_component, const CameraComponent & camera_component)
+            [&](const Entity e, const TransformComponent & transform_component, const CameraComponent & camera_component) -> asio::awaitable<void>
             {
                 frame.camera_position = math::deserialize(transform_component.position());
                 frame.view_matrix = math::deserialize(transform_component.transform_matrix());
@@ -37,6 +37,7 @@ namespace astre::ecs::system
                     camera_component.aspect(),
                     camera_component.near_plane(),
                     camera_component.far_plane());
+                co_return;
             }
         );
 

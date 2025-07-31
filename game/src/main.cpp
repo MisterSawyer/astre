@@ -124,6 +124,9 @@ namespace astre::entry
         co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
         co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
 
+        script::ScriptRuntime script_runtime;
+        co_await asset::loadScript(script_runtime, paths.resources / "worlds" / "scripts" / "player_script.lua");
+
         ecs::Registry registry(app_state.process.getExecutionContext());
 
         pipeline::FramesBuffer<GameFrame> buffer;
@@ -135,9 +138,10 @@ namespace astre::entry
                 .registry = registry,
                 .systems = ecs::Systems{
                     .transform = ecs::system::TransformSystem(registry, app_state.process.getExecutionContext()),
-                    .camera = ecs::system::CameraSystem(registry, app_state.process.getExecutionContext(), "camera"),
+                    .camera = ecs::system::CameraSystem( "camera", registry, app_state.process.getExecutionContext()),
                     .visual = ecs::system::VisualSystem(app_state.renderer, registry, app_state.process.getExecutionContext()),
-                    .light = ecs::system::LightSystem(registry, app_state.process.getExecutionContext())
+                    .light = ecs::system::LightSystem(registry, app_state.process.getExecutionContext()),
+                    .script = ecs::system::ScriptSystem(script_runtime, registry, app_state.process.getExecutionContext()),
                 },
                 .render_resources = std::move(render_resources),
                 .world = world::WorldStreamer(  
@@ -166,6 +170,13 @@ namespace astre::entry
             // ECS stage
             co_await state.systems.transform.run();
             
+            if(cs.cancelled() != asio::cancellation_type::none)
+            {
+                spdlog::debug("Logic stage cancelled");
+                co_return;
+            }
+            co_await state.systems.script.run();
+
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");

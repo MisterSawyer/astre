@@ -63,7 +63,7 @@ namespace astre::ecs
                 const auto& mask = _entities.getComponentMask(entity);
                 const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
                 if (has_all_components)
-                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                    co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
             template<class ... ComponentTypes, class F>
@@ -75,7 +75,7 @@ namespace astre::ecs
                 const auto& mask = _entities.getComponentMask(entity);
                 const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
                 if (has_all_components)
-                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                    co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
             template<class ... ComponentTypes, class F>
@@ -88,7 +88,9 @@ namespace astre::ecs
                     const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
 
                     if (has_all_components)
-                        callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                        co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                    
+                    co_await _async_context.ensureOnStrand();
                 }
             }
 

@@ -15,4 +15,5 @@ add_module(NAME "Asset"
         astre::Type
         astre::Render
         astre::ECS
+        astre::Script
 )

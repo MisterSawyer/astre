@@ -21,7 +21,7 @@ namespace astre::ecs::system
         co_await getAsyncContext().ensureOnStrand();
 
         co_await getRegistry().runOnAllWithComponents<TransformComponent>(
-            [&](const Entity e, TransformComponent & transform_component) -> void
+            [&](const Entity e, TransformComponent & transform_component) ->  asio::awaitable<void>
             {
                 if(transform_component.has_position())
                 {
@@ -65,6 +65,8 @@ namespace astre::ecs::system
                 transform_component.mutable_forward()->CopyFrom(math::serialize(forward));
                 transform_component.mutable_up()->CopyFrom(math::serialize(up));
                 transform_component.mutable_right()->CopyFrom(math::serialize(right));
+
+                co_return;
             }
         );
 
