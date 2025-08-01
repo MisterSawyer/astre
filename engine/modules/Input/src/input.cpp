@@ -201,12 +201,11 @@ namespace astre::input
             co_return;
         }
 
-        absl::flat_hash_set<InputCode> just_pressed;
-        absl::flat_hash_set<InputCode> just_released;
-
         std::deque<InputEvent> events;
 
         co_await _input_context.ensureOnStrand();
+        _just_pressed.clear();
+        _just_released.clear();
 
         std::swap(events, _event_queue); // fast, av
 
@@ -218,14 +217,14 @@ namespace astre::input
                     if(event.code() == InputCode::UNKNOWN_InputCode) break;
                     if (_held_keys.insert(event.code()).second)
                     {
-                        just_pressed.insert(event.code());
+                        _just_pressed.insert(event.code());
                     }
                     break;
                 case InputEventType::Released:
                     if(event.code() == InputCode::UNKNOWN_InputCode) break;
                     if (_held_keys.erase(event.code()) > 0)
                     {
-                        just_released.insert(event.code());
+                        _just_released.insert(event.code());
                     }
                     break;
             }

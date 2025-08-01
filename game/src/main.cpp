@@ -142,6 +142,7 @@ namespace astre::entry
                     .visual = ecs::system::VisualSystem(app_state.renderer, registry, app_state.process.getExecutionContext()),
                     .light = ecs::system::LightSystem(registry, app_state.process.getExecutionContext()),
                     .script = ecs::system::ScriptSystem(script_runtime, registry, app_state.process.getExecutionContext()),
+                    .input = ecs::system::InputSystem(app_state.input, registry, app_state.process.getExecutionContext())
                 },
                 .render_resources = std::move(render_resources),
                 .world = world::WorldStreamer(  
@@ -168,7 +169,7 @@ namespace astre::entry
                 co_return;
             }
             // ECS stage
-            co_await state.systems.transform.run();
+            co_await (state.systems.transform.run() && state.systems.input.run());
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {

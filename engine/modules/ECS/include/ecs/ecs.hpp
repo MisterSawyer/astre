@@ -9,6 +9,7 @@
 #include "ecs/system/visual_system.hpp"
 #include "ecs/system/light_system.hpp"
 #include "ecs/system/script_system.hpp"
+#include "ecs/system/input_system.hpp"
 
 namespace astre::ecs
 {
@@ -19,5 +20,6 @@ namespace astre::ecs
         system::VisualSystem visual;
         system::LightSystem light;
         system::ScriptSystem script;
+        system::InputSystem input;
     };
 }

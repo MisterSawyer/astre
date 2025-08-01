@@ -42,6 +42,10 @@ namespace astre::input
 
             bool isKeyPressed(InputCode key) const;
 
+            const absl::flat_hash_set<InputCode> & getPressed() const { return _held_keys; }
+            const absl::flat_hash_set<InputCode> & getJustPressed() const { return _just_pressed; }
+            const absl::flat_hash_set<InputCode> & getJustReleased() const { return _just_released; }
+
             asio::awaitable<void> update();
 
         private:
@@ -50,6 +54,9 @@ namespace astre::input
 
             std::deque<InputEvent> _event_queue;
             absl::flat_hash_set<InputCode> _held_keys;
+
+            absl::flat_hash_set<InputCode> _just_pressed;
+            absl::flat_hash_set<InputCode> _just_released;
     };
 
 }
