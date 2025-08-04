@@ -10,7 +10,7 @@ namespace astre::ecs::system
             _active_camera_entity_name(std::move(active_camera_entity_name))
     {}
 
-    asio::awaitable<void> CameraSystem::run(render::Frame & frame)
+    asio::awaitable<void> CameraSystem::run(float dt, render::Frame & frame)
     {
         co_await getAsyncContext().ensureOnStrand();
 

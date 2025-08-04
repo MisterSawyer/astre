@@ -152,12 +152,19 @@ namespace astre::pipeline
     class PipelineOrchestrator
     {
     public:
-        using LogicSubStage = std::function<asio::awaitable<void>(FrameState&, StageState&)>;
-        using RenderStage = std::function<asio::awaitable<void>(const FrameState&, const FrameState&, StageState&)>;
-        using SyncStage = std::function<asio::awaitable<void>(StageState&)>;
+        using LogicSubStage = std::function<
+            asio::awaitable<void>(float, FrameState&, StageState&)>;
+        using RenderStage = std::function<
+            asio::awaitable<void>(float, const render::Frame &, const render::Frame &, StageState&)>;
+        using SyncStage = std::function<
+            asio::awaitable<void>(StageState&)>;
 
         PipelineOrchestrator(process::IProcess & process, FramesBuffer<FrameState>& buffer, StageState && init_state)
-            : _process(process), _buffer(buffer), _stage_state(std::move(init_state))
+            :   _process(process),
+                _buffer(buffer),
+                _stage_state(std::move(init_state)),
+                _accumulator(0.0f),
+                _fixed_logic_step(1.0f / 10.0f)
         {}
         
         template<std::size_t Index>
@@ -171,27 +178,22 @@ namespace astre::pipeline
 
         asio::awaitable<void> runLoop(async::LifecycleToken & token) 
         {        
-            float accumulator = 0.0f;
             std::chrono::steady_clock::time_point now;
 
             std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
-
-            std::array<asio::awaitable<void>, LogicSubstagesCount> logic_substages_calls;
             
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
             while (cs.cancelled() == asio::cancellation_type::none) 
             {
                 now = std::chrono::steady_clock::now();
-                accumulator += std::chrono::duration<float>(now - last_time).count();
+                _accumulator += std::chrono::duration<float>(now - last_time).count();
                 last_time = now;
 
-                FrameState& logic_frame = _buffer.current();
-                const FrameState& render_curr = _buffer.previous();
-                const FrameState& render_prev = _buffer.beforePrevious();
-
-                for(std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
-                    logic_substages_calls.at(logic_idx) = _logic_substages.at(logic_idx)(logic_frame, _stage_state);
+                if(_accumulator >= _fixed_logic_step)
+                {
+                    _buffer.rotate();
+                }
 
                 if(cs.cancelled() != asio::cancellation_type::none)
                 {
@@ -199,8 +201,24 @@ namespace astre::pipeline
                     token.markFinished();
                     co_return;
                 }
-                co_await (_logic_substages.at(0)(logic_frame, _stage_state) && _render(render_prev, render_curr, _stage_state));
+                try
+                {
+                    const render::Frame & render_curr = _buffer.previous().render_frame;
+                    const render::Frame & render_prev = _buffer.beforePrevious().render_frame;
+                    float alpha = _accumulator / _fixed_logic_step;
+                    co_await (_runFixedLogic(token) && 
+                        _render(alpha, render_prev, render_curr, _stage_state));
+                }
+                catch (const asio::system_error& e)
+                {
+                    if (e.code() == asio::error::operation_aborted) {
+                        spdlog::debug("[pipeline] Pipeline cancelled");
+                        co_return;
+                    }
+                    throw;
+                }
 
+                // sync
                 if(cs.cancelled() != asio::cancellation_type::none)
                 {
                     spdlog::debug("[pipeline] Pipeline cancelled");
@@ -208,17 +226,40 @@ namespace astre::pipeline
                     co_return;
                 }
                 if (_post_sync) co_await _post_sync(_stage_state);
-
-                _buffer.rotate();
             }
             token.markFinished();
             co_return;
         }
-
+    
     private:
+
+        asio::awaitable<void> _runFixedLogic(async::LifecycleToken & token)
+        {
+            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+            while (_accumulator >= _fixed_logic_step)
+            {
+                for (std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
+                {
+                    if (cs.cancelled() != asio::cancellation_type::none)
+                    {
+                        spdlog::debug("[pipeline] Logic cancelled");
+                        token.markFinished();
+                        co_return;
+                    }
+                    co_await _logic_substages.at(logic_idx)(_fixed_logic_step, _buffer.current(), _stage_state);
+                }
+                _accumulator -= _fixed_logic_step;
+            }
+            co_return;  
+        }
+
         process::IProcess & _process;
         FramesBuffer<FrameState> & _buffer;
+
         std::array<LogicSubStage, LogicSubstagesCount> _logic_substages;
+        float _fixed_logic_step;
+        float _accumulator;
+
         RenderStage _render;
         SyncStage _post_sync;
         StageState _stage_state;

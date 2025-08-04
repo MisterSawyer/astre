@@ -28,7 +28,7 @@ namespace astre::ecs::system
         ~CameraSystem() = default;
 
 
-        asio::awaitable<void> run(render::Frame & frame);
+        asio::awaitable<void> run(float dt, render::Frame & frame);
 
         std::vector<std::type_index> getReads() const override {
             return expand<Reads>();

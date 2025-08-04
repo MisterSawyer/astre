@@ -27,7 +27,7 @@ namespace astre::ecs::system
 
         ~InputSystem() = default;
 
-        asio::awaitable<void> run();
+        asio::awaitable<void> run(float dt);
 
         std::vector<std::type_index> getReads() const override {
             return expand<Reads>();

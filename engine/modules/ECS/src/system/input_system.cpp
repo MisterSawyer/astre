@@ -8,7 +8,7 @@ namespace astre::ecs::system
         : System(registry, execution_context), _input_service(input_service)
     {}
 
-    asio::awaitable<void> InputSystem::run()
+    asio::awaitable<void> InputSystem::run(float dt)
     {
         google::protobuf::RepeatedField<int> serialized_pressed;
         google::protobuf::RepeatedField<int> serialized_just_pressed;

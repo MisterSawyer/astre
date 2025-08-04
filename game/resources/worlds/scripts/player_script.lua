@@ -1,5 +1,5 @@
 -- Delta time (in seconds), assumed injected or global
-dt = delta or 0.016  -- e.g. 60 FPS fallback
+dt = dt or 0.016  -- e.g. 60 FPS fallback
 
 -- Rotation speeds (degrees per second)
 pitch_speed = 10.0

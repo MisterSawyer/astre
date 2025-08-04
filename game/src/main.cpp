@@ -153,7 +153,7 @@ namespace astre::entry
             }
         );
         
-        orchestrator.setLogicSubstage<0>([&](GameFrame & frame, GameState & state) -> asio::awaitable<void>
+        orchestrator.setLogicSubstage<0>([&](float dt, GameFrame & frame, GameState & state) -> asio::awaitable<void>
         {
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
             if(cs.cancelled() != asio::cancellation_type::none)
@@ -169,21 +169,21 @@ namespace astre::entry
                 co_return;
             }
             // ECS stage
-            co_await (state.systems.transform.run() && state.systems.input.run());
+            co_await (state.systems.transform.run(dt) && state.systems.input.run(dt));
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
                 co_return;
             }
-            co_await state.systems.script.run();
+            co_await state.systems.script.run(dt);
 
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Logic stage cancelled");
                 co_return;
             }
-            co_await state.systems.camera.run(frame.render_frame);
+            co_await state.systems.camera.run(dt, frame.render_frame);
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {
@@ -191,7 +191,7 @@ namespace astre::entry
                 co_return;
             }
             // 
-            co_await (state.systems.visual.run(frame.render_frame) && state.systems.light.run(frame.render_frame));
+            co_await (state.systems.visual.run(dt, frame.render_frame) && state.systems.light.run(dt, frame.render_frame));
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {
@@ -203,29 +203,29 @@ namespace astre::entry
                   frame.render_frame.light_ssbo, sizeof(render::GPULight) * frame.render_frame.gpu_lights.size(), frame.render_frame.gpu_lights.data());
         });
 
-        orchestrator.setRenderStage([&](const GameFrame& prev, const GameFrame& curr, GameState & state) -> asio::awaitable<void> {
+        orchestrator.setRenderStage([&](float alpha,const render::Frame & prev, const render::Frame & curr, GameState & state) -> asio::awaitable<void> {
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
                 co_return;
             }
-            // Render interpolated frame using prev + curr
-            co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, curr.render_frame, state.render_resources);
+            // Render interpolated frame using prev + curr, using alpha
+            co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, curr, state.render_resources);
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
                 co_return;
             }
-            co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, curr.render_frame, state.render_resources);
+            co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, curr, state.render_resources);
             
             if(cs.cancelled() != asio::cancellation_type::none)
             {
                 spdlog::debug("Render stage cancelled");
                 co_return;
             }
-            co_await pipeline::renderGBufferToScreen(state.app_state.renderer, curr.render_frame, state.render_resources); 
+            co_await pipeline::renderGBufferToScreen(state.app_state.renderer, curr, state.render_resources); 
 
             co_return;
         });

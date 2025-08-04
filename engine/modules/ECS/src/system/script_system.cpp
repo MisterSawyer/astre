@@ -12,7 +12,7 @@ namespace astre::ecs::system
     {}
 
 
-    asio::awaitable<void> ScriptSystem::run()
+    asio::awaitable<void> ScriptSystem::run(float dt)
     {
         auto cs = co_await asio::this_coro::cancellation_state;
 
@@ -42,6 +42,7 @@ namespace astre::ecs::system
                 auto & sandbox = _runtime.getEnviroment(e);
 
                 sandbox["entity"] = e;
+                sandbox["dt"] = dt;
 
                 if(cs.cancelled() != asio::cancellation_type::none)
                 {

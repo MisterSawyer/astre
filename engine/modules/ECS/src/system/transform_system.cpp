@@ -8,7 +8,7 @@ namespace astre::ecs::system
         : System(registry, execution_context)
     {}
 
-    asio::awaitable<void> TransformSystem::run()
+    asio::awaitable<void> TransformSystem::run(float dt)
     {
         math::Vec3 pos;
         math::Quat rot;

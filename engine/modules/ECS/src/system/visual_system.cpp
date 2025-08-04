@@ -11,7 +11,7 @@ namespace astre::ecs::system
     {}
 
 
-    asio::awaitable<void> VisualSystem::run(render::Frame & frame)
+    asio::awaitable<void> VisualSystem::run(float dt, render::Frame & frame)
     {
         co_await getAsyncContext().ensureOnStrand();
 
