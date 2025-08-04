@@ -8,8 +8,18 @@
 
 namespace astre::ecs::system
 {
+    class SystemBase
+    {
+        public:
+            virtual ~SystemBase() = default;
+
+            virtual std::vector<std::type_index> getReads() const = 0;
+        
+            virtual std::vector<std::type_index> getWrites() const = 0;
+    };
+
     template<class ComponentType>
-    class System
+    class System : public SystemBase
     {
         public:
             using component_type = ComponentType;
@@ -35,6 +45,16 @@ namespace astre::ecs::system
         protected:
             Registry & getRegistry() { return _registry; }
             async::AsyncContext<process::IProcess::execution_context_type> & getAsyncContext() { return _async_context; }
+
+            template<typename Tuple>
+            static std::vector<std::type_index> expand()
+            {
+                std::vector<std::type_index> out;
+                std::apply([&](auto... Ts) {
+                    (out.emplace_back(std::type_index(typeid(Ts))), ...);
+                }, Tuple{});
+                return out;
+            }
 
         private:
             async::AsyncContext<process::IProcess::execution_context_type> _async_context;

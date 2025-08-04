@@ -11,6 +11,8 @@
 #include "ecs/system/script_system.hpp"
 #include "ecs/system/input_system.hpp"
 
+#include "ecs/system_scheduler.hpp"
+
 namespace astre::ecs
 {
     struct Systems

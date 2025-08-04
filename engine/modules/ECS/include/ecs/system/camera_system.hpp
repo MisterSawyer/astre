@@ -8,9 +8,12 @@
 
 namespace astre::ecs::system
 {
-    class CameraSystem : public System<astre::ecs::CameraComponent>
+    class CameraSystem : public System<CameraComponent>
     {
     public:
+        using Reads = std::tuple<TransformComponent>;
+        using Writes = std::tuple<CameraComponent>;
+
         CameraSystem(std::string active_camera_entity_name, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
         inline CameraSystem(CameraSystem && other)
@@ -26,6 +29,14 @@ namespace astre::ecs::system
 
 
         asio::awaitable<void> run(render::Frame & frame);
+
+        std::vector<std::type_index> getReads() const override {
+            return expand<Reads>();
+        }
+        
+        std::vector<std::type_index> getWrites() const override {
+            return expand<Writes>();
+        }
 
         void setActiveCameraEntityName(const std::string & entity_name) { _active_camera_entity_name = entity_name; }
 

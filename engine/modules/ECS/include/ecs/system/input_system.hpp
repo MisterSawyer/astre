@@ -11,6 +11,9 @@ namespace astre::ecs::system
     class InputSystem : public System<InputComponent>
     {
     public:
+        using Reads = std::tuple<>;
+        using Writes = std::tuple<InputComponent>;
+
         InputSystem(input::InputService & input_service, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
         inline InputSystem(InputSystem && other)
@@ -25,6 +28,14 @@ namespace astre::ecs::system
         ~InputSystem() = default;
 
         asio::awaitable<void> run();
+
+        std::vector<std::type_index> getReads() const override {
+            return expand<Reads>();
+        }
+        
+        std::vector<std::type_index> getWrites() const override {
+            return expand<Writes>();
+        }
 
     private:    
         input::InputService & _input_service;

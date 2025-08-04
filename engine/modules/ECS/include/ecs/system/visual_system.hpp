@@ -13,6 +13,9 @@ namespace astre::ecs::system
     class VisualSystem : public System<VisualComponent>
     {
     public:
+        using Reads = std::tuple<TransformComponent, CameraComponent>;
+        using Writes = std::tuple<VisualComponent>;
+
         VisualSystem(const render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
 
         inline VisualSystem(VisualSystem && other)
@@ -28,6 +31,15 @@ namespace astre::ecs::system
         
         asio::awaitable<void> run(render::Frame & frame);
         
+        std::vector<std::type_index> getReads() const override {
+            return expand<Reads>();
+        }
+        
+        std::vector<std::type_index> getWrites() const override {
+            return expand<Writes>();
+        }
+
+
     private:
         const render::IRenderer & _renderer;
     };

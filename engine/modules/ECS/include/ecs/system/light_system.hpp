@@ -12,6 +12,9 @@ namespace astre::ecs::system
     class LightSystem : public System<LightComponent>
     {
     public:
+        using Reads = std::tuple<TransformComponent>;
+        using Writes = std::tuple<CameraComponent>;
+
         static constexpr uint16_t MAX_LIGHTS = 256;
         static constexpr uint16_t MAX_SHADOW_CASTERS = 16;
 
@@ -29,5 +32,13 @@ namespace astre::ecs::system
         ~LightSystem() = default;
 
         asio::awaitable<void> run(render::Frame & frame);
+
+        std::vector<std::type_index> getReads() const override {
+            return expand<Reads>();
+        }
+        
+        std::vector<std::type_index> getWrites() const override {
+            return expand<Writes>();
+        }
     };
 }
