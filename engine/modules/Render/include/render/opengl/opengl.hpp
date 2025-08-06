@@ -19,6 +19,8 @@
 #include "window/window.hpp"
 
 #include "render/render_options.hpp"
+#include "render/render_stats.hpp"
+
 #include "render/vertex.hpp"
 #include "render/vertex_buffer.hpp"
 #include "render/shader.hpp"
@@ -77,7 +79,8 @@ namespace astre::render::opengl
                 std::size_t shader,
                 ShaderInputs shader_inputs,
                 RenderOptions options,
-                std::optional<std::size_t> fbo);
+                std::optional<std::size_t> fbo,
+                render::FrameStats * stats);
             
             asio::awaitable<void> present();
             asio::awaitable<void> updateViewportSize(unsigned int width, unsigned int height);
@@ -108,6 +111,7 @@ namespace astre::render::opengl
             asio::awaitable<bool> eraseTexture(std::size_t id);
             std::optional<std::size_t> getTexture(std::string name) const;
 
+            async::AsyncContext<asio::io_context> & getAsyncContext();
             void join();
 
         protected:

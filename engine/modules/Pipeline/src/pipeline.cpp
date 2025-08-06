@@ -2,33 +2,26 @@
 
 namespace astre::pipeline
 {
-    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources)
+    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[pipeline] renderFrameToGBuffer stage cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.deferred_fbo);
-
+        
         for(const auto & [_, proxy] : frame.render_proxies)
         {
             assert(cs.slot().is_connected());
 
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("[pipeline] renderFrameToGBuffer stage cancelled");
-                co_return;
-            }
+            if(async::isCancelled(cs)) co_return;
             try{
                 co_await renderer.render(
                     proxy.vertex_buffer,
                     proxy.shader,
                     proxy.inputs,
-                    render::RenderOptions{.mode = render::RenderMode::Solid},
-                    resources.deferred_fbo
+                    options,
+                    resources.deferred_fbo,
+                    stats
                 );
             }catch (const asio::system_error& e)
             {
@@ -41,7 +34,7 @@ namespace astre::pipeline
         }  
     }
 
-    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources)
+    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
@@ -49,12 +42,8 @@ namespace astre::pipeline
         // using simplified shadow shader
         for(std::size_t shadow_caster_id = 0; shadow_caster_id < resources.shadow_map_fbos.size(); ++shadow_caster_id)
         {
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("[pipeline] renderFrameToShadowMaps stage cancelled");
-                co_return;
-            }
             // clear shadow map
+            if(async::isCancelled(cs)) co_return;
             co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.shadow_map_fbos.at(shadow_caster_id));
 
             // render scene to shadow map
@@ -65,11 +54,7 @@ namespace astre::pipeline
                     continue;
                 }
 
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("[pipeline] renderFrameToShadowMaps stage cancelled");
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 try{
                     // render depth information to shadow map fbo
                     co_await renderer.render(proxy.vertex_buffer, resources.shadow_map_shader,
@@ -79,11 +64,9 @@ namespace astre::pipeline
                                 {"uLightSpaceMatrix", frame.light_space_matrices.at(shadow_caster_id)}
                             }
                         },
-                        render::RenderOptions{
-                            .mode = render::RenderMode::Solid,
-                            .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
-                        },
-                        resources.shadow_map_fbos.at(shadow_caster_id)
+                        options,
+                        resources.shadow_map_fbos.at(shadow_caster_id),
+                        stats
                     );
                 }
                 catch (const asio::system_error& e)
@@ -98,23 +81,15 @@ namespace astre::pipeline
         }
     }
     
-    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources)
+    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, render::FrameStats * stats)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[pipeline] renderGBufferToScreen stage cancelled");
-            co_return;
-        }
         // clear screen
+        if(async::isCancelled(cs)) co_return;
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
         
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[pipeline] renderGBufferToScreen stage cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
         try{
             // render GBuffer to screen
             co_await renderer.render(resources.screen_quad_vb, resources.screen_quad_shader,
@@ -140,7 +115,9 @@ namespace astre::pipeline
                 },
                 render::RenderOptions{
                 .mode = render::RenderMode::Solid
-                }
+                },
+                std::nullopt,
+                stats
             );
         }
         catch (const asio::system_error& e)

@@ -346,6 +346,19 @@ namespace astre::process::windows
         co_return true;
     }
 
+    asio::awaitable<void> WinapiProcess::registerProcedureCallback(native::window_handle window, native::procedure callback)
+    {
+        co_await _procedure_context.ensureOnStrand();
+
+        spdlog::debug("[winapi] registerProcedureCallback");
+
+        if(_window_handles.contains(window) == false){
+            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
+            co_return;
+        }
+        _window_procedures[window] = std::move(callback);
+    }
+
     bool WinapiProcess::initOpenGL()
     {
         if(_default_oglctx_handle != nullptr){
@@ -546,6 +559,7 @@ namespace astre::process::windows
         return DefWindowProc(window, message, wparam, lparam);
     }
 
+
     LRESULT CALLBACK WinapiProcess::specificProcedure(native::window_handle window, UINT message, WPARAM wparam, LPARAM lparam)
     {
         if(window == nullptr)
@@ -558,6 +572,14 @@ namespace astre::process::windows
         {
             spdlog::error(std::format("[winapi-procedure] window {} not registered", window));
             return DefWindowProc(window, message, wparam, lparam);
+        }
+
+        if(_window_procedures.contains(window))
+        {
+            if(_window_procedures.at(window)(window, message, wparam, lparam) == true)
+            {
+                return true;
+            }
         }
 
         auto & window_callbacks_result = _window_handles.at(window);

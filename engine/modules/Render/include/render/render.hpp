@@ -11,6 +11,7 @@
 #include "window/window.hpp"
 
 #include "render/render_options.hpp"
+#include "render/render_stats.hpp"
 
 #include "render/vertex.hpp"
 #include "render/vertex_buffer.hpp"
@@ -56,6 +57,8 @@ namespace astre::render
         std::uint32_t shadow_casters_count = 0; // in
     };
 
+    Frame interpolateFrame(const Frame& a, const Frame& b, float alpha);
+
     class IRenderer : public type::InterfaceBase
     {
     public:
@@ -83,6 +86,8 @@ namespace astre::render
          * 
          */
         virtual void join() = 0;
+
+        virtual async::AsyncContext<asio::io_context> & getAsyncContext() = 0;
 
         /**
          * @brief Clear the screen with a color
@@ -112,7 +117,8 @@ namespace astre::render
                 std::size_t shader,
                 ShaderInputs shader_inputs = ShaderInputs{},
                 RenderOptions options = RenderOptions{},
-                std::optional<std::size_t> fbo = std::nullopt) = 0;
+                std::optional<std::size_t> fbo = std::nullopt,
+                FrameStats * stats = nullptr) = 0;
 
         /**
          * @brief Present the rendered frame
@@ -315,6 +321,7 @@ namespace astre::render
             inline bool good() const override { return base::impl().good();}
             inline asio::awaitable<void> close() override { return base::impl().close();}
             inline void join() override { return base::impl().join();}
+            inline async::AsyncContext<asio::io_context> & getAsyncContext() override { return base::impl().getAsyncContext();}
 
             inline asio::awaitable<void> clearScreen(math::Vec4 color, std::optional<std::size_t> fbo) override { 
                 return base::impl().clearScreen(std::move(color), std::move(fbo));
@@ -323,12 +330,14 @@ namespace astre::render
             inline asio::awaitable<void> render(std::size_t vertex_buffer, std::size_t shader, 
                 ShaderInputs shader_inputs,
                 RenderOptions options,
-                std::optional<std::size_t> fbo) override 
+                std::optional<std::size_t> fbo,
+                FrameStats * stats) override 
             { 
                 return base::impl().render(std::move(vertex_buffer), std::move(shader),
                     std::move(shader_inputs),
                     std::move(options),
-                    std::move(fbo)
+                    std::move(fbo),
+                    std::move(stats)
                 );
             }
 
@@ -438,13 +447,4 @@ namespace astre::render
 
 
     asio::awaitable<render::Renderer> createRenderer(window::IWindow & window);
-
-    // render interpolates frames N-2 and N-1
-    asio::awaitable<void> renderInterpolated(   
-        const render::Frame & N2,
-        const render::Frame & N1,
-        float alpha,
-        IRenderer & renderer,
-        const render::RenderOptions options,
-        const std::optional<std::size_t> fbo = std::nullopt);
 }

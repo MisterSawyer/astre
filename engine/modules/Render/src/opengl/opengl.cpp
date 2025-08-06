@@ -161,6 +161,11 @@ namespace astre::render::opengl
         assert(_oglctx_handle == nullptr && "OpenGL context should be closed before destruction" );
     }
 
+    async::AsyncContext<asio::io_context> & OpenGLRenderer::getAsyncContext()
+    {
+        return _render_context->getAsyncContext();
+    }
+
     void OpenGLRenderer::join()
     {
         if(_render_context == nullptr) return;
@@ -516,12 +521,8 @@ namespace astre::render::opengl
         if(good() == false)co_return;
 
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[renderer] clearScreen cancelled");
-            co_return;
-        }
-
+        
+        if(async::isCancelled(cs)) co_return;
         co_await _render_context->ensureOnStrand();
         
         if(good() == false)co_return;
@@ -564,25 +565,17 @@ namespace astre::render::opengl
             std::size_t shader,
             ShaderInputs shader_inputs,
             RenderOptions options,
-            std::optional<std::size_t> fbo)
+            std::optional<std::size_t> fbo,
+            render::FrameStats * stats)
     {
         if(good() == false)co_return;
 
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[renderer] render cancelled");
-            co_return;
-        }
-
+        
+        if(async::isCancelled(cs)) co_return;
         co_await _render_context->ensureOnStrand();
         
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[renderer] render cancelled");
-            co_return;
-        }
-
+        if(async::isCancelled(cs)) co_return;
         if(good() == false)co_return;
 
         if(fbo)
@@ -640,6 +633,12 @@ namespace astre::render::opengl
             glPolygonOffset(options.polygon_offset->factor, options.polygon_offset->units);
         }
 
+        if(stats)
+        {
+            stats->draw_calls += 1;
+            stats->vertices += vertex_buffer_it->second->numberOfElements();
+            stats->triangles += vertex_buffer_it->second->numberOfElements() / 3.0f;
+        }
         glDrawElements(GL_TRIANGLES, (GLsizei)vertex_buffer_it->second->numberOfElements(), GL_UNSIGNED_INT, nullptr);
         
         if(options.polygon_offset)

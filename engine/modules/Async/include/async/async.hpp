@@ -36,12 +36,13 @@ namespace astre::async
             return await_all_impl(std::make_index_sequence<N>{}, std::move(arr));
     }
 
-
     inline asio::awaitable<void> noop()
     {
         co_return;
     }
     
+    bool isCancelled(const asio::cancellation_state & cs);
+
     // tells where async operations should run
     template<class AsioContext>
     class AsyncContext : public asio::strand<typename AsioContext::executor_type> {
@@ -58,6 +59,8 @@ namespace astre::async
 
         AsyncContext(AsyncContext&&) noexcept = default;
         AsyncContext& operator=(AsyncContext&&) noexcept = default;
+
+        const base & executor() const noexcept { return *this; }
 
         asio::awaitable<void> ensureOnStrand() const {
             if (!this->running_in_this_thread()) {
@@ -90,6 +93,8 @@ namespace astre::async
             void close();
         
             bool running() const;
+
+            AsyncContext<asio::io_context> & getAsyncContext();
 
         private:
             asio::executor_work_guard<asio::io_context::executor_type> _work_guard;

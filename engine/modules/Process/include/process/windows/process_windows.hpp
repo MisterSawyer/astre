@@ -51,6 +51,8 @@ namespace astre::process::windows
 
             asio::awaitable<bool> setWindowCallbacks(native::window_handle window, process::WindowCallbacks && callbacks);
 
+            asio::awaitable<void> registerProcedureCallback(native::window_handle window, native::procedure callback);
+
             asio::awaitable<native::opengl_context_handle> registerOGLContext(native::window_handle window_handle, unsigned int major_version, unsigned int minor_version);
 
             asio::awaitable<bool> unregisterOGLContext(native::opengl_context_handle oglctx);
@@ -61,6 +63,7 @@ namespace astre::process::windows
 
             const IProcess::execution_context_type & getExecutionContext() const;
             IProcess::execution_context_type & getExecutionContext();
+
 
         protected:
             bool initOpenGL();
@@ -83,5 +86,8 @@ namespace astre::process::windows
             // Consumers execution context
             // runs in thread pool - can run on different threads
             IProcess::execution_context_type _execution_context;
+
+            //hooked procedure callbacks, to forward events
+            absl::flat_hash_map<native::window_handle, native::procedure> _window_procedures;
     };
 }

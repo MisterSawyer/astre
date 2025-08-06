@@ -38,11 +38,13 @@ target_link_libraries("${PROJECT_NAME}Engine"
         astre::World
         World_proto
         astre::Script
+        astre::GUI
+
     PUBLIC
         spdlog
         asio
         glew
-        glm   
+        glm
 )
 
 target_sources("${PROJECT_NAME}Engine" PUBLIC

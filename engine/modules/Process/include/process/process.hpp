@@ -59,6 +59,8 @@ namespace astre::process
          */
         virtual asio::awaitable<bool> setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks) = 0;
 
+        virtual asio::awaitable<void> registerProcedureCallback(native::window_handle window, native::procedure callback) = 0;
+
         /**
          * @brief Register an OpenGL context for the given window.
          *
@@ -125,6 +127,9 @@ namespace astre::process
             
             inline asio::awaitable<bool> setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks) override {
                     return base::impl().setWindowCallbacks(std::move(window), std::move(callbacks));}
+
+            inline asio::awaitable<void> registerProcedureCallback(native::window_handle window, native::procedure callback) override{
+                return base::impl().registerProcedureCallback(std::move(window), std::move(callback));}
 
             inline asio::awaitable<native::opengl_context_handle> registerOGLContext(native::window_handle window_handle, unsigned int major_version, unsigned int minor_version) override{
                 return base::impl().registerOGLContext(std::move(window_handle), major_version, minor_version);}

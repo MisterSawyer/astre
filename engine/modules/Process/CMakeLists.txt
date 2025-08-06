@@ -28,7 +28,7 @@ add_module(NAME "Process"
 
     DEPENDENCIES
         asio
-        glew
+        glew        
         absl::flat_hash_map
         
         astre::Native

@@ -17,4 +17,5 @@ add_module(NAME "Pipeline"
         astre::ECS
         astre::Asset
         astre::Input
+        astre::GUI
 )

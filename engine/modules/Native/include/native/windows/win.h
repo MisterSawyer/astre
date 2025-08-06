@@ -28,4 +28,5 @@ namespace astre::native
     using console_handle = HANDLE;
     using window_handle = HWND;
     using process_handle = HANDLE;
+    using procedure = LRESULT(CALLBACK*)(HWND, UINT, WPARAM, LPARAM);
 }

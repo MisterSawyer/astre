@@ -124,12 +124,7 @@ namespace astre::input
     asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordKeyPressed cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
 
         InputEvent event;
         event.set_type(InputEventType::Pressed);
@@ -144,12 +139,7 @@ namespace astre::input
     asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordKeyReleased cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
 
         InputEvent event;
         event.set_type(InputEventType::Released);
@@ -164,12 +154,7 @@ namespace astre::input
     asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] recordMouseMoved cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
 
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
@@ -194,12 +179,7 @@ namespace astre::input
     asio::awaitable<void> InputService::update()
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("[input-service] update cancelled");
-            co_return;
-        }
+        if(async::isCancelled(cs)) co_return;
 
         std::deque<InputEvent> events;
 

@@ -4,158 +4,130 @@
 
 namespace astre::render
 {
-    static RenderProxy _interpolate(const RenderProxy & a, const RenderProxy & b, float t)
-    {
-        RenderProxy result;
+    static ShaderInputs _interpolateShaderInputs(const ShaderInputs& a, const ShaderInputs& b, float alpha) {
+        ShaderInputs result;
 
-        result.vertex_buffer = t <= 0.5 ? a.vertex_buffer : b.vertex_buffer;
-        result.shader = t <= 0.5 ? a.shader : b.shader;
+        // Copy non-interpolatable inputs (logic assumes `b` dominates layout)
+        result.in_bool = b.in_bool;
+        result.in_samplers = b.in_samplers;
+        result.in_samplers_array = b.in_samplers_array;
+        result.storage_buffers = b.storage_buffers;
 
-        auto& ra = a.inputs;
-        auto& rb = b.inputs;
-        auto& r  = result.inputs;
+        result.in_int = b.in_int; // TODO
+        result.in_uint = b.in_uint; //TODO 
+        result.in_mat4_array = b.in_mat4_array; //TODO: Interpolate mat4x4 arrays
 
-        // in_int
-        for (const auto& [key, va] : ra.in_int)
-        {
-            if (auto it = rb.in_int.find(key); it != rb.in_int.end())
-                r.in_int[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_int[key] = va;
+        // Interpolate float
+        for (const auto& [key, valA] : a.in_float) {
+            if (auto it = b.in_float.find(key); it != b.in_float.end())
+                result.in_float[key] = std::lerp(valA, it->second, alpha);
         }
 
-        // in_uint
-        for (const auto& [key, va] : ra.in_uint)
-        {
-            if (auto it = rb.in_int.find(key); it != rb.in_int.end())
-                r.in_int[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_int[key] = va;
+        // Interpolate Vec2
+        for (const auto& [key, valA] : a.in_vec2) {
+            if (auto it = b.in_vec2.find(key); it != b.in_vec2.end())
+                result.in_vec2[key] = glm::mix(valA, it->second, alpha);
         }
 
-        // in_float
-        for (const auto& [key, va] : ra.in_float)
-        {
-            if (auto it = rb.in_float.find(key); it != rb.in_float.end())
-                r.in_float[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_float[key] = va;
+        // Interpolate Vec3
+        for (const auto& [key, valA] : a.in_vec3) {
+            if (auto it = b.in_vec3.find(key); it != b.in_vec3.end())
+                result.in_vec3[key] = glm::mix(valA, it->second, alpha);
         }
 
-        // in_vec2
-        for (const auto& [key, va] : ra.in_vec2)
-        {
-            if (auto it = rb.in_vec2.find(key); it != rb.in_vec2.end())
-                r.in_vec2[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_vec2[key] = va;
+        // Interpolate Vec4
+        for (const auto& [key, valA] : a.in_vec4) {
+            if (auto it = b.in_vec4.find(key); it != b.in_vec4.end())
+                result.in_vec4[key] = glm::mix(valA, it->second, alpha);
         }
 
-        // in_vec3
-        for (const auto& [key, va] : ra.in_vec3)
-        {
-            if (auto it = rb.in_vec3.find(key); it != rb.in_vec3.end())
-                r.in_vec3[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_vec3[key] = va;
-        }
-
-        // in_vec4
-        for (const auto& [key, va] : ra.in_vec4)
-        {
-            if (auto it = rb.in_vec4.find(key); it != rb.in_vec4.end())
-                r.in_vec4[key] = va * (1.0f - t) + it->second * t;
-            else
-                r.in_vec4[key] = va;
-        }
-
-        // in_mat4
-        // for (const auto& [key, va] : ra.in_mat4)
-        // {
-        //     if (auto it = rb.in_mat4.find(key); it != rb.in_mat4.end())
-        //         r.in_mat4[key] = math::lerp(va, it->second, t);  // implement element-wise or define lerp
-        //     else
-        //         r.in_mat4[key] = va;
+        result.in_mat2 = b.in_mat2;
+        // Interpolate Mat2
+        // for (const auto& [key, valA] : a.in_mat2) {
+        //     if (auto it = b.in_mat2.find(key); it != b.in_mat2.end())
+        //         result.in_mat2[key] = glm::mix(valA, it->second, alpha);
         // }
 
-        // Non-interpolatable or statically chosen fields
-        r.in_bool            = t <= 0.5 ? ra.in_bool : rb.in_bool;
-        r.in_mat2            = ra.in_mat2;
-        r.in_mat3            = ra.in_mat3;
-        r.in_mat4            = ra.in_mat4;
-        r.in_mat4_array      = ra.in_mat4_array;
-        r.in_samplers        = t <= 0.5 ? ra.in_samplers : rb.in_samplers;
-        r.in_samplers_array  = t <= 0.5 ? ra.in_samplers_array : rb.in_samplers_array;
-        r.storage_buffers    = t <= 0.5 ? ra.storage_buffers : rb.storage_buffers;
+        result.in_mat3 = b.in_mat3;
+        // Interpolate Mat3
+        // for (const auto& [key, valA] : a.in_mat3) {
+        //     if (auto it = b.in_mat3.find(key); it != b.in_mat3.end())
+        //         result.in_mat3[key] = glm::mix(valA, it->second, alpha);
+        // }
+
+        // Interpolate Mat4
+        for (const auto& [key, valA] : a.in_mat4) {
+            if (auto it = b.in_mat4.find(key); it != b.in_mat4.end())
+                result.in_mat4[key] = glm::interpolate(valA, it->second, alpha);
+        }
 
         return result;
     }
 
-    asio::awaitable<void> renderInterpolated(        
-        const render::Frame & N2,
-        const render::Frame & N1,
-        float alpha,
-        IRenderer & renderer,
-        const render::RenderOptions options,
-        const std::optional<std::size_t> fbo)
-    {
-        if(renderer.good() == false) co_return;
 
-        render::Frame interpolated_frame = N2;
-        /*
-        if(alpha <= 0.5f)
+    Frame interpolateFrame(const Frame& a, const Frame& b, float alpha)
+    {     
+        alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+        Frame result;
+
+        result.sim_time = b.sim_time;
+
+        result.camera_position = math::mix(a.camera_position, b.camera_position, alpha);
+
+        // interpolate mat4x4
+        result.view_matrix = math::interpolate(a.view_matrix, b.view_matrix, alpha);
+        result.proj_matrix = math::interpolate(a.proj_matrix, b.proj_matrix, alpha);
+
+        result.render_proxies = b.render_proxies;
+        // for(auto & [id, proxy] : result.render_proxies)
+        // {
+        //     if(a.render_proxies.find(id) == a.render_proxies.end())
+        //         continue;
+        //     if(b.render_proxies.find(id) == b.render_proxies.end())
+        //         continue;
+        //     proxy.inputs = _interpolateShaderInputs(a.render_proxies.at(id).inputs, b.render_proxies.at(id).inputs, alpha);
+        // }
+
+
+        result.light_ssbo = b.light_ssbo;
+        result.shadow_casters_count = b.shadow_casters_count;
+
+        const std::size_t light_count = std::min(a.gpu_lights.size(), b.gpu_lights.size());
+        result.gpu_lights.resize(light_count);
+        for (std::size_t i = 0; i < light_count; ++i)
         {
-            // N2 is primary
-            for(const auto & proxies : N2.render_proxies)
-            {
-                if(N1.render_proxies.contains(proxies.first) == false)
-                {
-                    // in N1 there is no Render proxy matching N2 proxy
-                    // we just set to N2
-                    interpolated_frame.render_proxies[proxies.first] = proxies.second;
-                }
-                else
-                {
-                    // interpolate between the two
-                    interpolated_frame.render_proxies[proxies.first]    
-                        = _interpolate(proxies.second, N1.render_proxies.at(proxies.first), alpha);
-                }
-            }
-        }
-        else
-        {
-            // N1 is primary
-            for(const auto & proxies : N1.render_proxies)
-            {
-                if(N2.render_proxies.contains(proxies.first) == false)
-                {
-                    // in N2 there is no Render proxy matching N1 proxy
-                    // we just set to N1
-                    interpolated_frame.render_proxies[proxies.first] = proxies.second;
-                }
-                else
-                {
-                    // interpolate between the two
-                    interpolated_frame.render_proxies[proxies.first]    
-                        = _interpolate(proxies.second, N1.render_proxies.at(proxies.first), alpha);
-                }
-            }
-        }
-        */
-        // render interpolated frame
-        for(const auto & [_, proxy] : interpolated_frame.render_proxies)
-        {
-            co_await renderer.render( 
-                proxy.vertex_buffer,
-                proxy.shader,
-                std::move(proxy.inputs),
-                options,
-                fbo);
+            result.gpu_lights[i].position    = math::mix(a.gpu_lights[i].position,    b.gpu_lights[i].position,    alpha);
+            result.gpu_lights[i].color       = math::mix(a.gpu_lights[i].color,       b.gpu_lights[i].color,       alpha);
+            result.gpu_lights[i].attenuation = math::mix(a.gpu_lights[i].attenuation, b.gpu_lights[i].attenuation, alpha);
+            result.gpu_lights[i].cutoff      = math::mix(a.gpu_lights[i].cutoff,      b.gpu_lights[i].cutoff,      alpha);
+            result.gpu_lights[i].castShadows = math::mix(a.gpu_lights[i].castShadows, b.gpu_lights[i].castShadows, alpha);
+
+            // Direction: slerp between normalized direction vectors
+            const math::Vec3 dirA = math::normalize(math::Vec3(a.gpu_lights[i].direction));
+            const math::Vec3 dirB = math::normalize(math::Vec3(b.gpu_lights[i].direction));
+
+            //construct quaternions from vector rotation
+            math::Quat rotA = math::rotation(math::Vec3(0, 0, -1), dirA);
+            math::Quat rotB = math::rotation(math::Vec3(0, 0, -1), dirB);
+
+            //slerp between quaternions
+            math::Quat rotInterp = math::slerp(rotA, rotB, alpha);
+
+            //rotate base direction to get interpolated vector
+            math::Vec3 dirInterp = math::normalize(rotInterp * math::Vec3(0, 0, -1));
+
+            //store back in Vec4 (preserve w)
+            result.gpu_lights[i].direction = math::Vec4(dirInterp, a.gpu_lights[i].direction.w);
         }
 
-        co_return;
+        const std::size_t matrix_count = std::min(a.light_space_matrices.size(), b.light_space_matrices.size());
+        result.light_space_matrices.resize(matrix_count);
+        for (std::size_t i = 0; i < matrix_count; ++i)
+        {
+            result.light_space_matrices[i] = b.light_space_matrices[i];//math::interpolate(a.light_space_matrices[i], b.light_space_matrices[i], alpha);
+        }
+
+        return result;
     }
-
-
-
 }

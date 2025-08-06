@@ -14,6 +14,7 @@
 #include "ecs/ecs.hpp"
 #include "asset/asset.hpp"
 #include "input/input.hpp"
+#include "gui/gui.hpp"
 
 namespace astre::pipeline
 {
@@ -25,6 +26,7 @@ namespace astre::pipeline
         window::IWindow & window;
         render::IRenderer & renderer;
         input::InputService & input;
+        gui::GUIService & gui;
     };
 
     class App
@@ -50,9 +52,12 @@ namespace astre::pipeline
 
             input::InputService input(fnc_token, _process);
 
+            gui::GUIService gui(_process, *window, *renderer);
+            co_await gui.init();
+
             co_await _process.setWindowCallbacks(window->getHandle(), 
             process::WindowCallbacks{
-                .onDestroy = [this, &app_token, &fnc_token, &window, &renderer, &input]() -> asio::awaitable<void>
+                .onDestroy = [&]() -> asio::awaitable<void>
                 {
                     // we should schedule closing of the fnc
                     fnc_token.requestStop();
@@ -61,6 +66,8 @@ namespace astre::pipeline
                     while (!fnc_token.isFinished()) {
                         co_await asio::post(_process.getExecutionContext(), asio::use_awaitable);
                     }
+
+                    co_await gui.close();
 
                     renderer->join();
                     co_await window->close();
@@ -107,7 +114,8 @@ namespace astre::pipeline
                         .process = _process,
                         .window = *window,
                         .renderer = *renderer,
-                        .input = input
+                        .input = input,
+                        .gui = gui
                     },
                     std::forward<Args>(args)...
                 ),
@@ -164,7 +172,7 @@ namespace astre::pipeline
                 _buffer(buffer),
                 _stage_state(std::move(init_state)),
                 _accumulator(0.0f),
-                _fixed_logic_step(1.0f / 10.0f)
+                _fixed_logic_step(1.0f / 20.0f)
         {}
         
         template<std::size_t Index>
@@ -176,15 +184,16 @@ namespace astre::pipeline
         void setRenderStage(RenderStage stage) { _render = std::move(stage); }
         void setPostSync(SyncStage sync)      { _post_sync = std::move(sync); }
 
-        asio::awaitable<void> runLoop(async::LifecycleToken & token) 
-        {        
+        asio::awaitable<void> runLoop() 
+        {    
+            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+            if(async::isCancelled(cs)) co_return;
+
             std::chrono::steady_clock::time_point now;
 
             std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
             
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
-            while (cs.cancelled() == asio::cancellation_type::none) 
+            while (async::isCancelled(cs) == false) 
             {
                 now = std::chrono::steady_clock::now();
                 _accumulator += std::chrono::duration<float>(now - last_time).count();
@@ -195,18 +204,13 @@ namespace astre::pipeline
                     _buffer.rotate();
                 }
 
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("[pipeline] Pipeline cancelled");
-                    token.markFinished();
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 try
                 {
                     const render::Frame & render_curr = _buffer.previous().render_frame;
                     const render::Frame & render_prev = _buffer.beforePrevious().render_frame;
                     float alpha = _accumulator / _fixed_logic_step;
-                    co_await (_runFixedLogic(token) && 
+                    co_await (_runFixedLogic() && 
                         _render(alpha, render_prev, render_curr, _stage_state));
                 }
                 catch (const asio::system_error& e)
@@ -219,33 +223,22 @@ namespace astre::pipeline
                 }
 
                 // sync
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("[pipeline] Pipeline cancelled");
-                    token.markFinished();
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 if (_post_sync) co_await _post_sync(_stage_state);
             }
-            token.markFinished();
             co_return;
         }
     
     private:
 
-        asio::awaitable<void> _runFixedLogic(async::LifecycleToken & token)
+        asio::awaitable<void> _runFixedLogic()
         {
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
             while (_accumulator >= _fixed_logic_step)
             {
                 for (std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
                 {
-                    if (cs.cancelled() != asio::cancellation_type::none)
-                    {
-                        spdlog::debug("[pipeline] Logic cancelled");
-                        token.markFinished();
-                        co_return;
-                    }
+                    if(async::isCancelled(cs)) co_return;
                     co_await _logic_substages.at(logic_idx)(_fixed_logic_step, _buffer.current(), _stage_state);
                 }
                 _accumulator -= _fixed_logic_step;
@@ -280,10 +273,10 @@ namespace astre::pipeline
         std::size_t screen_quad_shader; // const
     };
 
-    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
+    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats = nullptr);
 
-    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
+    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats = nullptr);
     
-    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources);
+    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, render::FrameStats * stats = nullptr);
 
 }

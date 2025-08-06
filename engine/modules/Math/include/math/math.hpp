@@ -9,6 +9,7 @@
 #include <glm/gtc/quaternion.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_interpolation.hpp>
 
 #include "generated/Math/proto/math.pb.h"
 
@@ -74,9 +75,6 @@ namespace astre::math
     template<typename T>
     inline auto degrees(T&& v) { return glm::degrees(std::forward<T>(v)); }
 
-    template<class T, glm::qualifier Q>
-    inline auto lerp(const glm::qua<T, Q> &x, const glm::qua<T, Q> &y, T a){return glm::lerp(x, y, std::move(a));}
-
     template<class T>
     inline auto perspective(T fovy, T aspect, T zNear, T zFar){return glm::perspective(fovy, aspect, zNear, zFar);}
 
@@ -91,6 +89,31 @@ namespace astre::math
 
     template<class T, glm::qualifier Q>
     inline auto eulerAngles(const glm::qua<T, Q> & x) { return glm::eulerAngles(x); }
+
+	template<typename T, glm::qualifier Q>
+    inline auto lerp(glm::qua<T, Q> const& x, glm::qua<T, Q> const& y, T a) {return glm::lerp(x, y, a);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto slerp(glm::qua<T, Q> const& x, glm::qua<T, Q> const& y, T a) {return glm::slerp(x, y, a);}
+
+	template<glm::length_t L, typename T, typename U, glm::qualifier Q>
+    inline auto mix(glm::vec<L, T, Q> const& x, glm::vec<L, T, Q> const& y, U a) { return glm::mix(x, y, a);}
+
+	template<glm::length_t L, typename T, typename U, glm::qualifier Q>
+    inline auto mix(glm::vec<L, T, Q> const& x, glm::vec<L, T, Q> const& y, glm::vec<L, U, Q> const& a) { return glm::mix(x, y, a);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto mix(glm::qua<T, Q> const& x, glm::qua<T, Q> const& y, T a) { return glm::mix(x, y, a);};
+
+	template<typename genTypeT, typename genTypeU>
+    inline auto mix(genTypeT x, genTypeT y, genTypeU a) { return glm::mix(std::move(x), std::move(y), std::move(a));};
+
+    template<typename T, glm::qualifier Q>
+    inline auto interpolate(glm::mat<4, 4, T, Q> const& m1, glm::mat<4, 4, T, Q> const& m2, T const delta) {return glm::interpolate(m1, m2, delta);}
+
+	template<typename T, glm::qualifier Q>
+    inline auto rotation(glm::vec<3, T, Q> const& orig, glm::vec<3, T, Q> const& dest) {return glm::rotation(orig, dest);}
+
 
     template<typename T>
     inline auto value_ptr(T&& v) { return glm::value_ptr(std::forward<T>(v)); }

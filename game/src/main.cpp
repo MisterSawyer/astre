@@ -1,5 +1,4 @@
 #include <astre.hpp>
-
 namespace astre::entry
 {
     struct GameFrame
@@ -153,88 +152,105 @@ namespace astre::entry
             }
         );
         
+        float logic_fps = 0.0f;
+        float logic_frame_time = 0.0f;
+
+        constexpr float logic_frame_smoothing = 0.9f;
+
+        std::chrono::steady_clock::time_point logic_last_time;
+        std::chrono::steady_clock::time_point logic_start;
+
         orchestrator.setLogicSubstage<0>([&](float dt, GameFrame & frame, GameState & state) -> asio::awaitable<void>
         {
+            logic_last_time = logic_start;
+            logic_start = std::chrono::steady_clock::now();
+
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
+            
+            if(async::isCancelled(cs)) co_return;
             co_await (state.app_state.input.update() && state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}));
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
             // ECS stage
+            if(async::isCancelled(cs)) co_return;
             co_await (state.systems.transform.run(dt) && state.systems.input.run(dt));
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
+            if(async::isCancelled(cs)) co_return;
             co_await state.systems.script.run(dt);
 
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
+            if(async::isCancelled(cs)) co_return;
             co_await state.systems.camera.run(dt, frame.render_frame);
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
-            // 
+            //
+            if(async::isCancelled(cs)) co_return;
             co_await (state.systems.visual.run(dt, frame.render_frame) && state.systems.light.run(dt, frame.render_frame));
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Logic stage cancelled");
-                co_return;
-            }
             // update light SSBO
+            if(async::isCancelled(cs)) co_return;
             co_await state.app_state.renderer.updateShaderStorageBuffer(
                   frame.render_frame.light_ssbo, sizeof(render::GPULight) * frame.render_frame.gpu_lights.size(), frame.render_frame.gpu_lights.data());
+        
+            const float frame_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
+            logic_frame_time = (logic_frame_time * logic_frame_smoothing) + (frame_time * (1.0f - logic_frame_smoothing));
+
+            const float current_fps = 1.0f / std::max((std::chrono::duration<float>(logic_start - logic_last_time).count()), 1e-6f);
+            logic_fps = (logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
         });
 
-        orchestrator.setRenderStage([&](float alpha,const render::Frame & prev, const render::Frame & curr, GameState & state) -> asio::awaitable<void> {
+        render::FrameStats render_stats;
+        render::RenderOptions gbuffer_render_options
+        {
+            .mode = render::RenderMode::Solid
+        };
+        render::RenderOptions shadow_map_render_options 
+        {
+            .mode = render::RenderMode::Solid,
+            .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
+        };
+
+        orchestrator.setRenderStage([&](float alpha, const render::Frame & prev, const render::Frame & curr, GameState & state) -> asio::awaitable<void> {
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Render stage cancelled");
-                co_return;
-            }
-            // Render interpolated frame using prev + curr, using alpha
-            co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, curr, state.render_resources);
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Render stage cancelled");
-                co_return;
-            }
-            co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, curr, state.render_resources);
+            // Render interpolated frame using prev <-> curr, using alpha
+            auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
+
+            if(async::isCancelled(cs)) co_return;
+            co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, interpolated_frame, state.render_resources, gbuffer_render_options, &render_stats);
             
-            if(cs.cancelled() != asio::cancellation_type::none)
-            {
-                spdlog::debug("Render stage cancelled");
-                co_return;
-            }
-            co_await pipeline::renderGBufferToScreen(state.app_state.renderer, curr, state.render_resources); 
+            if(async::isCancelled(cs)) co_return;
+            co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, interpolated_frame, state.render_resources, shadow_map_render_options, &render_stats);
+            
+            if(async::isCancelled(cs)) co_return;
+            co_await pipeline::renderGBufferToScreen(state.app_state.renderer, interpolated_frame, state.render_resources, &render_stats); 
+
+            // GUI
+            if(async::isCancelled(cs)) co_return;
+            co_await app_state.gui.newFrame();
+
+            if(async::isCancelled(cs)) co_return;
+            co_await app_state.gui.draw(gui::drawDebugOverlay, logic_fps, logic_frame_time, std::cref(render_stats));
+            if(async::isCancelled(cs)) co_return;
+            co_await app_state.gui.draw(gui::drawRenderControlWindow, std::ref(gbuffer_render_options), std::ref(shadow_map_render_options));
+
+            if(async::isCancelled(cs)) co_return;
+            co_await app_state.gui.render();
+
+            // clear stats
+            render_stats.draw_calls = 0;
+            render_stats.vertices = 0;
+            render_stats.triangles = 0;
 
             co_return;
         });
 
         orchestrator.setPostSync([&](GameState & state) -> asio::awaitable<void> {
+            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+            if(async::isCancelled(cs)) co_return;
             co_await app_state.renderer.present(); // Swap buffers
         });
 
-        co_await orchestrator.runLoop(app_state.lifecycle);
+        co_await orchestrator.runLoop();
+
+        app_state.lifecycle.markFinished();
     }
 
     asio::awaitable<int> main(process::IProcess & process, const entry::AppPaths & paths)

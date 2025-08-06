@@ -16,20 +16,10 @@ namespace astre::ecs::system
     {
         auto cs = co_await asio::this_coro::cancellation_state;
 
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("Script system cancelled");
-            co_return;
-        }
-
+        if(async::isCancelled(cs)) co_return;
         co_await getAsyncContext().ensureOnStrand();
 
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("Script system cancelled");
-            co_return;
-        }
-
+        if(async::isCancelled(cs)) co_return;
         co_await getRegistry().runOnAllWithComponents<ScriptComponent>(
             [&](const Entity e, const ScriptComponent & script_component) ->asio::awaitable<void>
             {
@@ -44,11 +34,7 @@ namespace astre::ecs::system
                 sandbox["entity"] = e;
                 sandbox["dt"] = dt;
 
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("Script execution cancelled");
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 co_await getRegistry().runOnSingleWithComponents<ecs::TransformComponent>(e,
                 [&](const Entity e, ecs::TransformComponent & transform_component) -> asio::awaitable<void>
                 {
@@ -56,12 +42,7 @@ namespace astre::ecs::system
                     co_return;
                 });
 
-
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("Script execution cancelled");
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 co_await getRegistry().runOnSingleWithComponents<ecs::InputComponent>(e,
                 [&](const Entity e, ecs::InputComponent & input_component) -> asio::awaitable<void>
                 {
@@ -69,18 +50,11 @@ namespace astre::ecs::system
                     co_return;
                 });
 
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("Script execution cancelled");
-                    co_return;
-                }
+                if(async::isCancelled(cs)) co_return;
                 co_await getAsyncContext().ensureOnStrand();
-                if(cs.cancelled() != asio::cancellation_type::none)
-                {
-                    spdlog::debug("Script execution cancelled");
-                    co_return;
-                }
-                
+
+
+                if(async::isCancelled(cs)) co_return;                
                 auto script = _runtime.getScript(script_component.name());
 
                 try     
