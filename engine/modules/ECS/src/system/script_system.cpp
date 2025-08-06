@@ -6,8 +6,8 @@
 
 namespace astre::ecs::system
 {
-    ScriptSystem::ScriptSystem(script::ScriptRuntime & runtime, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        : System(registry, execution_context),
+    ScriptSystem::ScriptSystem(script::ScriptRuntime & runtime, Registry & registry)
+        : System(registry),
         _runtime(runtime)
     {}
 
@@ -15,9 +15,12 @@ namespace astre::ecs::system
     asio::awaitable<void> ScriptSystem::run(float dt)
     {
         auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "ScriptSystem run: cancellation_state is not connected");
+
+        spdlog::debug("Running ScriptSystem");
+
 
         if(async::isCancelled(cs)) co_return;
-        co_await getAsyncContext().ensureOnStrand();
 
         if(async::isCancelled(cs)) co_return;
         co_await getRegistry().runOnAllWithComponents<ScriptComponent>(
@@ -49,9 +52,6 @@ namespace astre::ecs::system
                     sandbox.set("input_component", script::LuaBinding<ecs::InputComponent>(input_component));
                     co_return;
                 });
-
-                if(async::isCancelled(cs)) co_return;
-                co_await getAsyncContext().ensureOnStrand();
 
 
                 if(async::isCancelled(cs)) co_return;                

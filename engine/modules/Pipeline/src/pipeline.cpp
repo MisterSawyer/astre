@@ -5,14 +5,13 @@ namespace astre::pipeline
     asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats)
     {
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-
         if(async::isCancelled(cs)) co_return;
+
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.deferred_fbo);
         
         for(const auto & [_, proxy] : frame.render_proxies)
         {
             assert(cs.slot().is_connected());
-
             if(async::isCancelled(cs)) co_return;
             try{
                 co_await renderer.render(
@@ -53,7 +52,6 @@ namespace astre::pipeline
                 {
                     continue;
                 }
-
                 if(async::isCancelled(cs)) co_return;
                 try{
                     // render depth information to shadow map fbo
@@ -87,8 +85,9 @@ namespace astre::pipeline
 
         // clear screen
         if(async::isCancelled(cs)) co_return;
+
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
-        
+
         if(async::isCancelled(cs)) co_return;
         try{
             // render GBuffer to screen

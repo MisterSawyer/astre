@@ -14,7 +14,7 @@ namespace astre::ecs::system
         using Reads = std::tuple<>;
         using Writes = std::tuple<InputComponent>;
 
-        InputSystem(input::InputService & input_service, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        InputSystem(input::InputService & input_service, Registry & registry);
 
         inline InputSystem(InputSystem && other)
             : System(std::move(other)), _input_service(other._input_service)

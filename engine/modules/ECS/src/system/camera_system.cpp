@@ -5,14 +5,18 @@
 
 namespace astre::ecs::system
 {
-    CameraSystem::CameraSystem(std::string active_camera_entity_name, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        :   System(registry, execution_context),
+    CameraSystem::CameraSystem(std::string active_camera_entity_name, Registry & registry)
+        :   System(registry),
             _active_camera_entity_name(std::move(active_camera_entity_name))
     {}
 
     asio::awaitable<void> CameraSystem::run(float dt, render::Frame & frame)
     {
-        co_await getAsyncContext().ensureOnStrand();
+        auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "CameraSystem run: cancellation_state is not connected");
+
+        spdlog::debug("Running CameraSystem");
+
 
         frame.camera_position = math::Vec3(0.0f);
         frame.view_matrix = math::Mat4(1.0f);
@@ -24,8 +28,6 @@ namespace astre::ecs::system
             spdlog::error("{} entity not loaded in ECS registry", _active_camera_entity_name);
             co_return;
         }
-
-        co_await getAsyncContext().ensureOnStrand();
 
         co_await getRegistry().runOnSingleWithComponents<TransformComponent, CameraComponent>(*entity,
             [&](const Entity e, const TransformComponent & transform_component, const CameraComponent & camera_component) -> asio::awaitable<void>

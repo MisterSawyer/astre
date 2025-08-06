@@ -2,6 +2,7 @@
 
 #include <thread>
 
+#include "formatter/math_format.hpp"
 #include "formatter/native_format.hpp"
 #include "formatter/opengl_format.hpp"
 

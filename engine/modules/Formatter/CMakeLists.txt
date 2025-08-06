@@ -10,4 +10,5 @@ add_module(NAME "Formatter"
         glew
     
         astre::Native
+        astre::Math
 )

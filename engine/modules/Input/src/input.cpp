@@ -178,6 +178,8 @@ namespace astre::input
 
     asio::awaitable<void> InputService::update()
     {
+        spdlog::debug("[InputService] update");
+        
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
         if(async::isCancelled(cs)) co_return;
 

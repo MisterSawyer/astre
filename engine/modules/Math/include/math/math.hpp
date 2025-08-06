@@ -108,8 +108,27 @@ namespace astre::math
 	template<typename genTypeT, typename genTypeU>
     inline auto mix(genTypeT x, genTypeT y, genTypeU a) { return glm::mix(std::move(x), std::move(y), std::move(a));};
 
-    template<typename T, glm::qualifier Q>
-    inline auto interpolate(glm::mat<4, 4, T, Q> const& m1, glm::mat<4, 4, T, Q> const& m2, T const delta) {return glm::interpolate(m1, m2, delta);}
+    //template<typename T, glm::qualifier Q>
+    //inline auto interpolate(glm::mat<4, 4, T, Q> const& m1, glm::mat<4, 4, T, Q> const& m2, T const delta) {return glm::interpolate(m1, m2, delta);}
+
+    inline constexpr Mat4 interpolate(const Mat4& a, const Mat4& b, float alpha) noexcept
+    {
+        Mat4 result{};
+        for (unsigned int i = 0; i < 4; ++i)
+        {
+            for (unsigned int j = 0; j < 4; ++j)
+            {
+                result[i][j] = mix(a[i][j], b[i][j], alpha);
+            }
+        }
+        return result;
+    }
+
+    inline constexpr Vec3 extractPosition(const Mat4& mat) noexcept
+    {
+        return Vec3{ mat[3][0], mat[3][1], mat[3][2] };
+    }
+
 
 	template<typename T, glm::qualifier Q>
     inline auto rotation(glm::vec<3, T, Q> const& orig, glm::vec<3, T, Q> const& dest) {return glm::rotation(orig, dest);}

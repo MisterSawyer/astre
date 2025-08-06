@@ -5,15 +5,18 @@
 
 namespace astre::ecs::system
 {
-    VisualSystem::VisualSystem(const render::IRenderer & renderer, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        :   System(registry, execution_context),
+    VisualSystem::VisualSystem(const render::IRenderer & renderer, Registry & registry)
+        :   System(registry),
             _renderer(renderer)
     {}
 
 
     asio::awaitable<void> VisualSystem::run(float dt, render::Frame & frame)
     {
-        co_await getAsyncContext().ensureOnStrand();
+        auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "VisualSystem run: cancellation_state is not connected");
+
+        spdlog::debug("VisualSystem run");
 
         frame.render_proxies.clear();
         
@@ -49,6 +52,11 @@ namespace astre::ecs::system
                 }
 
                 frame.render_proxies[e].inputs.in_mat4["uModel"] = math::deserialize(transform_component.transform_matrix());
+
+                // used for interpolation
+                frame.render_proxies[e].position = math::deserialize(transform_component.position());
+                frame.render_proxies[e].rotation = math::deserialize(transform_component.rotation());
+                frame.render_proxies[e].scale = math::deserialize(transform_component.scale());
 
                 co_return;
             }

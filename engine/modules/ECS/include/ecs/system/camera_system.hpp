@@ -14,7 +14,7 @@ namespace astre::ecs::system
         using Reads = std::tuple<TransformComponent>;
         using Writes = std::tuple<CameraComponent>;
 
-        CameraSystem(std::string active_camera_entity_name, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        CameraSystem(std::string active_camera_entity_name, Registry & registry);
 
         inline CameraSystem(CameraSystem && other)
             : System(std::move(other)), _active_camera_entity_name(std::move(other._active_camera_entity_name))

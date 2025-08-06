@@ -26,13 +26,12 @@ namespace astre::ecs::system
 
             static constexpr std::uint32_t MASK_BIT = ComponentTypesList::template getTypeID<component_type>();
 
-            inline System(Registry & registry, process::IProcess::execution_context_type & execution_context)
-                : _registry(registry),
-                  _async_context(execution_context)
+            inline System(Registry & registry)
+                : _registry(registry)
             {}
 
             inline System(System && other) 
-            : _registry(other._registry), _async_context(std::move(other._async_context))
+            : _registry(other._registry)
             {}
 
             inline System & operator=(System && other) = delete;
@@ -44,7 +43,6 @@ namespace astre::ecs::system
 
         protected:
             Registry & getRegistry() { return _registry; }
-            async::AsyncContext<process::IProcess::execution_context_type> & getAsyncContext() { return _async_context; }
 
             template<typename Tuple>
             static std::vector<std::type_index> expand()
@@ -57,8 +55,6 @@ namespace astre::ecs::system
             }
 
         private:
-            async::AsyncContext<process::IProcess::execution_context_type> _async_context;
-
             Registry & _registry;
     };
 }

@@ -15,14 +15,18 @@ namespace astre::ecs::system
     }
 
 
-    LightSystem::LightSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        :   System(registry, execution_context)
+    LightSystem::LightSystem(Registry & registry)
+        :   System(registry)
     {
     }
 
     asio::awaitable<void> LightSystem::run(float dt, render::Frame & frame)
     {
-        co_await getAsyncContext().ensureOnStrand();
+        auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "LightSystem run: cancellation_state is not connected");
+
+        spdlog::debug("Running LightSystem");
+
         frame.gpu_lights.clear();
         frame.light_space_matrices.clear();
         frame.light_space_matrices.reserve(MAX_SHADOW_CASTERS);
@@ -53,6 +57,7 @@ namespace astre::ecs::system
                     position.z + (direction.z * 0.05f),
                     1.0f
                 );
+
 
                 // w component is used to determine the type of light
                 gpu_light.direction = glm::vec4(

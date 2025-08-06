@@ -45,6 +45,8 @@ namespace astre::world {
 
     asio::awaitable<void> WorldStreamer::updateLoadPosition(const math::Vec3 & pos)
     {
+        spdlog::debug("Updating load position");
+        
         asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
 
         if(async::isCancelled(cs)) co_return;

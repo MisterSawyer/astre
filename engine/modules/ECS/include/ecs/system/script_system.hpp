@@ -13,7 +13,7 @@ namespace astre::ecs::system
         using Reads = std::tuple<TransformComponent, InputComponent, CameraComponent>;
         using Writes = std::tuple<TransformComponent, CameraComponent>;
 
-        ScriptSystem(script::ScriptRuntime & runtime, Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        ScriptSystem(script::ScriptRuntime & runtime, Registry & registry);
         ~ScriptSystem() = default;
 
         inline ScriptSystem(ScriptSystem && other)

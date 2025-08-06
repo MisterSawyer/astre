@@ -4,12 +4,17 @@
 
 namespace astre::ecs::system
 {
-    TransformSystem::TransformSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        : System(registry, execution_context)
+    TransformSystem::TransformSystem(Registry & registry)
+        : System(registry)
     {}
 
     asio::awaitable<void> TransformSystem::run(float dt)
     {
+        auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "TransformSystem run: cancellation_state is not connected");
+
+        spdlog::debug("Running TransformSystem");
+
         math::Vec3 pos;
         math::Quat rot;
         math::Vec3 scale;
@@ -18,7 +23,6 @@ namespace astre::ecs::system
         math::Vec3 up;
         math::Vec3 right;
         
-        co_await getAsyncContext().ensureOnStrand();
 
         co_await getRegistry().runOnAllWithComponents<TransformComponent>(
             [&](const Entity e, TransformComponent & transform_component) ->  asio::awaitable<void>

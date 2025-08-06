@@ -4,12 +4,18 @@
 
 namespace astre::ecs::system
 {
-    InputSystem::InputSystem(input::InputService & input_service, Registry & registry, astre::process::IProcess::execution_context_type & execution_context)
-        : System(registry, execution_context), _input_service(input_service)
+    InputSystem::InputSystem(input::InputService & input_service, Registry & registry)
+        : System(registry), _input_service(input_service)
     {}
 
     asio::awaitable<void> InputSystem::run(float dt)
     {
+        auto cs = co_await asio::this_coro::cancellation_state;
+        assert(cs.slot().is_connected() && "InputSystem run: cancellation_state is not connected");
+
+        spdlog::debug("Running InputSystem");
+
+
         google::protobuf::RepeatedField<int> serialized_pressed;
         google::protobuf::RepeatedField<int> serialized_just_pressed;
         google::protobuf::RepeatedField<int> serialized_just_released;

@@ -29,6 +29,12 @@ namespace astre::render
     {
         std::size_t vertex_buffer;
         std::size_t shader;
+
+        // used for interpolation
+        math::Vec3 position;
+        math::Quat rotation;
+        math::Vec3 scale;
+
         ShaderInputs inputs;
     };
 

@@ -104,7 +104,6 @@ namespace astre::pipeline
 
             co_await window->show();
 
-            auto cancel_slot = fnc_token.getSlot();
             // Run fnc in its own coroutine
             co_await asio::co_spawn(
                 _process.getExecutionContext(),
@@ -119,7 +118,7 @@ namespace astre::pipeline
                     },
                     std::forward<Args>(args)...
                 ),
-                asio::bind_cancellation_slot(cancel_slot, asio::use_awaitable)
+                asio::bind_cancellation_slot(fnc_token.getSlot(), asio::use_awaitable)
             );
             
             // Wait for app exit
@@ -172,7 +171,7 @@ namespace astre::pipeline
                 _buffer(buffer),
                 _stage_state(std::move(init_state)),
                 _accumulator(0.0f),
-                _fixed_logic_step(1.0f / 20.0f)
+                _fixed_logic_step(1.0f / 5.0f)
         {}
         
         template<std::size_t Index>
@@ -192,26 +191,43 @@ namespace astre::pipeline
             std::chrono::steady_clock::time_point now;
 
             std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
-            
+            bool should_rotate = false;
+
             while (async::isCancelled(cs) == false) 
             {
                 now = std::chrono::steady_clock::now();
                 _accumulator += std::chrono::duration<float>(now - last_time).count();
                 last_time = now;
-
-                if(_accumulator >= _fixed_logic_step)
-                {
-                    _buffer.rotate();
-                }
-
+                
                 if(async::isCancelled(cs)) co_return;
                 try
                 {
-                    const render::Frame & render_curr = _buffer.previous().render_frame;
-                    const render::Frame & render_prev = _buffer.beforePrevious().render_frame;
                     float alpha = _accumulator / _fixed_logic_step;
-                    co_await (_runFixedLogic() && 
-                        _render(alpha, render_prev, render_curr, _stage_state));
+
+                    should_rotate = co_await (_runFixedLogic() 
+                        && _render(alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state));
+                    
+                    // asio::cancellation_signal signal1;
+                    // asio::cancellation_signal signal2;
+
+                    // std::tuple<std::array<size_t, 2>, std::exception_ptr, bool, std::exception_ptr> res = 
+                    // co_await asio::experimental::make_parallel_group(
+                    //     asio::co_spawn(
+                    //         ex,
+                    //         _runFixedLogic(),
+                    //         asio::bind_cancellation_slot(signal1.slot(), asio::deferred)
+                    //     ),
+                    //     asio::co_spawn(
+                    //         ex,
+                    //         _render(alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state),
+                    //         asio::bind_cancellation_slot(signal2.slot(), asio::deferred)
+                    //     )
+                    // ).async_wait(
+                    //     asio::experimental::wait_for_one_error(),
+                    //     asio::use_awaitable
+                    // );
+                    // should_rotate = std::get<2>(res);
+
                 }
                 catch (const asio::system_error& e)
                 {
@@ -219,7 +235,13 @@ namespace astre::pipeline
                         spdlog::debug("[pipeline] Pipeline cancelled");
                         co_return;
                     }
+                    spdlog::error("[pipeline] Pipeline error: {}", e.what());
                     throw;
+                }
+
+                if (should_rotate)
+                {
+                    _buffer.rotate();
                 }
 
                 // sync
@@ -231,11 +253,16 @@ namespace astre::pipeline
     
     private:
 
-        asio::awaitable<void> _runFixedLogic()
+        asio::awaitable<bool> _runFixedLogic()
         {
             asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
+            assert(cs.slot().is_connected() && "_runFixedLogic: cancellation_state is not connected");
+
+            bool should_rotate = false;
+
             while (_accumulator >= _fixed_logic_step)
             {
+                should_rotate = true;
                 for (std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
                 {
                     if(async::isCancelled(cs)) co_return;
@@ -243,7 +270,8 @@ namespace astre::pipeline
                 }
                 _accumulator -= _fixed_logic_step;
             }
-            co_return;  
+
+            co_return should_rotate;  
         }
 
         process::IProcess & _process;

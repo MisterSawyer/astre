@@ -18,7 +18,7 @@ namespace astre::ecs::system
         static constexpr uint16_t MAX_LIGHTS = 256;
         static constexpr uint16_t MAX_SHADOW_CASTERS = 16;
 
-        LightSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        LightSystem(Registry & registry);
 
         inline LightSystem(LightSystem && other)
             : System(std::move(other))

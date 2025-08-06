@@ -18,7 +18,7 @@ namespace astre::ecs::system
         static constexpr math::Vec3 BASE_FORWARD_DIRECTION = math::Vec3(0.0f, 0.0f, -1.0f);
         static constexpr math::Vec3 BASE_UP_DIRECTION = math::Vec3(0.0f, 1.0f, 0.0f);
 
-        TransformSystem(Registry & registry, astre::process::IProcess::execution_context_type & execution_context);
+        TransformSystem(Registry & registry);
         
         inline TransformSystem(TransformSystem && other)
             : System(std::move(other))
