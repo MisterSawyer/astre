@@ -12,10 +12,10 @@ namespace astre::render
     {
         Wireframe,
         Solid,
-        Textured,
-        Shadow,
-        ShadowTextured,
-        Count
+        //Textured,
+        //Shadow,
+        //ShadowTextured,
+        _COUNT // must be last, special value used to determine number of modes 
     };
 
     /**

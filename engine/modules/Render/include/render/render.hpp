@@ -57,7 +57,6 @@ namespace astre::render
         math::Mat4 proj_matrix; // in
         absl::flat_hash_map<std::size_t, RenderProxy> render_proxies; // in
         // lights
-        std::size_t light_ssbo; // in
         absl::flat_hash_map<std::size_t, GPULight> gpu_lights;
         // shadows
         std::vector<math::Mat4> light_space_matrices; // in
@@ -119,13 +118,12 @@ namespace astre::render
          * 
          * @return asio::awaitable<void> 
          */
-        virtual asio::awaitable<void> render(
+        virtual asio::awaitable<FrameStats> render(
                 std::size_t vertex_buffer,
                 std::size_t shader,
                 ShaderInputs shader_inputs = ShaderInputs{},
                 RenderOptions options = RenderOptions{},
-                std::optional<std::size_t> fbo = std::nullopt,
-                FrameStats * stats = nullptr) = 0;
+                std::optional<std::size_t> fbo = std::nullopt) = 0;
 
         /**
          * @brief Present the rendered frame
@@ -334,17 +332,15 @@ namespace astre::render
                 return base::impl().clearScreen(std::move(color), std::move(fbo));
             }
 
-            inline asio::awaitable<void> render(std::size_t vertex_buffer, std::size_t shader, 
+            inline asio::awaitable<FrameStats> render(std::size_t vertex_buffer, std::size_t shader, 
                 ShaderInputs shader_inputs,
                 RenderOptions options,
-                std::optional<std::size_t> fbo,
-                FrameStats * stats) override 
+                std::optional<std::size_t> fbo) override
             { 
                 return base::impl().render(std::move(vertex_buffer), std::move(shader),
                     std::move(shader_inputs),
                     std::move(options),
-                    std::move(fbo),
-                    std::move(stats)
+                    std::move(fbo)
                 );
             }
 

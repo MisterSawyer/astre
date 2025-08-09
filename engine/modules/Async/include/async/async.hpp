@@ -22,7 +22,7 @@ using namespace std::chrono_literals;
 /*
     co_stop_if this token requests it
 */
-#define co_stop_if(token) if (token.stopRequested()) co_return
+#define co_stop_if(token, ...) if ((token).stopRequested()) co_return __VA_ARGS__
 
 namespace astre::async
 {

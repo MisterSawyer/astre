@@ -87,12 +87,11 @@ namespace astre::gui
                 co_return;
             }
 
+            render::IRenderer & getRenderer() { return _renderer; }
+
         private:
             process::IProcess & _process;
             render::IRenderer & _renderer;
             window::IWindow  &_window;
     };
-
-    void drawDebugOverlay(float logic_fps, float logic_frame_time, const astre::render::FrameStats & stats);
-    void drawRenderControlWindow(render::RenderOptions & gbuffer_render_options, render::RenderOptions & shadow_map_render_options);
 }

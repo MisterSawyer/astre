@@ -16,6 +16,11 @@
 #include "input/input.hpp"
 #include "gui/gui.hpp"
 
+#include "pipeline/deferred_shading.hpp"
+#include "pipeline/gui_stats.hpp"
+
+#include "pipeline/logic_pipelines.hpp"
+
 namespace astre::pipeline
 {
     struct AppState
@@ -163,14 +168,14 @@ namespace astre::pipeline
         std::size_t _index = 0;
     };
 
-    template<typename FrameState, typename StageState, std::size_t LogicSubstagesCount = 1>
+    template<typename FrameState, typename StageState, std::size_t LogicStagesCount = 1, std::size_t RenderStagesCount = 1>
     class PipelineOrchestrator
     {
     public:
-        using LogicSubStage = std::function<
+        using LogicStage = std::function<
             asio::awaitable<void>(async::LifecycleToken &, float, FrameState&, StageState&)>;
         using RenderStage = std::function<
-            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &, StageState&)>;
+            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &)>;
         using SyncStage = std::function<
             asio::awaitable<void>(async::LifecycleToken &, StageState&)>;
 
@@ -183,13 +188,23 @@ namespace astre::pipeline
         {}
         
         template<std::size_t Index>
-        void setLogicSubstage(LogicSubStage stage)
+        void setLogicStage(LogicStage stage)
         {
-            static_assert(Index < LogicSubstagesCount, "Index out of range"); 
-            _logic_substages.at(Index) = (std::move(stage));
+            static_assert(Index < LogicStagesCount, "Index out of range"); 
+            _logic_stages.at(Index) = std::move(stage);
         }
-        void setRenderStage(RenderStage stage) { _render = std::move(stage); }
-        void setPostSync(SyncStage sync)      { _post_sync = std::move(sync); }
+        
+        template<std::size_t Index>
+        void setRenderStage(RenderStage stage)
+        { 
+            static_assert(Index < RenderStagesCount, "Index out of range"); 
+            _render_stages.at(Index) = std::move(stage); 
+        }
+
+        void setSyncStage(SyncStage stage) 
+        {
+            _sync_stage = std::move(stage);
+        }
 
         asio::awaitable<void> runLoop(async::LifecycleToken & token) 
         {    
@@ -210,10 +225,9 @@ namespace astre::pipeline
                 
                 alpha = _accumulator / _fixed_logic_step;
 
-
                 auto group = asio::experimental::make_parallel_group(
-                    asio::co_spawn(ex, _runFixedLogic(token), asio::deferred),
-                    asio::co_spawn(ex, _render(token, alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state), asio::deferred)
+                    asio::co_spawn(ex, _runLogicStages(token), asio::deferred),
+                    asio::co_spawn(ex, _runRenderStages(token, alpha), asio::deferred)
                 );
 
                 auto [order, e1, should_rotate, e2] = co_await group.async_wait(
@@ -230,7 +244,7 @@ namespace astre::pipeline
                 }
 
                 // sync
-                if (_post_sync) co_await _post_sync(token, _stage_state);
+                if (_sync_stage) co_await _sync_stage(token, _stage_state);
             }
             
             co_return;
@@ -238,18 +252,18 @@ namespace astre::pipeline
     
     private:
 
-        asio::awaitable<bool> _runFixedLogic(async::LifecycleToken & token)
+        asio::awaitable<bool> _runLogicStages(async::LifecycleToken & token)
         {
-            co_stop_if(token);
+            co_stop_if(token, false);
 
             bool should_rotate = false;
 
             while (_accumulator >= _fixed_logic_step)
             {
                 should_rotate = true;
-                for (std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
+                for (std::size_t logic_idx = 0; logic_idx < LogicStagesCount; ++logic_idx)
                 {
-                    co_await _logic_substages.at(logic_idx)(token, _fixed_logic_step, _buffer.current(), _stage_state);
+                    co_await _logic_stages.at(logic_idx)(token, _fixed_logic_step, _buffer.current(), _stage_state);
                 }
                 _accumulator -= _fixed_logic_step;
             }
@@ -257,37 +271,31 @@ namespace astre::pipeline
             co_return should_rotate;  
         }
 
+        asio::awaitable<void> _runRenderStages(async::LifecycleToken & token, float alpha)
+        {
+            co_stop_if(token);
+
+            for (std::size_t render_idx = 0; render_idx < RenderStagesCount; ++render_idx)
+            {
+                co_await _render_stages.at(render_idx)(
+                    token,
+                    alpha, 
+                    _buffer.beforePrevious().render_frame,
+                    _buffer.previous().render_frame);
+            }
+        }
+
         process::IProcess & _process;
         FramesBuffer<FrameState> & _buffer;
 
-        std::array<LogicSubStage, LogicSubstagesCount> _logic_substages;
+        std::array<LogicStage, LogicStagesCount> _logic_stages;
         float _fixed_logic_step;
         float _accumulator;
 
-        RenderStage _render;
-        SyncStage _post_sync;
+        std::array<RenderStage, RenderStagesCount> _render_stages;
+
+        SyncStage _sync_stage;
+
         StageState _stage_state;
     };
-
-    // const and where
-    // are valid during all frames 
-    struct RenderResources
-    {
-        std::size_t deferred_fbo; // where
-        std::size_t shadow_map_shader; // const
-        std::vector<std::size_t> deferred_textures; // where
-
-        std::vector<std::size_t> shadow_map_fbos; // where
-        std::vector<std::size_t> shadow_map_textures; // where
-
-        std::size_t screen_quad_vb; // where
-        std::size_t screen_quad_shader; // const
-    };
-
-    asio::awaitable<void> renderFrameToGBuffer(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats = nullptr);
-
-    asio::awaitable<void> renderFrameToShadowMaps(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, const render::RenderOptions & options, render::FrameStats * stats = nullptr);
-    
-    asio::awaitable<void> renderGBufferToScreen(render::IRenderer & renderer, const render::Frame & frame, RenderResources & resources, render::FrameStats * stats = nullptr);
-
 }

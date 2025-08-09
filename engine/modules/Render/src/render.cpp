@@ -39,7 +39,6 @@ namespace astre::render
         }
 
 
-        result.light_ssbo = b.light_ssbo;
         result.gpu_lights = b.gpu_lights;
         math::Vec3 dir_a;
         math::Vec3 dir_b;

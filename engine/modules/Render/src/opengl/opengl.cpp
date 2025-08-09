@@ -222,7 +222,8 @@ namespace astre::render::opengl
         if(good() == false)co_return;
 
         co_await _render_context->ensureOnStrand();
-
+        
+        spdlog::debug("[opengl] VSync enabled");
         #ifdef WIN32
             wglSwapIntervalEXT(1);
         #endif
@@ -235,6 +236,8 @@ namespace astre::render::opengl
         if(good() == false)co_return;
 
         co_await _render_context->ensureOnStrand();
+
+        spdlog::debug("[opengl] VSync disabled");
 
         #ifdef WIN32
             wglSwapIntervalEXT(0);
@@ -557,31 +560,31 @@ namespace astre::render::opengl
         co_return;
     }
 
-    asio::awaitable<void> OpenGLRenderer::render(
+    asio::awaitable<FrameStats> OpenGLRenderer::render(
             std::size_t vertex_buffer,
             std::size_t shader,
             ShaderInputs shader_inputs,
             RenderOptions options,
-            std::optional<std::size_t> fbo,
-            render::FrameStats * stats)
+            std::optional<std::size_t> fbo)
     {
-        if(good() == false)co_return;
+        FrameStats stats;
+        if(good() == false)co_return stats;
 
         co_await _render_context->ensureOnStrand();
         
-        if(good() == false)co_return;
+        if(good() == false)co_return stats;
 
         if(fbo)
         {
             if(_frame_buffer_objects.contains(*fbo) == false)
             {
                 spdlog::error("render() : Frame buffer object not found");
-                co_return;
+                co_return stats;
             }
             if(_frame_buffer_objects.at(*fbo)->enable() == false)
             {
                 spdlog::error("Cannot enable frame buffer object");
-                co_return;
+                co_return stats;
             }
             const auto & fbo_obj_ref = _frame_buffer_objects.at(*fbo);
             glViewport(0, 0, (GLsizei)fbo_obj_ref->getResolution().first,
@@ -596,24 +599,24 @@ namespace astre::render::opengl
         auto shader_it = _shaders.find(shader);
         if(shader_it == _shaders.end()){
             spdlog::warn("Rendering: Shader not found");
-            co_return;
+            co_return stats;
         }
 
         auto vertex_buffer_it = _vertex_buffers.find(vertex_buffer);
         if(vertex_buffer_it == _vertex_buffers.end()){
             spdlog::warn("Rendering: Vertex buffer not found");
-            co_return;
+            co_return stats;
         }
 
 
         if(shader_it->second->enable() == false){
             spdlog::error("Cannot enable shader program");
-            co_return;
+            co_return stats;
         }
 
         if(vertex_buffer_it->second->enable() == false){
             spdlog::error("Cannot enable vertex buffer");
-            co_return;
+            co_return stats;
         }
 
         assignShaderInputs(shader, shader_inputs);
@@ -626,12 +629,10 @@ namespace astre::render::opengl
             glPolygonOffset(options.polygon_offset->factor, options.polygon_offset->units);
         }
 
-        if(stats)
-        {
-            stats->draw_calls += 1;
-            stats->vertices += vertex_buffer_it->second->numberOfElements();
-            stats->triangles += vertex_buffer_it->second->numberOfElements() / 3.0f;
-        }
+        stats.draw_calls = 1;
+        stats.vertices = vertex_buffer_it->second->numberOfElements();
+        stats.triangles = vertex_buffer_it->second->numberOfElements() / 3.0f;
+        
         glDrawElements(GL_TRIANGLES, (GLsizei)vertex_buffer_it->second->numberOfElements(), GL_UNSIGNED_INT, nullptr);
         
         if(options.polygon_offset)
@@ -647,7 +648,7 @@ namespace astre::render::opengl
             _frame_buffer_objects.at(*fbo)->disable();
         }
 
-        co_return;
+        co_return stats;
     }
 
     asio::awaitable<void> OpenGLRenderer::present()

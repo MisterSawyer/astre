@@ -75,12 +75,11 @@ namespace astre::render::opengl
             asio::awaitable<void> close();
 
             asio::awaitable<void> clearScreen(math::Vec4 color, std::optional<std::size_t> fbo);
-            asio::awaitable<void> render(std::size_t vertex_buffer,
+            asio::awaitable<FrameStats> render(std::size_t vertex_buffer,
                 std::size_t shader,
                 ShaderInputs shader_inputs,
                 RenderOptions options,
-                std::optional<std::size_t> fbo,
-                render::FrameStats * stats);
+                std::optional<std::size_t> fbo);
             
             asio::awaitable<void> present();
             asio::awaitable<void> updateViewportSize(unsigned int width, unsigned int height);
