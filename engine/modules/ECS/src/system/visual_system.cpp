@@ -13,17 +13,12 @@ namespace astre::ecs::system
 
     asio::awaitable<void> VisualSystem::run(float dt, render::Frame & frame)
     {
-        auto cs = co_await asio::this_coro::cancellation_state;
-        assert(cs.slot().is_connected() && "VisualSystem run: cancellation_state is not connected");
-
-        spdlog::debug("VisualSystem run");
-
         frame.render_proxies.clear();
         
         std::optional<std::size_t> vb_id;
         std::optional<std::size_t> sh_id;
-        co_await getRegistry().runOnAllWithComponents<TransformComponent, VisualComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const VisualComponent &visual_component)  -> asio::awaitable<void>
+        getRegistry().runOnAllWithComponents<TransformComponent, VisualComponent>(
+            [&](const Entity e, const TransformComponent & transform_component, const VisualComponent &visual_component)
             {
                 vb_id = _renderer.getVertexBuffer(visual_component.vertex_buffer_name());
                 sh_id = _renderer.getShader(visual_component.shader_name());
@@ -31,7 +26,7 @@ namespace astre::ecs::system
                 if (!vb_id || !sh_id)
                 {
                     // if cannot find vertex buffer or shader, skip
-                    co_return;
+                    return;
                 }
                 
                 frame.render_proxies[e].vertex_buffer = *vb_id;
@@ -57,8 +52,6 @@ namespace astre::ecs::system
                 frame.render_proxies[e].position = math::deserialize(transform_component.position());
                 frame.render_proxies[e].rotation = math::deserialize(transform_component.rotation());
                 frame.render_proxies[e].scale = math::deserialize(transform_component.scale());
-
-                co_return;
             }
 
         );

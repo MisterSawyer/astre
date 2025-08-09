@@ -2,17 +2,6 @@
 
 namespace astre::async
 {
-    bool isCancelled(const asio::cancellation_state & cs)
-    { 
-        if(cs.cancelled() != asio::cancellation_type::none)
-        {
-            spdlog::debug("Operation cancelled");
-            return true;
-        }
-        return false;
-    }
-
-
     ThreadContext::ThreadContext()
         :   asio::io_context(1),
             _work_guard(asio::make_work_guard(*this)),

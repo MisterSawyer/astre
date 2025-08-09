@@ -20,8 +20,6 @@ namespace astre::pipeline
 {
     struct AppState
     {
-        async::LifecycleToken & lifecycle;
-
         process::IProcess & process;
         window::IWindow & window;
         render::IRenderer & renderer;
@@ -41,6 +39,8 @@ namespace astre::pipeline
         template<class F, class... Args>
         asio::awaitable<void> run(F && fnc, Args && ... args)
         {
+            async::AsyncContext async_context(_process.getExecutionContext());
+
             window::Window window = co_await window::createWindow(_process, _title, _width, _height);
             // will spawn its own render thread
             // but getExecutionContext is a thread pool, so we never know on which thread it will spawn
@@ -50,77 +50,85 @@ namespace astre::pipeline
             async::LifecycleToken fnc_token;
             async::LifecycleToken app_token;
 
-            input::InputService input(fnc_token, _process);
+            input::InputService input(_process);
 
             gui::GUIService gui(_process, *window, *renderer);
             co_await gui.init();
 
             co_await _process.setWindowCallbacks(window->getHandle(), 
             process::WindowCallbacks{
-                .onDestroy = [&]() -> asio::awaitable<void>
+                .onDestroy = [&async_context, &app_token, &fnc_token, &window, &renderer, &gui]() -> asio::awaitable<void>
                 {
+                    co_await async_context.ensureOnStrand();
+
                     // we should schedule closing of the fnc
                     fnc_token.requestStop();
 
                     // Wait until fnc coroutine exits
                     while (!fnc_token.isFinished()) {
-                        co_await asio::post(_process.getExecutionContext(), asio::use_awaitable);
+                        co_await async_context.ensureOnStrand();
                     }
 
                     co_await gui.close();
-
+                    
+                    co_await async_context.ensureOnStrand();
                     renderer->join();
                     co_await window->close();
 
                     app_token.requestStop();
                     app_token.markFinished();
                 },
-                .onResize = [&window, &renderer](unsigned int width, unsigned int height) -> asio::awaitable<void>
+                .onResize = [&fnc_token, &window, &renderer](unsigned int width, unsigned int height) -> asio::awaitable<void>
                 {
+                    co_stop_if(fnc_token);
                     //co_await window->resize(width, height); is it even needed?
                     co_await renderer->updateViewportSize(width, height);
                 },
-                .onKeyPress = [&input](int key) -> asio::awaitable<void>
+                .onKeyPress = [&fnc_token, &input](int key) -> asio::awaitable<void>
                 {
-                    co_await input.recordKeyPressed(input::keyToInputCode(key));
+                    co_stop_if(fnc_token);
+                    co_await input.recordKeyPressed(fnc_token, input::keyToInputCode(key));
                 },
-                .onKeyRelease = [&input](int key) -> asio::awaitable<void>
+                .onKeyRelease = [&fnc_token, &input](int key) -> asio::awaitable<void>
                 {
-                    co_await input.recordKeyReleased(input::keyToInputCode(key));
+                    co_stop_if(fnc_token);
+                    co_await input.recordKeyReleased(fnc_token, input::keyToInputCode(key));
                 },
-                .onMouseButtonDown = [&input](int key) -> asio::awaitable<void>
+                .onMouseButtonDown = [&fnc_token, &input](int key) -> asio::awaitable<void>
                 {
-                    co_await input.recordKeyPressed(input::keyToInputCode(key));
+                    co_stop_if(fnc_token);
+                    co_await input.recordKeyPressed(fnc_token, input::keyToInputCode(key));
                 },
-                .onMouseButtonUp = [&input](int key) -> asio::awaitable<void>
+                .onMouseButtonUp = [&fnc_token, &input](int key) -> asio::awaitable<void>
                 {
-                    co_await input.recordKeyReleased(input::keyToInputCode(key));
+                    co_stop_if(fnc_token);
+                    co_await input.recordKeyReleased(fnc_token, input::keyToInputCode(key));
                 },
-                .onMouseMove = [&input](int x, int y, float dx, float dy) -> asio::awaitable<void>
+                .onMouseMove = [&fnc_token, &input](int x, int y, float dx, float dy) -> asio::awaitable<void>
                 {
-                    co_await input.recordMouseMoved((float)x, (float)y, dx, dy);
+                    co_stop_if(fnc_token);
+                    co_await input.recordMouseMoved(fnc_token, (float)x, (float)y, dx, dy);
                 }
             });
 
             co_await window->show();
 
-            // Run fnc in its own coroutine
-            co_await asio::co_spawn(
-                _process.getExecutionContext(),
-                fnc(
-                    AppState{
-                        .lifecycle = fnc_token,
-                        .process = _process,
-                        .window = *window,
-                        .renderer = *renderer,
-                        .input = input,
-                        .gui = gui
-                    },
-                    std::forward<Args>(args)...
-                ),
-                asio::bind_cancellation_slot(fnc_token.getSlot(), asio::use_awaitable)
+            // Run fnc
+            co_await std::invoke(
+                std::forward<F>(fnc),
+                fnc_token,
+                AppState{
+                    .process = _process,
+                    .window = *window,
+                    .renderer = *renderer,
+                    .input = input,
+                    .gui = gui
+                },
+                std::forward<Args>(args)...
             );
             
+            fnc_token.markFinished();
+
             // Wait for app exit
             while (!app_token.isFinished()) {
                 co_await asio::post(_process.getExecutionContext(), asio::use_awaitable);
@@ -160,11 +168,11 @@ namespace astre::pipeline
     {
     public:
         using LogicSubStage = std::function<
-            asio::awaitable<void>(float, FrameState&, StageState&)>;
+            asio::awaitable<void>(async::LifecycleToken &, float, FrameState&, StageState&)>;
         using RenderStage = std::function<
-            asio::awaitable<void>(float, const render::Frame &, const render::Frame &, StageState&)>;
+            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &, StageState&)>;
         using SyncStage = std::function<
-            asio::awaitable<void>(StageState&)>;
+            asio::awaitable<void>(async::LifecycleToken &, StageState&)>;
 
         PipelineOrchestrator(process::IProcess & process, FramesBuffer<FrameState>& buffer, StageState && init_state)
             :   _process(process),
@@ -183,80 +191,56 @@ namespace astre::pipeline
         void setRenderStage(RenderStage stage) { _render = std::move(stage); }
         void setPostSync(SyncStage sync)      { _post_sync = std::move(sync); }
 
-        asio::awaitable<void> runLoop() 
+        asio::awaitable<void> runLoop(async::LifecycleToken & token) 
         {    
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            if(async::isCancelled(cs)) co_return;
+            co_stop_if(token);
+
+            auto ex = co_await asio::this_coro::executor;
 
             std::chrono::steady_clock::time_point now;
 
             std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
-            bool should_rotate = false;
+            float alpha = 0.0f;
 
-            while (async::isCancelled(cs) == false) 
+            while (token.stopRequested() == false) 
             {
                 now = std::chrono::steady_clock::now();
                 _accumulator += std::chrono::duration<float>(now - last_time).count();
                 last_time = now;
                 
-                if(async::isCancelled(cs)) co_return;
-                try
-                {
-                    float alpha = _accumulator / _fixed_logic_step;
+                alpha = _accumulator / _fixed_logic_step;
 
-                    should_rotate = co_await (_runFixedLogic() 
-                        && _render(alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state));
+
+                auto group = asio::experimental::make_parallel_group(
+                    asio::co_spawn(ex, _runFixedLogic(token), asio::deferred),
+                    asio::co_spawn(ex, _render(token, alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state), asio::deferred)
+                );
+
+                auto [order, e1, should_rotate, e2] = co_await group.async_wait(
+                    asio::experimental::wait_for_all(),
+                    asio::use_awaitable
+                );
+
+                if(e1)std::rethrow_exception(e1);
+                if(e2)std::rethrow_exception(e2);
                     
-                    // asio::cancellation_signal signal1;
-                    // asio::cancellation_signal signal2;
-
-                    // std::tuple<std::array<size_t, 2>, std::exception_ptr, bool, std::exception_ptr> res = 
-                    // co_await asio::experimental::make_parallel_group(
-                    //     asio::co_spawn(
-                    //         ex,
-                    //         _runFixedLogic(),
-                    //         asio::bind_cancellation_slot(signal1.slot(), asio::deferred)
-                    //     ),
-                    //     asio::co_spawn(
-                    //         ex,
-                    //         _render(alpha, _buffer.beforePrevious().render_frame, _buffer.previous().render_frame, _stage_state),
-                    //         asio::bind_cancellation_slot(signal2.slot(), asio::deferred)
-                    //     )
-                    // ).async_wait(
-                    //     asio::experimental::wait_for_one_error(),
-                    //     asio::use_awaitable
-                    // );
-                    // should_rotate = std::get<2>(res);
-
-                }
-                catch (const asio::system_error& e)
-                {
-                    if (e.code() == asio::error::operation_aborted) {
-                        spdlog::debug("[pipeline] Pipeline cancelled");
-                        co_return;
-                    }
-                    spdlog::error("[pipeline] Pipeline error: {}", e.what());
-                    throw;
-                }
-
                 if (should_rotate)
                 {
                     _buffer.rotate();
                 }
 
                 // sync
-                if(async::isCancelled(cs)) co_return;
-                if (_post_sync) co_await _post_sync(_stage_state);
+                if (_post_sync) co_await _post_sync(token, _stage_state);
             }
+            
             co_return;
         }
     
     private:
 
-        asio::awaitable<bool> _runFixedLogic()
+        asio::awaitable<bool> _runFixedLogic(async::LifecycleToken & token)
         {
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            assert(cs.slot().is_connected() && "_runFixedLogic: cancellation_state is not connected");
+            co_stop_if(token);
 
             bool should_rotate = false;
 
@@ -265,8 +249,7 @@ namespace astre::pipeline
                 should_rotate = true;
                 for (std::size_t logic_idx = 0; logic_idx < LogicSubstagesCount; ++logic_idx)
                 {
-                    if(async::isCancelled(cs)) co_return;
-                    co_await _logic_substages.at(logic_idx)(_fixed_logic_step, _buffer.current(), _stage_state);
+                    co_await _logic_substages.at(logic_idx)(token, _fixed_logic_step, _buffer.current(), _stage_state);
                 }
                 _accumulator -= _fixed_logic_step;
             }

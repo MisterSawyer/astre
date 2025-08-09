@@ -28,98 +28,63 @@ namespace astre::gui
 
             asio::awaitable<void> init()
             {
-                asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                if(async::isCancelled(cs)) co_return;
-
                 co_await _process.registerProcedureCallback(_window.getHandle(), ImGui_ImplWin32_WndProcHandler);
+                
+                co_await _renderer.getAsyncContext().ensureOnStrand();
 
-                co_await asio::co_spawn(_renderer.getAsyncContext().executor(), [this]() -> asio::awaitable<void> 
-                {
-                    asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                    if(async::isCancelled(cs)) co_return;
+                IMGUI_CHECKVERSION();
+                ImGui::CreateContext();
+                ImGuiIO& io = ImGui::GetIO();
+                io.IniFilename = nullptr;  // Disable .ini file generation
 
-                    IMGUI_CHECKVERSION();
-                    ImGui::CreateContext();
-                    ImGuiIO& io = ImGui::GetIO();
-                    io.IniFilename = nullptr;  // Disable .ini file generation
+                io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+                io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-                    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-                    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-                    // Setup Platform/Renderer backends
-                    ImGui_ImplWin32_Init(this->_window.getHandle());
-                    ImGui_ImplOpenGL3_Init();
-
-                    co_return;
-                }, asio::use_awaitable);
+                // Setup Platform/Renderer backends
+                ImGui_ImplWin32_Init(this->_window.getHandle());
+                ImGui_ImplOpenGL3_Init();
             }
 
             asio::awaitable<void> close()
             {
-                asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                if(async::isCancelled(cs)) co_return;
+                co_await _renderer.getAsyncContext().ensureOnStrand();
+                     
+                ImGui_ImplOpenGL3_Shutdown();
+                ImGui_ImplWin32_Shutdown();
+                ImGui::DestroyContext();
 
-                co_await asio::co_spawn(_renderer.getAsyncContext().executor(), []() -> asio::awaitable<void> 
-                {
-                        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                        if(async::isCancelled(cs)) co_return;
-                        
-                        ImGui_ImplOpenGL3_Shutdown();
-                        ImGui_ImplWin32_Shutdown();
-                        ImGui::DestroyContext();
-
-                        co_return;
-                }, asio::use_awaitable);
+                co_return;
             }
 
             asio::awaitable<void> newFrame()
             {
-                asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                if(async::isCancelled(cs)) co_return;
-
-                co_await asio::co_spawn(_renderer.getAsyncContext().executor(), [&]() -> asio::awaitable<void>
-                {
-                    asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                    if(async::isCancelled(cs)) co_return;
-
-                    ImGui_ImplOpenGL3_NewFrame();
-                    ImGui_ImplWin32_NewFrame();
-                    ImGui::NewFrame();
-
-                }, asio::use_awaitable);
+                co_await _renderer.getAsyncContext().ensureOnStrand();
+                
+                ImGui_ImplOpenGL3_NewFrame();
+                ImGui_ImplWin32_NewFrame();
+                ImGui::NewFrame();
+                
+                co_return;
             }
 
             template<class F, class ... Args>
             asio::awaitable<void> draw(F && gui_creator, Args && ... args)
             {
-                asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                if(async::isCancelled(cs)) co_return;
-
-                co_await asio::co_spawn(_renderer.getAsyncContext().executor(), [&]() -> asio::awaitable<void>
-                {
-                    asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                    if(async::isCancelled(cs)) co_return;
-
-                    gui_creator(std::forward<Args>(args)...);
-
-                }, asio::use_awaitable);
+                co_await _renderer.getAsyncContext().ensureOnStrand();
+                
+                gui_creator(std::forward<Args>(args)...);
+                
+                co_return;
             }
 
             asio::awaitable<void> render()
             {
-                asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                if(async::isCancelled(cs)) co_return;
-
-                co_await asio::co_spawn(_renderer.getAsyncContext().executor(), [&]() -> asio::awaitable<void> 
-                {
-                    asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-                    if(async::isCancelled(cs)) co_return;
-
-                    ImGui::Render();
-                    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-                    co_return;
-                }, asio::use_awaitable);
+                co_await _renderer.getAsyncContext().ensureOnStrand();
+                
+                ImGui::Render();
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                
+                co_return;
             }
 
         private:

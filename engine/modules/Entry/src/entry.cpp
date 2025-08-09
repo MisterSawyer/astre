@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
 
     const unsigned hardware_cores = std::thread::hardware_concurrency();
     const unsigned used_cores = 4;
-    assert(used_cores <= hardware_cores);
+    assert(used_cores <= hardware_cores && "Too many cores used");
 
     // start external entry point
     int return_value;

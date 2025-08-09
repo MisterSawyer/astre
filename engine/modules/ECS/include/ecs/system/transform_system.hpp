@@ -32,7 +32,7 @@ namespace astre::ecs::system
 
         ~TransformSystem() = default;
 
-        asio::awaitable<void> run(float dt); 
+        asio::awaitable<void> run(float dt);
 
         std::vector<std::type_index> getReads() const override {
             return expand<Reads>();

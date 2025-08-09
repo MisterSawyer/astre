@@ -10,11 +10,6 @@ namespace astre::ecs::system
 
     asio::awaitable<void> TransformSystem::run(float dt)
     {
-        auto cs = co_await asio::this_coro::cancellation_state;
-        assert(cs.slot().is_connected() && "TransformSystem run: cancellation_state is not connected");
-
-        spdlog::debug("Running TransformSystem");
-
         math::Vec3 pos;
         math::Quat rot;
         math::Vec3 scale;
@@ -22,10 +17,9 @@ namespace astre::ecs::system
         math::Vec3 forward;
         math::Vec3 up;
         math::Vec3 right;
-        
 
-        co_await getRegistry().runOnAllWithComponents<TransformComponent>(
-            [&](const Entity e, TransformComponent & transform_component) ->  asio::awaitable<void>
+        getRegistry().runOnAllWithComponents<TransformComponent>(
+            [&](const Entity e, TransformComponent & transform_component)
             {
                 if(transform_component.has_position())
                 {
@@ -69,8 +63,6 @@ namespace astre::ecs::system
                 transform_component.mutable_forward()->CopyFrom(math::serialize(forward));
                 transform_component.mutable_up()->CopyFrom(math::serialize(up));
                 transform_component.mutable_right()->CopyFrom(math::serialize(right));
-
-                co_return;
             }
         );
 

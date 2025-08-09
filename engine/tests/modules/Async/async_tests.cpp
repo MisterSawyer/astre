@@ -100,53 +100,12 @@ TEST(LifecycleTokenTest, MarkFinishedSetsFinished) {
     EXPECT_TRUE(token.isFinished());
 }
 
-TEST(LifecycleTokenTest, CancellationPropagatesToSlot) {
-    LifecycleToken token;
-
-    bool was_cancelled = false;
-
-    token.getSlot().assign([&](asio::cancellation_type type) {
-        was_cancelled = true;
-    });
-
-    token.requestStop();
-    EXPECT_TRUE(was_cancelled);
-}
-
 TEST(LifecycleTokenTest, SupportsMultipleFinishes) {
     LifecycleToken token;
     token.markFinished();
     token.markFinished(); // Should be idempotent
     EXPECT_TRUE(token.isFinished());
 }
-
-
-TEST(LifecycleTokenTest, CoroutineStopsWhenCancelled)
-{
-    asio::io_context io;
-    LifecycleToken token;
-
-    std::atomic<bool> started = false;
-    std::atomic<bool> was_cancelled = false;
-
-    asio::co_spawn(io,
-        cancellable_task(token.getSlot(), started, was_cancelled),
-        asio::detached
-    );
-
-    std::thread cancel_thread([&]() {
-        std::this_thread::sleep_for(80ms); // Let coroutine start
-        token.requestStop();
-    });
-
-    io.run();
-
-    cancel_thread.join();
-
-    EXPECT_TRUE(started);
-    EXPECT_TRUE(was_cancelled);
-}
-
 
 TEST(LifecycleTokenTest, CoroutineCompletesWithoutCancellation)
 {
@@ -157,74 +116,4 @@ TEST(LifecycleTokenTest, CoroutineCompletesWithoutCancellation)
     io.run();
 
     EXPECT_TRUE(completed);
-}
-
-TEST(LifecycleTokenTest, SlotHandlerIsInvokedOnCancel)
-{
-    LifecycleToken token;
-    bool cancelled_handler_called = false;
-
-    token.getSlot().assign([&](asio::cancellation_type) {
-        cancelled_handler_called = true;
-    });
-
-    token.requestStop();
-
-    EXPECT_TRUE(cancelled_handler_called);
-}
-
-TEST(LifecycleTokenTest, NestedCoroutinesCancelledMidway)
-{
-    asio::io_context io;
-    LifecycleToken token;
-
-    std::atomic<int> steps = 0;
-
-    asio::co_spawn(io, root_task(steps, token.getSlot()), asio::detached);
-
-    std::thread cancel_thread([&]() {
-        std::this_thread::sleep_for(25ms);
-        token.requestStop();
-    });
-
-    io.run();
-    cancel_thread.join();
-
-    // Expect: Entered root, middle, deep (3), cancelled before completion
-    EXPECT_GE(steps, 3);
-    EXPECT_LT(steps, 6); // Should not have reached all final steps
-}
-
-TEST(LifecycleTokenTest, NestedCoroutinesCompleteFully)
-{
-    asio::io_context io;
-    LifecycleToken token;
-
-    std::atomic<int> steps = 0;
-
-    asio::co_spawn(io, root_task(steps, token.getSlot()), asio::detached);
-    io.run();
-
-    // Expect all phases: root(1+1), middle(1+1), deep(1+1)
-    EXPECT_EQ(steps, 6);
-}
-
-TEST(LifecycleTokenTest, CleanupRunsOnCancellation)
-{
-    asio::io_context io;
-    LifecycleToken token;
-
-    std::atomic<bool> cleaned_up = false;
-
-    asio::co_spawn(io, cleanup_test(cleaned_up, token.getSlot()), asio::detached);
-
-    std::thread cancel_thread([&]() {
-        std::this_thread::sleep_for(10ms);
-        token.requestStop();
-    });
-
-    io.run();
-    cancel_thread.join();
-
-    EXPECT_TRUE(cleaned_up);
 }

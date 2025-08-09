@@ -10,12 +10,6 @@ namespace astre::ecs::system
 
     asio::awaitable<void> InputSystem::run(float dt)
     {
-        auto cs = co_await asio::this_coro::cancellation_state;
-        assert(cs.slot().is_connected() && "InputSystem run: cancellation_state is not connected");
-
-        spdlog::debug("Running InputSystem");
-
-
         google::protobuf::RepeatedField<int> serialized_pressed;
         google::protobuf::RepeatedField<int> serialized_just_pressed;
         google::protobuf::RepeatedField<int> serialized_just_released;
@@ -35,8 +29,8 @@ namespace astre::ecs::system
             serialized_just_released.Add(released);
         }
 
-        co_await getRegistry().runOnAllWithComponents<InputComponent>(
-            [&](const Entity e, InputComponent & input_component) -> asio::awaitable<void> 
+        getRegistry().runOnAllWithComponents<InputComponent>(
+            [&](const Entity e, InputComponent & input_component)
             { 
                 input_component.mutable_pressed()->Clear();
                 input_component.mutable_just_pressed()->Clear();
@@ -45,10 +39,9 @@ namespace astre::ecs::system
                 input_component.mutable_pressed()->CopyFrom(serialized_pressed);
                 input_component.mutable_just_pressed()->CopyFrom(serialized_just_pressed);
                 input_component.mutable_just_released()->CopyFrom(serialized_just_released);
-
-                co_return; 
             }
         );
+
         co_return;
     } 
 

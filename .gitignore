@@ -49,6 +49,7 @@ install_manifest.txt
 *.log
 *.dSYM/
 *.core
+*.etl
 
 # === IDEs ===
 # VS Code

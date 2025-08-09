@@ -12,37 +12,25 @@ using namespace std::chrono_literals;
 
 #include "native/native.h"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
-using namespace asio::experimental::awaitable_operators;
-#include <asio/experimental/concurrent_channel.hpp>
+#include <asio/experimental/parallel_group.hpp>
+
+//#include <asio/experimental/awaitable_operators.hpp>
+//using namespace asio::experimental::awaitable_operators;
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
 
+/*
+    co_stop_if this token requests it
+*/
+#define co_stop_if(token) if (token.stopRequested()) co_return
+
 namespace astre::async
 {
-    template <std::size_t... Is, typename T>
-    asio::awaitable<void> await_all_impl(std::index_sequence<Is...>, std::array<T, sizeof...(Is)> arr)
-    {
-        // Co_await all concurrently using awaitable && operator
-        return (std::move(arr.at(Is)) && ...);
-    }
-
-    template <typename T, std::size_t N>
-    asio::awaitable<void> await_all(std::array<T, N> arr)
-    {
-        if constexpr (N == 0)
-            return;
-        else
-            return await_all_impl(std::make_index_sequence<N>{}, std::move(arr));
-    }
-
     inline asio::awaitable<void> noop()
     {
         co_return;
     }
     
-    bool isCancelled(const asio::cancellation_state & cs);
-
     // tells where async operations should run
     template<class AsioContext>
     class AsyncContext : public asio::strand<typename AsioContext::executor_type> {
@@ -127,9 +115,12 @@ namespace astre::async
         /**
          * Request the cancellation of the current task
          */
-        void requestStop() noexcept {
-            signal.emit(asio::cancellation_type::all);
-        }
+        void requestStop() noexcept {stop.test_and_set();}
+
+        /**
+         * Check if the current task has been requested to stop
+         */
+        bool stopRequested() const noexcept {return stop.test();}
 
         /**
          * Mark the current task as finished
@@ -137,15 +128,12 @@ namespace astre::async
         void markFinished() noexcept { finished.test_and_set(); }
 
         /**
-         * Check if the current task is finished
+         * Check if the current task has finished
          */
         bool isFinished() const noexcept { return finished.test(); }
 
-        asio::cancellation_slot getSlot() { return signal.slot(); }
-        asio::cancellation_signal & getSignal() { return signal; }
-
         private:
-            asio::cancellation_signal signal;
+            std::atomic_flag stop = ATOMIC_FLAG_INIT;
             std::atomic_flag finished = ATOMIC_FLAG_INIT;
     };
 }

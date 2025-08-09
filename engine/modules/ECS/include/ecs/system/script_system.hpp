@@ -25,7 +25,7 @@ namespace astre::ecs::system
         ScriptSystem(const ScriptSystem &) = delete;
         ScriptSystem & operator=(const ScriptSystem &) = delete;
 
-        asio::awaitable<void> run(float dt);
+        void run(float dt);
 
         std::vector<std::type_index> getReads() const override {
             return expand<Reads>();

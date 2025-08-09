@@ -39,27 +39,31 @@ namespace astre::render
         }
 
 
-        result.light_ssbo = a.light_ssbo;
-        result.shadow_casters_count = a.shadow_casters_count;
-
-        const std::size_t light_count = std::min(a.gpu_lights.size(), b.gpu_lights.size());
-        result.gpu_lights.resize(light_count);
-        for (std::size_t i = 0; i < light_count; ++i)
+        result.light_ssbo = b.light_ssbo;
+        result.gpu_lights = b.gpu_lights;
+        math::Vec3 dir_a;
+        math::Vec3 dir_b;
+        math::Vec3 interpolated_dir;
+        for (auto & [id, light] : result.gpu_lights)
         {
-            result.gpu_lights[i].position    = math::mix(a.gpu_lights[i].position,    b.gpu_lights[i].position,    alpha);
-            result.gpu_lights[i].color       = math::mix(a.gpu_lights[i].color,       b.gpu_lights[i].color,       alpha);
-            result.gpu_lights[i].attenuation = math::mix(a.gpu_lights[i].attenuation, b.gpu_lights[i].attenuation, alpha);
-            result.gpu_lights[i].cutoff      = math::mix(a.gpu_lights[i].cutoff,      b.gpu_lights[i].cutoff,      alpha);
-            result.gpu_lights[i].castShadows = math::mix(a.gpu_lights[i].castShadows, b.gpu_lights[i].castShadows, alpha);
-            result.gpu_lights[i].direction   = math::mix(a.gpu_lights[i].direction,   b.gpu_lights[i].direction,   alpha);
-        }
+            if(a.gpu_lights.find(id) == a.gpu_lights.end())
+                continue;
 
-        const std::size_t matrix_count = std::min(a.light_space_matrices.size(), b.light_space_matrices.size());
-        result.light_space_matrices.resize(matrix_count);
-        for (std::size_t i = 0; i < matrix_count; ++i)
-        {
-            result.light_space_matrices[i] = math::interpolate(a.light_space_matrices[i], b.light_space_matrices[i], alpha);
+            light.position    = math::mix(a.gpu_lights.at(id).position, b.gpu_lights.at(id).position, alpha);
+
+            dir_a = a.gpu_lights.at(id).direction;
+            dir_b = b.gpu_lights.at(id).direction;
+            interpolated_dir = math::mix(dir_a, dir_b, alpha);
+            light.direction   = math::Vec4(interpolated_dir, light.direction.w);
+
+            light.color       = math::mix(a.gpu_lights.at(id).color, b.gpu_lights.at(id).color, alpha);
+            light.attenuation = math::mix(a.gpu_lights.at(id).attenuation, b.gpu_lights.at(id).attenuation, alpha);
+            light.cutoff      = math::mix(a.gpu_lights.at(id).cutoff, b.gpu_lights.at(id).cutoff, alpha);
         }
+        
+        // TODO: shadows
+        result.shadow_casters_count = b.shadow_casters_count;
+        result.light_space_matrices = b.light_space_matrices;
 
         return result;
     }

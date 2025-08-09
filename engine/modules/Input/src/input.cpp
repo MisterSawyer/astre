@@ -116,15 +116,13 @@ namespace astre::input
         return InputCode::UNKNOWN_InputCode;
     }
 
-    InputService::InputService(async::LifecycleToken & lifecycle, process::IProcess & process)
-    :   _lifecycle(lifecycle),
-        _input_context(process.getExecutionContext())
+    InputService::InputService(process::IProcess & process)
+    :   _input_context(process.getExecutionContext())
     {}
 
-    asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
+    asio::awaitable<void> InputService::recordKeyPressed(async::LifecycleToken & token, InputCode key)
     {
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(async::isCancelled(cs)) co_return;
+        co_stop_if(token);
 
         InputEvent event;
         event.set_type(InputEventType::Pressed);
@@ -136,10 +134,9 @@ namespace astre::input
         co_return;
     }
 
-    asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
+    asio::awaitable<void> InputService::recordKeyReleased(async::LifecycleToken & token, InputCode key)
     {
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(async::isCancelled(cs)) co_return;
+        co_stop_if(token);
 
         InputEvent event;
         event.set_type(InputEventType::Released);
@@ -151,10 +148,9 @@ namespace astre::input
         co_return;
     }
 
-    asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
+    asio::awaitable<void> InputService::recordMouseMoved(async::LifecycleToken & token, float x, float y, float dx, float dy)
     {
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(async::isCancelled(cs)) co_return;
+        co_stop_if(token);
 
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
@@ -171,18 +167,13 @@ namespace astre::input
 
     bool InputService::isKeyPressed(InputCode key) const
     {
-        if(_lifecycle.isFinished())return false;
-
         return isInputPresent(key, _held_keys);
     }
 
-    asio::awaitable<void> InputService::update()
+    asio::awaitable<void> InputService::update(async::LifecycleToken & token)
     {
-        spdlog::debug("[InputService] update");
+        co_stop_if(token);
         
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        if(async::isCancelled(cs)) co_return;
-
         std::deque<InputEvent> events;
 
         co_await _input_context.ensureOnStrand();

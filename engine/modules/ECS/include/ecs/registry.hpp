@@ -30,67 +30,58 @@ namespace astre::ecs
             asio::awaitable<std::optional<Entity>> createEntity(std::string name);
             asio::awaitable<void> destroyEntity(Entity entity);
             
-            asio::awaitable<std::optional<Entity>> getEntity(std::string name) const;
+            std::optional<Entity> getEntity(std::string name) const;
             asio::awaitable<std::optional<std::string>> getName(Entity entity) const;
 
             template<class ComponentType>
             inline asio::awaitable<void> addComponent(Entity entity, ComponentType&& component)
             {
-                co_await _async_context.ensureOnStrand();
                 co_return _components.addComponent<ComponentType>(entity, std::move(component));
             }
 
             template<class ComponentType, class ... ComponentArgs>
             inline asio::awaitable<void> addComponent(Entity entity, ComponentArgs&&... args)
             {
-                co_await _async_context.ensureOnStrand();
                 co_return _components.addComponent<ComponentType>(entity, ComponentType(std::forward<ComponentArgs>(args)...));
             }
 
             template<class ComponentType>
             asio::awaitable<bool> hasComponent(const Entity entity) const
             {
-                co_await _async_context.ensureOnStrand();
                 co_return _entities.getComponentMask(entity).test(ComponentTypesList::template getTypeID<ComponentType>());
             }
 
             template<class ... ComponentTypes, class F>
-            asio::awaitable<void> runOnSingleWithComponents(const Entity entity, F && callable) 
+            void runOnSingleWithComponents(const Entity entity, F && callable) 
             {
-                co_await _async_context.ensureOnStrand();
-                if(_entities.entityExists(entity) == false) co_return;
+                if(_entities.entityExists(entity) == false) return;
                 
                 const auto& mask = _entities.getComponentMask(entity);
                 const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
                 if (has_all_components)
-                    co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
             template<class ... ComponentTypes, class F>
-            asio::awaitable<void> runOnSingleWithComponents(const Entity entity, F && callable) const
+            void runOnSingleWithComponents(const Entity entity, F && callable) const
             {
-                co_await _async_context.ensureOnStrand();
-                if(_entities.entityExists(entity) == false) co_return;
+                if(_entities.entityExists(entity) == false) return;
 
                 const auto& mask = _entities.getComponentMask(entity);
                 const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
                 if (has_all_components)
-                    co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
+                    callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
             }
 
             template<class ... ComponentTypes, class F>
-            asio::awaitable<void> runOnAllWithComponents(F && callable) 
+            void runOnAllWithComponents(F && callable) 
             {
-                co_await _async_context.ensureOnStrand();
-
                 for(auto & [entity, mask] : _entities.getAllEntities())
                 {
                     const bool has_all_components = (... && mask.test(ComponentTypesList::template getTypeID<ComponentTypes>()));
 
                     if (has_all_components)
-                        co_await callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);
-                    
-                    co_await _async_context.ensureOnStrand();
+                        callable(entity, (*_components.getComponent<ComponentTypes>(entity))...);   
                 }
             }
 

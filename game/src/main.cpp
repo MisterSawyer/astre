@@ -46,16 +46,17 @@ namespace astre::entry
         resources.deferred_textures = renderer.getFrameBufferObjectTextures(resources.deferred_fbo);
         assert(resources.deferred_textures.size() == 3);
 
-        // Create SSBO for lights in all frames
+        // Create SSBO for lights
         std::optional<std::size_t> light_ssbo_res;
+        light_ssbo_res = co_await renderer.createShaderStorageBuffer("ssbo::light", 2, 0, nullptr);
+        if (!light_ssbo_res) {
+            spdlog::error("Failed to create light SSBO");
+            // TODO throw?
+            co_return pipeline::RenderResources{};
+        }
+        
         for(std::size_t i = 0; i < buffer.size(); ++i)
         {
-            light_ssbo_res = co_await renderer.createShaderStorageBuffer("ssbo::light" + std::to_string(i), 2, 0, nullptr);
-            if (!light_ssbo_res) {
-                spdlog::error("Failed to create light SSBO [{}]", i);
-                // TODO throw?
-                co_return pipeline::RenderResources{};
-            }
             buffer.at(i).render_frame.light_ssbo = *light_ssbo_res;
         }
 
@@ -112,7 +113,134 @@ namespace astre::entry
         co_return resources;
     }
 
-    asio::awaitable<void> runMainLoop(pipeline::AppState app_state, const entry::AppPaths & paths)
+    float logic_fps = 0.0f;
+    float logic_frame_time = 0.0f;
+    constexpr float logic_frame_smoothing = 0.9f;
+    std::chrono::steady_clock::time_point logic_last_time;
+    std::chrono::steady_clock::time_point logic_start;
+
+    asio::awaitable<void> logicStep0(async::LifecycleToken& token, float dt, GameFrame& frame, GameState& state)
+    {
+        co_stop_if(token);
+
+        auto & ex = state.app_state.process.getExecutionContext();
+        const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
+
+        logic_last_time = logic_start;
+        logic_start = std::chrono::steady_clock::now();
+
+        // --- Input + world in parallel (explicitly handle exceptions) ---
+        {
+            auto g = asio::experimental::make_parallel_group(
+                asio::co_spawn(ex, state.app_state.input.update(token),                    asio::deferred),
+                asio::co_spawn(ex, state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
+            );
+
+            auto [ord, e1, e2] =
+                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+
+            if (e1) std::rethrow_exception(e1);
+            if (e2) std::rethrow_exception(e2);
+        }
+
+        //--- ECS stage ---
+        {
+            auto g = asio::experimental::make_parallel_group(
+                asio::co_spawn(ex, state.systems.transform.run(dt), asio::deferred),
+                asio::co_spawn(ex, state.systems.input.run(dt), asio::deferred)
+            );
+
+            auto [ord, e1, e2] =
+                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+
+            if (e1) std::rethrow_exception(e1);
+            if (e2) std::rethrow_exception(e2);
+        }
+
+        // Serial steps
+        state.systems.script.run(dt);
+        state.systems.camera.run(dt, frame.render_frame);
+
+        // --- Visual + Light in parallel (same executor, explicit errors) ---
+        {
+            auto g = asio::experimental::make_parallel_group(
+                asio::co_spawn(ex, state.systems.visual.run(dt, frame.render_frame), asio::deferred),
+                asio::co_spawn(ex, state.systems.light.run(dt,  frame.render_frame), asio::deferred)
+            );
+
+            auto [ord, e1, e2] =
+                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+
+            if (e1) std::rethrow_exception(e1);
+            if (e2) std::rethrow_exception(e2);
+        }
+
+        const float frame_time_ms =
+            std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
+        logic_frame_time = (logic_frame_time * logic_frame_smoothing) + (frame_time_ms * (1.0f - logic_frame_smoothing));
+
+        const float current_fps =
+            1.0f / std::max(std::chrono::duration<float>(logic_start - logic_last_time).count(), 1e-6f);
+        logic_fps = (logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
+
+        co_return;
+    }
+
+
+    render::FrameStats render_stats;
+    render::RenderOptions gbuffer_render_options
+    {
+        .mode = render::RenderMode::Solid
+    };
+    render::RenderOptions shadow_map_render_options 
+    {
+        .mode = render::RenderMode::Solid,
+        .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
+    };
+    asio::awaitable<void> renderStage(async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, GameState & state)
+    {
+        co_stop_if(token);
+
+        // Render interpolated frame using prev <-> curr, using alpha
+        auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
+
+
+
+        co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, interpolated_frame, state.render_resources, gbuffer_render_options, &render_stats);
+        co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, interpolated_frame, state.render_resources, shadow_map_render_options, &render_stats);
+        
+        // update light SSBO
+        std::vector<render::GPULight> lights_buffer;
+        lights_buffer.reserve(interpolated_frame.gpu_lights.size());
+        for (auto& [e, light] : interpolated_frame.gpu_lights) {
+            lights_buffer.push_back(std::move(light));
+        }
+         co_await state.app_state.renderer.updateShaderStorageBuffer(
+              interpolated_frame.light_ssbo, sizeof(render::GPULight) * lights_buffer.size(), lights_buffer.data());
+
+        co_await pipeline::renderGBufferToScreen(state.app_state.renderer, interpolated_frame, state.render_resources, &render_stats); 
+
+        // GUI
+        co_await state.app_state.gui.newFrame();
+        co_await state.app_state.gui.draw(gui::drawDebugOverlay, logic_fps, logic_frame_time, std::cref(render_stats));
+        co_await state.app_state.gui.draw(gui::drawRenderControlWindow, std::ref(gbuffer_render_options), std::ref(shadow_map_render_options));
+        co_await state.app_state.gui.render();
+
+        // clear stats
+        render_stats.draw_calls = 0;
+        render_stats.vertices = 0;
+        render_stats.triangles = 0;
+
+        co_return;
+    }
+
+    asio::awaitable<void> syncStage(async::LifecycleToken & token, GameState & state)
+    {
+        co_stop_if(token);
+        co_await state.app_state.renderer.present(); // Swap buffers
+    }
+
+    asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
     {
         co_await app_state.renderer.enableVSync();
 
@@ -152,200 +280,13 @@ namespace astre::entry
             }
         );
         
-        float logic_fps = 0.0f;
-        float logic_frame_time = 0.0f;
+        orchestrator.setLogicSubstage<0>(logicStep0);
 
-        constexpr float logic_frame_smoothing = 0.9f;
+        orchestrator.setRenderStage(renderStage);
 
-        std::chrono::steady_clock::time_point logic_last_time;
-        std::chrono::steady_clock::time_point logic_start;
+        orchestrator.setPostSync(syncStage);
 
-        orchestrator.setLogicSubstage<0>([
-            &logic_last_time, &logic_start,
-            &logic_fps, &logic_frame_time,
-            &logic_frame_smoothing
-
-        ](float dt, GameFrame & frame, GameState & state) -> asio::awaitable<void>
-        {
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            assert(cs.slot().is_connected() && "logic stage: cancellation_state is not connected");
-
-            if(async::isCancelled(cs)) co_return;
-
-            spdlog::debug("[logic] logic stage");
-
-            logic_last_time = logic_start;
-            logic_start = std::chrono::steady_clock::now();
-
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[logic] input + world");
-            co_await (state.app_state.input.update() && state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}));
-
-            // {
-            //     asio::cancellation_signal signal1;
-            //     asio::cancellation_signal signal2;
-
-            //     co_await asio::experimental::make_parallel_group(
-            //         asio::co_spawn(
-            //             ex,
-            //             state.app_state.input.update(),
-            //             asio::bind_cancellation_slot(signal1.slot(), asio::deferred)
-            //         ),
-            //         asio::co_spawn(
-            //             ex,
-            //             state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}),
-            //             asio::bind_cancellation_slot(signal2.slot(), asio::deferred)
-            //         )
-            //     ).async_wait(asio::experimental::wait_for_one_error(), asio::use_awaitable);
-            // }
-
-            // ECS stage
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[logic] transform + input");
-            co_await (state.systems.transform.run(dt) && state.systems.input.run(dt));
-            
-            // {
-            //     asio::cancellation_signal signal1;
-            //     asio::cancellation_signal signal2;
-            //     co_await asio::experimental::make_parallel_group(
-            //         asio::co_spawn(
-            //             ex,
-            //             state.systems.transform.run(dt),
-            //             asio::bind_cancellation_slot(signal1.slot(), asio::deferred)
-            //         ),
-            //         asio::co_spawn(
-            //             ex,
-            //             state.systems.input.run(dt),
-            //             asio::bind_cancellation_slot(signal2.slot(), asio::deferred)
-            //         )
-            //     ).async_wait(asio::experimental::wait_for_one_error(), asio::use_awaitable);
-            // }
-            
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[logic] script");
-            co_await state.systems.script.run(dt);
-
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[logic] camera");
-            co_await state.systems.camera.run(dt, frame.render_frame);
-            
-            //
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[logic] visual + light");
-            co_await state.systems.visual.run(dt, frame.render_frame);
-            co_await state.systems.light.run(dt, frame.render_frame);  // CRASH
-            // {
-            //     asio::cancellation_signal signal1;
-            //     asio::cancellation_signal signal2;
-
-            //     co_await asio::experimental::make_parallel_group(
-            //         asio::co_spawn(
-            //             ex,
-            //             state.systems.visual.run(dt, frame.render_frame),
-            //             asio::bind_cancellation_slot(signal1.slot(), asio::deferred)
-            //         ),
-            //         asio::co_spawn(
-            //             ex,
-            //             state.systems.light.run(dt, frame.render_frame),
-            //             asio::bind_cancellation_slot(signal2.slot(), asio::deferred)
-            //         )
-            //     ).async_wait(
-            //         asio::experimental::wait_for_one_error(),
-            //         asio::use_awaitable
-            //     );
-            // }
-
-            // update light SSBO 
-            if(async::isCancelled(cs)) co_return;
-            co_await state.app_state.renderer.updateShaderStorageBuffer(
-                  frame.render_frame.light_ssbo, sizeof(render::GPULight) * frame.render_frame.gpu_lights.size(), frame.render_frame.gpu_lights.data());
-
-
-            const float frame_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
-            logic_frame_time = (logic_frame_time * logic_frame_smoothing) + (frame_time * (1.0f - logic_frame_smoothing));
-
-            const float current_fps = 1.0f / std::max((std::chrono::duration<float>(logic_start - logic_last_time).count()), 1e-6f);
-            logic_fps = (logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
-
-            co_return;
-        });
-
-        render::FrameStats render_stats;
-        render::RenderOptions gbuffer_render_options
-        {
-            .mode = render::RenderMode::Solid
-        };
-        render::RenderOptions shadow_map_render_options 
-        {
-            .mode = render::RenderMode::Solid,
-            .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
-        };
-
-        orchestrator.setRenderStage([
-            &gbuffer_render_options, &shadow_map_render_options, &render_stats,
-            &logic_fps, &logic_frame_time
-        ](float alpha, const render::Frame & prev, const render::Frame & curr, GameState & state) -> asio::awaitable<void> {
-            spdlog::debug("[render] render stage");
-
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            assert(cs.slot().is_connected() && "render stage: cancellation_state is not connected");
-
-            if(async::isCancelled(cs)) co_return;
-
-            // Render interpolated frame using prev <-> curr, using alpha
-            auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
-
-            // update light SSBO 
-            // if(async::isCancelled(cs)) co_return;
-            // co_await state.app_state.renderer.updateShaderStorageBuffer(
-            //       interpolated_frame.light_ssbo, sizeof(render::GPULight) * interpolated_frame.gpu_lights.size(), interpolated_frame.gpu_lights.data());
-
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] renderFrameToGBuffer");
-            co_await pipeline::renderFrameToGBuffer(state.app_state.renderer, interpolated_frame, state.render_resources, gbuffer_render_options, &render_stats);
-            
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] renderFrameToShadowMaps");
-            co_await pipeline::renderFrameToShadowMaps(state.app_state.renderer, interpolated_frame, state.render_resources, shadow_map_render_options, &render_stats);
-            
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] renderGBufferToScreen");
-            co_await pipeline::renderGBufferToScreen(state.app_state.renderer, interpolated_frame, state.render_resources, &render_stats); 
-
-            // GUI
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] gui newFrame");
-            co_await state.app_state.gui.newFrame();
-
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] gui draw drawDebugOverlay");
-            co_await state.app_state.gui.draw(gui::drawDebugOverlay, logic_fps, logic_frame_time, std::cref(render_stats));
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] gui draw drawRenderControlWindow");
-            co_await state.app_state.gui.draw(gui::drawRenderControlWindow, std::ref(gbuffer_render_options), std::ref(shadow_map_render_options));
-
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[render] gui render");
-            co_await state.app_state.gui.render();
-
-            // clear stats
-            render_stats.draw_calls = 0;
-            render_stats.vertices = 0;
-            render_stats.triangles = 0;
-
-            co_return;
-        });
-
-        orchestrator.setPostSync([&](GameState & state) -> asio::awaitable<void> {
-            asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-            if(async::isCancelled(cs)) co_return;
-            spdlog::debug("[sync] renderer present");
-            co_await app_state.renderer.present(); // Swap buffers
-        });
-
-        co_await orchestrator.runLoop();
-
-        app_state.lifecycle.markFinished();
+        co_await orchestrator.runLoop(token);
     }
 
     asio::awaitable<int> main(process::IProcess & process, const entry::AppPaths & paths)

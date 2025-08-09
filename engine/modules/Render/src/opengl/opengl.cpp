@@ -519,10 +519,7 @@ namespace astre::render::opengl
     asio::awaitable<void> OpenGLRenderer::clearScreen(math::Vec4 color, std::optional<std::size_t> fbo)
     {
         if(good() == false)co_return;
-
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
         
-        if(async::isCancelled(cs)) co_return;
         co_await _render_context->ensureOnStrand();
         
         if(good() == false)co_return;
@@ -570,12 +567,8 @@ namespace astre::render::opengl
     {
         if(good() == false)co_return;
 
-        asio::cancellation_state cs = co_await asio::this_coro::cancellation_state;
-        
-        if(async::isCancelled(cs)) co_return;
         co_await _render_context->ensureOnStrand();
         
-        if(async::isCancelled(cs)) co_return;
         if(good() == false)co_return;
 
         if(fbo)

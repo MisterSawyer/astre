@@ -56,9 +56,10 @@ namespace astre::render
         math::Mat4 view_matrix; // in
         math::Mat4 proj_matrix; // in
         absl::flat_hash_map<std::size_t, RenderProxy> render_proxies; // in
-        
+        // lights
         std::size_t light_ssbo; // in
-        std::vector<GPULight> gpu_lights; // ??? is it necessary ?
+        absl::flat_hash_map<std::size_t, GPULight> gpu_lights;
+        // shadows
         std::vector<math::Mat4> light_space_matrices; // in
         std::uint32_t shadow_casters_count = 0; // in
     };

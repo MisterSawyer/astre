@@ -22,31 +22,22 @@ namespace astre::ecs::system
 
     asio::awaitable<void> LightSystem::run(float dt, render::Frame & frame)
     {
-        auto cs = co_await asio::this_coro::cancellation_state;
-        assert(cs.slot().is_connected() && "LightSystem run: cancellation_state is not connected");
-
-        spdlog::debug("Running LightSystem");
-
         frame.gpu_lights.clear();
         frame.light_space_matrices.clear();
         frame.light_space_matrices.reserve(MAX_SHADOW_CASTERS);
 
-
         math::Vec3 position;
-        math::Quat rotation;
         math::Vec3 direction;
 
-        std::size_t light_id = 0;
         render::GPULight gpu_light{};
 
         // collect lights
-        co_await getRegistry().runOnAllWithComponents<TransformComponent, LightComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const LightComponent & light_component) -> asio::awaitable<void>
+        getRegistry().runOnAllWithComponents<TransformComponent, LightComponent>(
+            [&](const Entity e, const TransformComponent & transform_component, const LightComponent & light_component)
             {
-                if(light_id >= MAX_LIGHTS) co_return;
+                if(frame.gpu_lights.size() >= MAX_LIGHTS) return;
 
                 position = math::deserialize(transform_component.position());
-                rotation = math::deserialize(transform_component.rotation());
                 direction = math::deserialize(transform_component.forward());
 
                 // Move the light slightly forward along its direction
@@ -88,14 +79,9 @@ namespace astre::ecs::system
 
                 gpu_light.castShadows.x = static_cast<uint32_t>(light_component.cast_shadows());
 
-                frame.gpu_lights.emplace_back(std::move(gpu_light));
-
-                light_id++;
+                frame.gpu_lights[e] = (std::move(gpu_light));
 
                 assert(frame.gpu_lights.size() <= MAX_LIGHTS);
-                assert(frame.gpu_lights.size() == light_id);
-
-                co_return;
             }
         );
 
@@ -106,7 +92,7 @@ namespace astre::ecs::system
             math::Mat4 model_matrix;
 
             std::size_t shadow_caster_id = 0;
-            for (render::GPULight & shadow_caster : frame.gpu_lights)
+            for (auto & [entity, shadow_caster] : frame.gpu_lights)
             {
                 if(shadow_caster_id >= MAX_SHADOW_CASTERS) break;
                 if(shadow_caster.castShadows.x == 0) continue;
@@ -162,7 +148,7 @@ namespace astre::ecs::system
 
             frame.shadow_casters_count = shadow_caster_id;
         }
-        
+
         co_return;
     }
 }

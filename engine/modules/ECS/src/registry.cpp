@@ -60,12 +60,10 @@ namespace astre::ecs
         }
     }
 
-    asio::awaitable<std::optional<Entity>> Registry::getEntity(std::string name) const
+    std::optional<Entity> Registry::getEntity(std::string name) const
     {
-        co_await _async_context.ensureOnStrand();
-
-        if(!_names_to_entities.contains(name)) co_return std::nullopt;
-        co_return _names_to_entities.at(name);
+        if(!_names_to_entities.contains(name)) return std::nullopt;
+        return _names_to_entities.at(name);
     }
 
     asio::awaitable<std::optional<std::string>> Registry::getName(Entity entity) const
