@@ -158,10 +158,11 @@ namespace astre::pipeline
         co_return stats;
     }
     
-    static asio::awaitable<render::FrameStats> _renderGBufferToScreen(    
+    static asio::awaitable<render::FrameStats> _renderGBuffer(    
         render::IRenderer & renderer,
         const render::Frame & frame,
-        const DeferredShadingResources & resources)
+        const DeferredShadingResources & resources,
+        std::optional<std::size_t> fbo)
     {
         // clear screen
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
@@ -193,7 +194,7 @@ namespace astre::pipeline
             render::RenderOptions{
             .mode = render::RenderMode::Solid
             },
-            std::nullopt
+            fbo
         );
 
         co_return stats;
@@ -204,7 +205,8 @@ namespace astre::pipeline
             const DeferredShadingResources & render_resources,
             float alpha, const render::Frame & prev, const render::Frame & curr,
             const render::RenderOptions & gbuffer_render_options,
-            const render::RenderOptions & shadow_map_render_options)
+            const render::RenderOptions & shadow_map_render_options,
+            std::optional<std::size_t> fbo)
     {
         // Render interpolated frame using prev <-> curr, using alpha
         auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
@@ -223,7 +225,7 @@ namespace astre::pipeline
          co_await renderer.updateShaderStorageBuffer(
               render_resources.light_ssbo, sizeof(render::GPULight) * lights_buffer.size(), lights_buffer.data());
 
-        stats += co_await _renderGBufferToScreen(renderer, interpolated_frame, render_resources);
+        stats += co_await _renderGBuffer(renderer, interpolated_frame, render_resources, fbo);
 
         co_return stats;
     }

@@ -12,6 +12,8 @@ project("AstreGame"
 
 set(PROJECT_PREFIX "astre_game")
 
+include("${CMAKE_SOURCE_DIR}/cmake/compile_options.cmake")
+
 # Name the target executable
 add_executable("${PROJECT_NAME}"
     "src/main.cpp"

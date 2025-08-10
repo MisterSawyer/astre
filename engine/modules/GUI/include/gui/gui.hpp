@@ -1,5 +1,8 @@
 #pragma once
 
+#include <atomic>
+#include <array>
+
 #include "native/native.h"
 #include <asio.hpp>
 
@@ -14,8 +17,48 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+namespace astre::gui::detail
+{
+    //TODO move to specyfic impl
+    struct Win32Msg { UINT msg; WPARAM wParam; LPARAM lParam; };
+
+    // Single Producer Single Consumer Queue
+    template<std::size_t N>
+    class SPSQQueue 
+    {
+        static_assert((N & (N - 1)) == 0, "N must be power of two");
+
+    public:
+        bool push(const Win32Msg& v) noexcept 
+        {
+            auto h = _head.load(std::memory_order_relaxed);
+            auto nh = (h + 1) & (N - 1);
+            if (nh == _tail.load(std::memory_order_acquire)) return false; // full
+            _buf[h] = v;
+            _head.store(nh, std::memory_order_release);
+            return true;
+        }
+
+        bool pop(Win32Msg& out) noexcept 
+        {
+            auto t = _tail.load(std::memory_order_relaxed);
+            if (t == _head.load(std::memory_order_acquire)) return false; // empty
+            out = _buf[t];
+            _tail.store((t + 1) & (N - 1), std::memory_order_release);
+            return true;
+        }
+
+    private:
+        std::atomic<uint32_t> _head{0}, _tail{0};
+        std::array<Win32Msg, N> _buf{};
+    };
+}
+
 namespace astre::gui
 {
+    // Forward-declared proxy proc (C linkage/ no captures)
+    extern "C" LRESULT CALLBACK Astre_ImGuiProxyWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
     class GUIService
     {
         public:
@@ -28,7 +71,8 @@ namespace astre::gui
 
             asio::awaitable<void> init()
             {
-                co_await _process.registerProcedureCallback(_window.getHandle(), ImGui_ImplWin32_WndProcHandler);
+                // will run independently in the process IO thread
+                co_await _process.registerProcedureCallback(_window.getHandle(), Astre_ImGuiProxyWndProc);
                 
                 co_await _renderer.getAsyncContext().ensureOnStrand();
 
@@ -63,6 +107,13 @@ namespace astre::gui
                 
                 ImGui_ImplOpenGL3_NewFrame();
                 ImGui_ImplWin32_NewFrame();
+
+                // Drain queued Win32 messages on the render strand BEFORE NewFrame
+                detail::Win32Msg m;
+                while (_msgQueue.pop(m)) {
+                    ImGui_ImplWin32_WndProcHandler(_window.getHandle(), m.msg, m.wParam, m.lParam);
+                }
+
                 ImGui::NewFrame();
                 
                 co_return;
@@ -90,9 +141,17 @@ namespace astre::gui
 
             render::IRenderer & getRenderer() { return _renderer; }
 
+            // Called by the proxy WndProc on the IO/message thread:
+            static bool enqueueMsg(UINT msg, WPARAM wParam, LPARAM lParam) noexcept {
+                return _msgQueue.push({msg, wParam, lParam});
+            }
+
         private:
             process::IProcess & _process;
             render::IRenderer & _renderer;
             window::IWindow  &_window;
+
+            // Single global SPSC queue used by the proxy and drained by the render strand.
+            static inline detail::SPSQQueue<2048> _msgQueue{};
     };
 }

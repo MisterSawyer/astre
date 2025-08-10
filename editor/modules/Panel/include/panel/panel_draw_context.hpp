@@ -10,6 +10,8 @@ namespace astre::editor::panel
         unsigned int assets_dock_id{0};
         unsigned int viewport_dock_id{0};
 
+        std::size_t viewport_texture;
+
         struct Services {
             //void* selectionModel{};  // SelectionModel*
             //void* projectModel{};    // ProjectModel*

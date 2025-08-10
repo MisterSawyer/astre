@@ -26,6 +26,16 @@ namespace astre::editor::panel
             const int w = (int)avail.x;
             const int h = (int)avail.y;
 
+            if (ctx.viewport_texture)
+            {
+                ImGui::Image(
+                    (ImTextureID)(intptr_t)ctx.viewport_texture,
+                    ImVec2((float)w, (float)h),
+                    ImVec2(0.0f, 1.0f),  // uv0
+                    ImVec2(1.0f, 0.0f)   // uv1 (flipped)
+                );
+            }
+
             ImGui::End();
         }
     }

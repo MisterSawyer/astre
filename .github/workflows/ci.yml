@@ -40,7 +40,7 @@ jobs:
 
     - name: Run tests
       run: |
-        artifacts\bin\AstreTests.exe --gtest_filter=-OpenGLShaderRealContextTest.*:WinapiProcessTest.RegisterUnregisterOGLContext
+        artifacts\bin\AstreEngineTests.exe --gtest_filter=-OpenGLShaderRealContextTest.*:WinapiProcessTest.RegisterUnregisterOGLContext
   
   package:
     runs-on: windows-latest

@@ -19,6 +19,8 @@ option(ASTRE_BUILD_TESTS "Build tests" OFF)
 
 set(PROJECT_PREFIX "astre")
 
+include("${CMAKE_SOURCE_DIR}/cmake/compile_options.cmake")
+
 add_subdirectory(modules)
 
 # create static library target

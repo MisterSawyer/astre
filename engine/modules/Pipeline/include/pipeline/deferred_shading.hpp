@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "native/native.h"
 #include <asio.hpp>
 
@@ -31,5 +33,6 @@ namespace astre::pipeline
         const DeferredShadingResources & resources,
         float alpha, const render::Frame & prev, const render::Frame & curr,
         const render::RenderOptions & gbuffer_render_options,
-        const render::RenderOptions & shadow_map_render_options);
+        const render::RenderOptions & shadow_map_render_options,
+        std::optional<std::size_t> fbo = std::nullopt);
 }

@@ -14,8 +14,8 @@ message(STATUS "bin/ directory ${CMAKE_INSTALL_BINDIR}")
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-include("${CMAKE_SOURCE_DIR}/cmake/dependencies.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/compile_options.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/dependencies.cmake")
 
 # Add subprojects
 add_subdirectory(engine)
