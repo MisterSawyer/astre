@@ -19,7 +19,7 @@ struct EditorState
     ecs::Registry & registry;
     ecs::Systems systems;
 
-    world::WorldStreamer world;
+    world::WorldStreamer & world_streamer;
 };
 
 asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
@@ -36,8 +36,14 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     ecs::Registry registry(app_state.process.getExecutionContext());
 
+    world::WorldStreamer world_streamer(  
+        app_state.process.getExecutionContext(),
+        paths.resources / "worlds/levels/level_0.json",
+        registry,
+        32.0f, 32);
+
     pipeline::FramesBuffer<EditorFrame> buffer;
-    pipeline::PipelineOrchestrator<EditorFrame, EditorState, 4, 3> orchestrator(app_state.process, buffer,
+    pipeline::PipelineOrchestrator<EditorFrame, EditorState, 6, 3> orchestrator(app_state.process, buffer,
         EditorState
         {
             .app_state = app_state,
@@ -50,11 +56,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .script = ecs::system::ScriptSystem(script_runtime, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
-            .world = world::WorldStreamer(  
-                app_state.process.getExecutionContext(),
-                paths.resources / "worlds/levels/level_0.json",
-                registry,
-                32.0f, 32)
+            .world_streamer = world_streamer
         }
     );
     
@@ -84,7 +86,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             {
                 auto g = asio::experimental::make_parallel_group(
                     asio::co_spawn(ex, editor_state.app_state.input.update(token),                    asio::deferred),
-                    asio::co_spawn(ex, editor_state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
+                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
                 );
                 auto [ord, e1, e2] =
                     co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
@@ -123,7 +125,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         }
     );
 
-
     // Create viewport FBO
     auto viewport_fbo_res = co_await app_state.renderer.createFrameBufferObject(
         "fbo::viewport", {1280, 728},
@@ -136,11 +137,58 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         // TODO throw?
         co_return;
     }
-
     std::size_t viewport_fbo = *viewport_fbo_res;
-
     auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(viewport_fbo);
     assert(viewport_fbo_textures.size() == 1);
+
+    panel::DrawContext ctx
+    {
+        .viewport_texture = viewport_fbo_textures.at(0)
+    };
+
+    panel::MainMenuBar main_menu_bar;
+    panel::ScenePanel scene_panel(world_streamer);
+    panel::PropertiesPanel properties_panel;
+    panel::AssetsPanel assets_panel;
+    panel::ViewportPanel viewport_panel;
+
+    orchestrator.setLogicStage<4>(
+        [&properties_panel, &scene_panel]
+        (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
+        {
+            co_stop_if(token);
+            if(scene_panel.selectedEntityChanged())
+            {
+                scene_panel.resetSelectedEntityChanged();
+                properties_panel.setSelectedEntityDef(scene_panel.getSelectedEntityDef());
+            }
+        }
+    );
+
+
+    // save phase
+    orchestrator.setLogicStage<5>(
+        [&world_streamer, &properties_panel]
+        (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
+        {
+            co_stop_if(token);
+
+            if(properties_panel.propertiesChanged())
+            {
+                properties_panel.resetPropertiesChanged();
+                // save to world
+                const auto selected_entity_def = properties_panel.getSelectedEntityDef();
+                if(selected_entity_def)
+                {
+                    const auto [chunk_id, entity_def] = *selected_entity_def;
+
+                    world_streamer.updateEntity(chunk_id, entity_def, asset::use_json);
+                }
+            }
+        }
+    );
+
+
 
     orchestrator.setRenderStage<0>(
         [&app_state, &viewport_fbo]
@@ -179,16 +227,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     layout::DockSpace dock_space;
-
-    panel::DrawContext ctx;
-    ctx.viewport_texture = viewport_fbo_textures.at(0);
-
-    panel::MainMenuBar main_menu_bar;
-    panel::ScenePanel scene_panel;
-    panel::PropertiesPanel properties_panel;
-    panel::AssetsPanel assets_panel;
-    panel::ViewportPanel viewport_panel;
-
 
     orchestrator.setRenderStage<2>(
         [&app_state, 

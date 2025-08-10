@@ -32,15 +32,31 @@ namespace astre::world {
         return id;
     }
 
-    asio::awaitable<void> WorldStreamer::addEntitiesToChunk(ChunkID chunk_id, std::vector<ecs::Entity> entities)
+    const absl::flat_hash_set<ChunkID> & WorldStreamer::getAllChunks() const
     {
-        for(const auto & e : entities)
-        {
-            co_await _async_context.ensureOnStrand();
+        return _archive.getAllChunks();
+    }
 
-            _chunk_entities[chunk_id].insert(e);
-            _loaded_chunks[chunk_id].add_entities()->CopyFrom(co_await _serializer.serializeEntity(e));
-        }
+    std::optional<WorldChunk> WorldStreamer::readChunk(const ChunkID& id, asset::use_binary_t)
+    {
+        return _archive.readChunk(id, asset::use_binary);
+    }
+
+    std::optional<WorldChunk> WorldStreamer::readChunk(const ChunkID& id, asset::use_json_t)
+    {
+        return _archive.readChunk(id, asset::use_json);
+    }
+
+    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_binary_t)
+    {
+        _to_reload.emplace(chunk_id);
+        return _archive.updateEntity(chunk_id, entity_def, asset::use_binary);
+    }
+
+    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_json_t)
+    {
+        _to_reload.emplace(chunk_id);
+        return _archive.updateEntity(chunk_id, entity_def, asset::use_json);
     }
 
     asio::awaitable<void> WorldStreamer::updateLoadPosition(const math::Vec3 & pos)
@@ -65,9 +81,9 @@ namespace astre::world {
             }
         }
 
-        // Load missing chunks
+        // Load missing chunks, or reload if needed
         for (const ChunkID& cid : required) {
-            if (!_loaded_chunks.contains(cid))
+            if (!_loaded_chunks.contains(cid) || _to_reload.contains(cid))
             {
                 co_await loadChunk(cid);
             }
@@ -90,9 +106,8 @@ namespace astre::world {
 
     asio::awaitable<void> WorldStreamer::loadChunk(const ChunkID& id) 
     {
+        co_await unloadChunk(id);
         co_await _async_context.ensureOnStrand();
-
-        if(_loaded_chunks.contains(id)) co_return;
 
         spdlog::debug("Loading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
@@ -110,7 +125,7 @@ namespace astre::world {
             co_await _async_context.ensureOnStrand();
 
             if (entity.has_value()) {
-                _chunk_entities[id].insert(*entity);
+                _loaded_chunk_entities[id].insert(*entity);
                 co_await _loader.loadEntity(entity_def, *entity);
             }
         }
@@ -118,6 +133,7 @@ namespace astre::world {
         co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk loaded  ({};{};{})", id.x(), id.y(), id.z());
         _loaded_chunks[id] = std::move(*chunk);
+        _to_reload.erase(id);
     }
 
     asio::awaitable<void> WorldStreamer::unloadChunk(const ChunkID& id) 
@@ -126,8 +142,9 @@ namespace astre::world {
         spdlog::debug("Unloading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
         if (!_loaded_chunks.contains(id)) co_return;
+        if(!_loaded_chunk_entities.contains(id)) co_return;
 
-        const absl::flat_hash_set<astre::ecs::Entity> chunk = _chunk_entities[id];
+        const absl::flat_hash_set<astre::ecs::Entity> chunk = _loaded_chunk_entities.at(id);
         for (ecs::Entity e : chunk)
         {
             co_await _registry.destroyEntity(e);
@@ -136,6 +153,7 @@ namespace astre::world {
         co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk unloaded  ({};{};{})", id.x(), id.y(), id.z());
         _loaded_chunks.erase(id);
+        _loaded_chunk_entities.erase(id);
     }
     
     asio::awaitable<void> WorldStreamer::saveAll(asset::use_binary_t)

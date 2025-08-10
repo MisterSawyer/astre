@@ -39,13 +39,20 @@ namespace astre::world
         bool writeChunk(const WorldChunk & chunk, asset::use_binary_t);
         bool writeChunk(const WorldChunk & chunk, asset::use_json_t);
 
+        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_binary_t);
+        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_json_t);
+
         std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_binary_t);
         std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_json_t);
+
+        const absl::flat_hash_set<ChunkID> & getAllChunks() const;
 
     private:
 
         std::filesystem::path _file_path;
         std::fstream _stream;
+
+        absl::flat_hash_set<ChunkID> _all_chunks;
         absl::flat_hash_map<ChunkID, ChunkIndexEntry> _chunk_index;
 
         bool openStream(std::ios::openmode mode);

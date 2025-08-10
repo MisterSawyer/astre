@@ -11,13 +11,5 @@ namespace astre::editor::panel
         unsigned int viewport_dock_id{0};
 
         std::size_t viewport_texture;
-
-        struct Services {
-            //void* selectionModel{};  // SelectionModel*
-            //void* projectModel{};    // ProjectModel*
-            //void* inspectorModel{};  // InspectorModel*
-            //void* eventBus{};        // EventBus*
-            //void* asyncService{};    // Async helpers / strands
-        } services;
     };
 }

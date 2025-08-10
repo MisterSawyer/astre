@@ -1,6 +1,9 @@
 #pragma once
 #include <string_view>
 
+#include "world/world.hpp"
+#include "ecs/ecs.hpp"
+
 #include "panel/panel_interface.hpp"
 
 namespace astre::editor::panel
@@ -17,8 +20,20 @@ namespace astre::editor::panel
 
         void draw(const DrawContext& ctx) noexcept override;
 
+        void setSelectedEntityDef(std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> def);
+
+        bool propertiesChanged() const noexcept { return _properties_changed; }
+
+        void resetPropertiesChanged() noexcept { _properties_changed = false; }
+
+        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> getSelectedEntityDef() const noexcept { return _selected_entity_def; }
+
     private:
         bool _visible{true};
+
+        bool _properties_changed = false;
+
+        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> _selected_entity_def;
     };
 
 }

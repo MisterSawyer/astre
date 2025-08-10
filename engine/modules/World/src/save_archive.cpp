@@ -42,6 +42,7 @@ namespace astre::world
         {
             const auto& chunk = data.chunks(static_cast<int>(i));
             _chunk_index[chunk.id()].index = i;
+            _all_chunks.emplace(chunk.id());
         }
     }
 
@@ -89,6 +90,8 @@ namespace astre::world
 
             _chunk_index[chunk.id()].offset = offset;
             _chunk_index[chunk.id()].size = message_size;
+
+            _all_chunks.emplace(chunk.id());
         }
 
         _stream.close();
@@ -115,6 +118,11 @@ namespace astre::world
         _stream.open(_file_path, mode);
 
         return _stream.is_open() && _stream.good();
+    }
+
+    const absl::flat_hash_set<ChunkID> & SaveArchive::getAllChunks() const
+    {
+        return _all_chunks;
     }
 
     static std::optional<std::size_t> _calculateChunkByteSize(const WorldChunk & chunk)
@@ -244,6 +252,7 @@ namespace astre::world
         std::string json;
         google::protobuf::util::JsonPrintOptions options;
         options.preserve_proto_field_names = true;
+        options.always_print_fields_with_no_presence = true;
         options.add_whitespace = true;
 
         google::protobuf::util::MessageToJsonString(archive, &json, options);
@@ -258,6 +267,85 @@ namespace astre::world
         out << json;
         return true;
     }
+
+    bool SaveArchive::updateEntity(const ChunkID& chunk_id,
+                                  const ecs::EntityDefinition& entity_def,
+                                  asset::use_binary_t)
+    {
+        // Load existing chunk (binary)
+        WorldChunk chunk;
+        if (auto existing = readChunk(chunk_id, asset::use_binary))
+        {
+            chunk = std::move(*existing);
+        }
+        else
+        {
+            spdlog::error("Failed to find chunk to update");
+            return false;
+        }
+
+        // Replace or append entity by name()
+        auto* entities = chunk.mutable_entities();
+        const std::string& key_name = entity_def.name();
+
+        auto it = std::find_if(entities->begin(), entities->end(),
+            [&](const ecs::EntityDefinition& e) {
+                return e.name() == key_name;
+            }
+        );
+
+        if (it != entities->end())
+        {
+            it->CopyFrom(entity_def);
+        }
+        else
+        {
+            entities->Add()->CopyFrom(entity_def);
+        }
+
+        // Persist updated chunk via existing logic (handles in-place/append & index)
+        return writeChunk(chunk, asset::use_binary);
+    }
+
+    bool SaveArchive::updateEntity(const ChunkID& chunk_id,
+                                  const ecs::EntityDefinition& entity_def,
+                                  asset::use_json_t)
+    {
+        WorldChunk chunk;
+
+        if (auto existing = readChunk(chunk_id, asset::use_json))
+        {
+            chunk = std::move(*existing);
+        }
+        else
+        {
+            spdlog::error("Failed to find chunk to update");
+            return false;
+        }
+
+        // Replace or append entity by name()
+        auto* entities = chunk.mutable_entities();
+        const std::string& key_name = entity_def.name();
+
+        auto it = std::find_if(entities->begin(), entities->end(),
+            [&](const ecs::EntityDefinition& e) {
+                return e.name() == key_name;
+            }
+        );
+
+        if (it != entities->end())
+        {
+            it->CopyFrom(entity_def);
+        }
+        else
+        {
+            entities->Add()->CopyFrom(entity_def);
+        }
+
+        // Persist updated chunk via existing logic (handles in-place/append & index)
+        return writeChunk(chunk, asset::use_json);
+    }
+
 
     std::optional<WorldChunk> SaveArchive::readChunk(const ChunkID & id, asset::use_binary_t)
     {

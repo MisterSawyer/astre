@@ -26,11 +26,17 @@ namespace astre::world
             float chunk_size,
             unsigned int max_loaded_chunks);
 
-        asio::awaitable<void> addEntitiesToChunk(ChunkID chunk_id, std::vector<ecs::Entity> entities);
+        const absl::flat_hash_set<ChunkID> & getAllChunks() const;
 
         asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
         asio::awaitable<void> saveAll(asset::use_binary_t);
         asio::awaitable<void> saveAll(asset::use_json_t);
+
+        std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_binary_t);
+        std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_json_t);
+
+        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_binary_t);
+        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_json_t);
 
     private:
         asio::awaitable<void> loadChunk(const ChunkID& id);
@@ -47,7 +53,9 @@ namespace astre::world
         float _chunk_size;
         unsigned int _max_loaded_chunks;
 
+
         absl::flat_hash_map<ChunkID, WorldChunk> _loaded_chunks;
-        absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _chunk_entities;
+        absl::flat_hash_set<ChunkID> _to_reload;
+        absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _loaded_chunk_entities;
     };
 }
