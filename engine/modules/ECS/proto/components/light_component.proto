@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "Math/proto/math.proto";
+
 package astre.ecs;
 
 enum LightType 
@@ -18,17 +20,14 @@ message LightComponent
     bool cast_shadows = 2;
 
     // Color and intensity
-    optional float color_r = 3;
-    optional float color_g = 4;
-    optional float color_b = 5;
-    optional float intensity = 6;
+    astre.math.Vec4Serialized color = 3;
 
     // Attenuation (used by point/spot lights)
-    optional float constant = 7;
-    optional float linear = 8;
-    optional float quadratic = 9;
+    optional float constant = 4;
+    optional float linear = 5;
+    optional float quadratic = 6;
 
     // Spot-specific cutoff angles (cosine values)
-    optional float inner_cutoff = 10;
-    optional float outer_cutoff = 11;
+    optional float inner_cutoff = 7;
+    optional float outer_cutoff = 8;
 }

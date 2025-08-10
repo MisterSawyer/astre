@@ -58,12 +58,7 @@ namespace astre::ecs::system
                     static_cast<float>(light_component.type())
                 );
 
-                gpu_light.color = math::Vec4(
-                    light_component.color_r(),
-                    light_component.color_g(),
-                    light_component.color_b(),
-                    light_component.intensity()
-                );
+                gpu_light.color = math::deserialize(light_component.color());
 
                 gpu_light.attenuation = math::Vec4(
                     light_component.constant(),

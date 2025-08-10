@@ -1,5 +1,9 @@
 #pragma once
 
+#include <utility>
+
+#include "render/render.hpp"
+
 namespace astre::editor::panel
 {
     struct DrawContext
@@ -11,5 +15,9 @@ namespace astre::editor::panel
         unsigned int viewport_dock_id{0};
 
         std::size_t viewport_texture;
+
+        float logic_fps{0.0f};
+        float logic_frame_time{0.0f};
+        astre::render::FrameStats stats;
     };
 }

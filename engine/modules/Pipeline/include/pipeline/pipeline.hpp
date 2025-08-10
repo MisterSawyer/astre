@@ -17,7 +17,6 @@
 #include "gui/gui.hpp"
 
 #include "pipeline/deferred_shading.hpp"
-#include "pipeline/gui_stats.hpp"
 
 #include "pipeline/logic_pipelines.hpp"
 

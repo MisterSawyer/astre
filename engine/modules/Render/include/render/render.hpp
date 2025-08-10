@@ -27,6 +27,8 @@ namespace astre::render
 {
     struct RenderProxy
     {
+        bool visible;
+        
         std::size_t vertex_buffer;
         std::size_t shader;
 

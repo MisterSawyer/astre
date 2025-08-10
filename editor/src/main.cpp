@@ -107,23 +107,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     // Logic 3. summary end stage
-    float logic_fps = 0.0f;
-    float logic_frame_time = 0.0f;
     constexpr float logic_frame_smoothing = 0.9f;
-
-    orchestrator.setLogicStage<3>(
-        [&logic_start, &logic_frame_time, &logic_fps, &logic_last_time, &logic_frame_smoothing]
-        (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
-        {
-            co_stop_if(token);
-            const float frame_time_ms =
-                std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
-            logic_frame_time = (logic_frame_time * logic_frame_smoothing) + (frame_time_ms * (1.0f - logic_frame_smoothing));
-            const float current_fps =
-                1.0f / std::max(std::chrono::duration<float>(logic_start - logic_last_time).count(), 1e-6f);
-            logic_fps = (logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
-        }
-    );
 
     // Create viewport FBO
     auto viewport_fbo_res = co_await app_state.renderer.createFrameBufferObject(
@@ -145,6 +129,20 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     {
         .viewport_texture = viewport_fbo_textures.at(0)
     };
+
+    orchestrator.setLogicStage<3>(
+        [&logic_start, &logic_last_time, &logic_frame_smoothing, &ctx]
+        (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
+        {
+            co_stop_if(token);
+            const float frame_time_ms =
+                std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
+            ctx.logic_frame_time = (ctx.logic_frame_time * logic_frame_smoothing) + (frame_time_ms * (1.0f - logic_frame_smoothing));
+            const float current_fps =
+                1.0f / std::max(std::chrono::duration<float>(logic_start - logic_last_time).count(), 1e-6f);
+            ctx.logic_fps = (ctx.logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
+        }
+    );
 
     panel::MainMenuBar main_menu_bar;
     panel::ScenePanel scene_panel(world_streamer);
@@ -168,7 +166,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // save phase
     orchestrator.setLogicStage<5>(
-        [&world_streamer, &properties_panel]
+        [&world_streamer, &properties_panel, &scene_panel]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -183,6 +181,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                     const auto [chunk_id, entity_def] = *selected_entity_def;
 
                     world_streamer.updateEntity(chunk_id, entity_def, asset::use_json);
+                    scene_panel.loadEntitesDefs();
                 }
             }
         }
@@ -199,7 +198,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         }
     );
 
-    render::FrameStats render_stats;
     render::RenderOptions gbuffer_render_options
     {
         .mode = render::RenderMode::Solid
@@ -212,17 +210,18 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     pipeline::DeferredShadingResources render_resources = co_await pipeline::buildDeferredShadingResources(app_state.renderer);
     orchestrator.setRenderStage<1>(
-        [&app_state, &render_resources, &gbuffer_render_options, &shadow_map_render_options, &viewport_fbo, &render_stats]
+        [&app_state, &render_resources, &gbuffer_render_options, &shadow_map_render_options, &viewport_fbo, &ctx]
         (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
         {
             co_stop_if(token);
 
-            render_stats = co_await pipeline::deferredShadingStage(
+            ctx.stats = co_await pipeline::deferredShadingStage(
                 app_state.renderer,
                 render_resources,
                 alpha, prev, curr,
                 gbuffer_render_options, shadow_map_render_options,
                 viewport_fbo);
+            
         }
     );
 

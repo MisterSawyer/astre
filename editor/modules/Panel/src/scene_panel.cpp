@@ -9,11 +9,13 @@ namespace astre::editor::panel
     ScenePanel::ScenePanel(world::WorldStreamer & world_streamer)
     : _world_streamer(world_streamer)
     {
-        _loadEntitesDefs();
+        loadEntitesDefs();
     }
 
-    void ScenePanel::_loadEntitesDefs()
+    void ScenePanel::loadEntitesDefs()
     {
+        _chunk_entities_defs.clear();
+        
         for(const auto & chunk_id : _world_streamer.getAllChunks())
         {
             // then for every node we obtain chunk definition

@@ -234,27 +234,6 @@ namespace astre::script
 
         ecs::LightComponent & ref;
 
-/*
-    LightType type = 1;
-    
-    bool cast_shadows = 2;
-
-    // Color and intensity
-    optional float color_r = 3;
-    optional float color_g = 4;
-    optional float color_b = 5;
-    optional float intensity = 6;
-
-    // Attenuation (used by point/spot lights)
-    optional float constant = 7;
-    optional float linear = 8;
-    optional float quadratic = 9;
-
-    // Spot-specific cutoff angles (cosine values)
-    optional float inner_cutoff = 10;
-    optional float outer_cutoff = 11;
-*/
-
 
         inline void f(){}
 

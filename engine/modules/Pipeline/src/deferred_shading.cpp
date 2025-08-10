@@ -108,6 +108,8 @@ namespace astre::pipeline
 
         for(const auto & [_, proxy] : frame.render_proxies)
         {
+            if(proxy.visible == false)continue;
+
             stats += co_await renderer.render(
                 proxy.vertex_buffer,
                 proxy.shader,
@@ -137,6 +139,8 @@ namespace astre::pipeline
             // render scene to shadow map
             for(const auto & [_, proxy] : frame.render_proxies)
             {
+                if(proxy.visible == false)continue;
+
                 if(shadow_caster_id >= frame.light_space_matrices.size())
                 {
                     continue;

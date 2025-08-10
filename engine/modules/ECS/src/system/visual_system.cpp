@@ -29,6 +29,8 @@ namespace astre::ecs::system
                     return;
                 }
                 
+                frame.render_proxies[e].visible = visual_component.visible();
+
                 frame.render_proxies[e].vertex_buffer = *vb_id;
                 frame.render_proxies[e].shader = *sh_id;
 

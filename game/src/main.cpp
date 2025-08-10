@@ -35,7 +35,7 @@ namespace astre::entry
         ecs::Registry registry(app_state.process.getExecutionContext());
 
         pipeline::FramesBuffer<GameFrame> buffer;
-        pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 2> orchestrator(app_state.process, buffer,
+        pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 1> orchestrator(app_state.process, buffer,
             GameState
             {
                 .app_state = app_state,
@@ -153,20 +153,6 @@ namespace astre::entry
                         render_resources,
                         alpha, prev, curr,
                         gbuffer_render_options, shadow_map_render_options);
-            }
-        );
-
-        // Render 1. Render GUI stage
-        orchestrator.setRenderStage<1>(
-            [&app_state, &logic_fps, &logic_frame_time, &render_stats, &gbuffer_render_options, &shadow_map_render_options]
-            (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
-            {
-                co_stop_if(token);
-                co_await pipeline::renderGUIStats(
-                    app_state.gui,
-                    logic_fps, logic_frame_time,
-                    render_stats,
-                    gbuffer_render_options, shadow_map_render_options);
             }
         );
         

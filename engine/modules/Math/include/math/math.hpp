@@ -137,6 +137,14 @@ namespace astre::math
     template<typename T>
     inline auto value_ptr(T&& v) { return glm::value_ptr(std::forward<T>(v)); }
 
+    inline float cosFromDegrees(float deg) noexcept {
+        return glm::cos(glm::radians(deg));
+    }
+
+    inline float degreesFromCos(float cosv) noexcept {
+        cosv = glm::clamp(cosv, -1.0f, 1.0f);
+        return glm::degrees(glm::acos(cosv));
+    }
 
 
     Vec2Serialized serialize(const Vec2& v);

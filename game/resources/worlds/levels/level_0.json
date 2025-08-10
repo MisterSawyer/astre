@@ -99,10 +99,7 @@
             "type": "SPOT",
             "cast_shadows": true,
 
-            "color_r": 1.0,
-            "color_g": 0.9,
-            "color_b": 0.7,
-            "intensity": 20.0,
+            "color": { "x": 1.0, "y": 0.9, "z": 0.7, "w": 20.0 },
 
             "constant": 1.0,
             "linear": 0.09,
@@ -138,11 +135,7 @@
           "light": {
             "type": "SPOT",
             "cast_shadows": true,
-
-            "color_r": 1.0,
-            "color_g": 0.9,
-            "color_b": 0.7,
-            "intensity": 4.0,
+            "color": { "x": 1.0, "y": 0.9, "z": 0.7, "w": 4.0 },
 
             "constant": 1.0,
             "linear": 0.09,
@@ -181,11 +174,7 @@
           "light": {
             "type": "SPOT",
             "cast_shadows": true,
-
-            "color_r": 1.0,
-            "color_g": 0.9,
-            "color_b": 0.7,
-            "intensity": 20.0,
+            "color": { "x": 1.0, "y": 0.9, "z": 0.7, "w": 20.0 },
 
             "constant": 1.0,
             "linear": 0.09,
@@ -218,11 +207,7 @@
           "light": {
             "type": "POINT",
             "cast_shadows": false,
-
-            "color_r": 0.0,
-            "color_g": 1.0,
-            "color_b": 0.7,
-            "intensity": 4.0,
+            "color": { "x": 0.0, "y": 1.0, "z": 0.7, "w": 4.0 },
 
             "constant": 1.0,
             "linear": 0.09,

@@ -45,8 +45,9 @@ namespace astre::editor::panel
         bool selectedEntityChanged() const noexcept;
         void resetSelectedEntityChanged() noexcept;
 
+        void loadEntitesDefs();
+
     private:
-        void _loadEntitesDefs();
 
         void _drawComponent(bool has, std::string label, world::ChunkID chunk_id, std::string entity_name, SelectedComponent kind);
 
