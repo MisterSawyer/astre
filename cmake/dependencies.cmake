@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.30)
 
 include(FetchContent)
 include(ExternalProject)
-include(cmake/silence_warnings.cmake)
+include("${CMAKE_SOURCE_DIR}/cmake/silence_warnings.cmake")
 
 # ---------------------------------------------------------
 # spdlog
@@ -293,7 +293,7 @@ message(STATUS "Fetching dependency `imgui` ...")
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY "https://github.com/ocornut/imgui.git"
-    GIT_TAG        "v1.92.1"
+    GIT_TAG        "v1.92.1-docking"
 )
 FetchContent_MakeAvailable(imgui)
 
@@ -308,6 +308,7 @@ add_library(imgui STATIC
 
 target_include_directories(imgui PUBLIC  ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 silence_warnings(TARGETS imgui)
+target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
 
 # ---------------------------------------------------------
 # GTest

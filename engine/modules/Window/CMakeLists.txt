@@ -1,4 +1,4 @@
-include("${PROJECT_SOURCE_DIR}/cmake/add_module.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
 
 set(INCLUDE_DIRS "include/window")
 if(WIN32)

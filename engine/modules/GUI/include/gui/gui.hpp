@@ -39,6 +39,7 @@ namespace astre::gui
 
                 io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
                 io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
 
                 // Setup Platform/Renderer backends
                 ImGui_ImplWin32_Init(this->_window.getHandle());
@@ -72,7 +73,7 @@ namespace astre::gui
             {
                 co_await _renderer.getAsyncContext().ensureOnStrand();
                 
-                gui_creator(std::forward<Args>(args)...);
+                std::invoke(std::forward<F>(gui_creator), std::forward<Args>(args)...);
                 
                 co_return;
             }

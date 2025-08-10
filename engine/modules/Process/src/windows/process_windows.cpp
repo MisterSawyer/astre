@@ -576,9 +576,20 @@ namespace astre::process::windows
 
         if(_window_procedures.contains(window))
         {
-            if(_window_procedures.at(window)(window, message, wparam, lparam) == true)
+            try
             {
-                return true;
+                if(_window_procedures.at(window)(window, message, wparam, lparam) == true)
+                {
+                    return true;
+                }
+            }
+            catch(const std::exception& e)
+            {
+                spdlog::error(std::format("[winapi-procedure] exception in attached window procedure: {}", e.what()));
+            }
+            catch(...)
+            {
+                spdlog::error(std::format("[winapi-procedure] unknown exception in attached window procedure"));
             }
         }
 

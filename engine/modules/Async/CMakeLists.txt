@@ -1,4 +1,4 @@
-include("${PROJECT_SOURCE_DIR}/cmake/add_module.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
 
 add_module(NAME "Async"
     INCLUDE_DIRS

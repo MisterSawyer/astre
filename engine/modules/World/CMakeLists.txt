@@ -1,5 +1,5 @@
-include("${PROJECT_SOURCE_DIR}/cmake/add_module.cmake")
-include("${PROJECT_SOURCE_DIR}/cmake/protobuf_generate.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/protobuf_generate.cmake")
 
 add_module(NAME "World"
     INCLUDE_DIRS
@@ -23,7 +23,7 @@ add_module(NAME "World"
 
 protobuf_generate(NAME "World_proto"
     PROTO_ROOT
-        ${PROJECT_SOURCE_DIR}/engine/modules
+        ${PROJECT_SOURCE_DIR}/modules
     PROTO_SRC_DIRS   
         ${CMAKE_CURRENT_SOURCE_DIR}/proto
     PROTO_DST_DIR
