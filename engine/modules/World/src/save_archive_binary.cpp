@@ -8,52 +8,14 @@ namespace astre::world
 {
     static constexpr std::int32_t MAGIC = 0xABCD1234;
 
-    // layout of json file
-    //chunks: [
-    //    {chunk0}, {chunk1}, ...
-    //]
-    SaveArchive::SaveArchive(std::filesystem::path file_path, asset::use_json_t)
-        : _file_path(std::move(file_path))
-    {
-        openStream(std::ios::in);
-
-        if(!_stream.is_open() || !_stream.good())return;
-
-        // need to load SaveArchiveData from json file 
-        // then scan it and add all indexes, and their offsets and sizes
-        // such that we  then can read from file only given part
-        std::stringstream buffer;
-        buffer << _stream.rdbuf();
-        _stream.close();
-
-        SaveArchiveData data;
-        google::protobuf::util::JsonParseOptions options;
-        options.ignore_unknown_fields = true;
-
-        auto status = google::protobuf::util::JsonStringToMessage(buffer.str(), &data, options);
-        if (!status.ok())
-        {
-            spdlog::error("Failed to parse SaveArchiveData JSON: {}", status.ToString());
-            return;
-        }
-
-        // Build logical index: ChunkID → index
-        for (std::size_t i = 0; i < static_cast<std::size_t>(data.chunks_size()); ++i)
-        {
-            const auto& chunk = data.chunks(static_cast<int>(i));
-            _chunk_index[chunk.id()].index = i;
-            _all_chunks.emplace(chunk.id());
-        }
-    }
-
     // layout of binary file
     //<varint_size><chunk_0_bytes>
     //<varint_size><chunk_1_bytes>
     //...
-    SaveArchive::SaveArchive(std::filesystem::path file_path, asset::use_binary_t)
+    SaveArchive<asset::use_binary_t>::SaveArchive(std::filesystem::path file_path)
         : _file_path(std::move(file_path))
     {
-        openStream(std::ios::in | std::ios::binary);
+        _openStream(std::ios::in | std::ios::binary);
 
         if (!_stream.is_open() || !_stream.good())
             return;
@@ -97,7 +59,7 @@ namespace astre::world
         _stream.close();
     }
 
-    bool SaveArchive::openStream(std::ios::openmode mode) {
+    bool SaveArchive<asset::use_binary_t>::_openStream(std::ios::openmode mode) {
         if (_stream.is_open()) {
             _stream.close();  // Ensure no existing stream is active
         }
@@ -120,7 +82,14 @@ namespace astre::world
         return _stream.is_open() && _stream.good();
     }
 
-    const absl::flat_hash_set<ChunkID> & SaveArchive::getAllChunks() const
+
+    bool SaveArchive<asset::use_binary_t>::_closeStream()
+    {
+        _stream.close();
+        return !_stream.is_open();
+    }
+
+    const absl::flat_hash_set<ChunkID> & SaveArchive<asset::use_binary_t>::getAllChunks() const
     {
         return _all_chunks;
     }
@@ -142,15 +111,15 @@ namespace astre::world
         return coded_output.ByteCount();
     }
 
-    bool SaveArchive::writeChunk(const WorldChunk & chunk, asset::use_binary_t)
+    bool SaveArchive<asset::use_binary_t>::writeChunk(const WorldChunk & chunk)
     {
-        if (!openStream(std::ios::in | std::ios::out | std::ios::binary))
+        if (!_openStream(std::ios::in | std::ios::out | std::ios::binary))
         {
             spdlog::error("Failed to open stream for writing");
             return false;
         }
 
-        auto exising_chunk = readChunk(chunk.id(), asset::use_binary);
+        auto exising_chunk = readChunk(chunk.id());
         if(exising_chunk)
         {   
             const auto & chunk_index = _chunk_index[chunk.id()];
@@ -213,68 +182,18 @@ namespace astre::world
             _chunk_index[chunk.id()].size = coded_output.ByteCount() - offset;
         }
 
+        _all_chunks.emplace(chunk.id());
+
         _stream.close();
         return true;
     }
 
-    bool SaveArchive::writeChunk(const WorldChunk & chunk, asset::use_json_t) 
-    {
-        // Load existing
-        SaveArchiveData archive;
-
-        if (std::ifstream input(_file_path); input.good())
-        {
-            std::stringstream buffer;
-            buffer << input.rdbuf();
-            google::protobuf::util::JsonStringToMessage(buffer.str(), &archive);
-        }
-
-        // Replace or append
-        bool replaced = false;
-        for (auto& c : *archive.mutable_chunks())
-        {
-            if (c.id() == chunk.id())
-            {
-                // replace
-                c.CopyFrom(chunk);
-                replaced = true;
-                break;
-            }
-        }
-
-        if (!replaced)
-        {
-            // append
-            archive.add_chunks()->CopyFrom(chunk);
-        }
-
-        // Write back
-        std::string json;
-        google::protobuf::util::JsonPrintOptions options;
-        options.preserve_proto_field_names = true;
-        options.always_print_fields_with_no_presence = true;
-        options.add_whitespace = true;
-
-        google::protobuf::util::MessageToJsonString(archive, &json, options);
-
-        std::ofstream out(_file_path);
-        if (!out)
-        {
-            spdlog::error("Failed to open stream for writing JSON");
-            return false;
-        }
-
-        out << json;
-        return true;
-    }
-
-    bool SaveArchive::updateEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def,
-                                  asset::use_binary_t)
+    bool SaveArchive<asset::use_binary_t>::updateEntity(const ChunkID& chunk_id,
+                                  const ecs::EntityDefinition& entity_def)
     {
         // Load existing chunk (binary)
         WorldChunk chunk;
-        if (auto existing = readChunk(chunk_id, asset::use_binary))
+        if (auto existing = readChunk(chunk_id))
         {
             chunk = std::move(*existing);
         }
@@ -304,57 +223,22 @@ namespace astre::world
         }
 
         // Persist updated chunk via existing logic (handles in-place/append & index)
-        return writeChunk(chunk, asset::use_binary);
+        return writeChunk(chunk);
     }
 
-    bool SaveArchive::updateEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def,
-                                  asset::use_json_t)
+    bool SaveArchive<asset::use_binary_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
     {
-        WorldChunk chunk;
-
-        if (auto existing = readChunk(chunk_id, asset::use_json))
-        {
-            chunk = std::move(*existing);
-        }
-        else
-        {
-            spdlog::error("Failed to find chunk to update");
-            return false;
-        }
-
-        // Replace or append entity by name()
-        auto* entities = chunk.mutable_entities();
-        const std::string& key_name = entity_def.name();
-
-        auto it = std::find_if(entities->begin(), entities->end(),
-            [&](const ecs::EntityDefinition& e) {
-                return e.name() == key_name;
-            }
-        );
-
-        if (it != entities->end())
-        {
-            it->CopyFrom(entity_def);
-        }
-        else
-        {
-            entities->Add()->CopyFrom(entity_def);
-        }
-
-        // Persist updated chunk via existing logic (handles in-place/append & index)
-        return writeChunk(chunk, asset::use_json);
+        return false;
     }
 
-
-    std::optional<WorldChunk> SaveArchive::readChunk(const ChunkID & id, asset::use_binary_t)
+    std::optional<WorldChunk> SaveArchive<asset::use_binary_t>::readChunk(const ChunkID & id)
     {
         if (!_chunk_index.contains(id)) 
         {
             return std::nullopt;
         }
 
-        if (!openStream(std::ios::in | std::ios::binary))
+        if (!_openStream(std::ios::in | std::ios::binary))
         {
             spdlog::error("Failed to open stream for reading");
             return std::nullopt;
@@ -396,44 +280,25 @@ namespace astre::world
         return result;
     }
 
-    std::optional<WorldChunk> SaveArchive::readChunk(const ChunkID & id, asset::use_json_t)
+
+    bool SaveArchive<asset::use_binary_t>::removeChunk(const ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
-            return std::nullopt;
+            return false;
         }
 
-        if (!openStream(std::ios::in)) 
+        if (!_openStream(std::ios::in | std::ios::out | std::ios::binary))
         {
-            spdlog::error("Failed to open stream for reading");
-            return std::nullopt;
+            spdlog::error("Failed to open stream for writing");
+            return false;
         }
 
-        // we need to read whole message to parse chunks array
-        std::stringstream buffer;
-        buffer << _stream.rdbuf();
-        _stream.close();
+        // in binary format we need to seek to the offset
+        const auto offset = _chunk_index[id].offset;
+        _stream.seekp(offset);
 
-        SaveArchiveData archive;
-        google::protobuf::util::JsonParseOptions options;
-        options.ignore_unknown_fields = true;
-
-        // parse archive data
-        auto status = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, options);
-        if (!status.ok())
-        {
-            spdlog::error("Failed to parse SaveArchiveData JSON: {}", status.ToString());
-            return std::nullopt;
-        }
-
-        const std::size_t index = _chunk_index[id].index;
-        if (index >= static_cast<std::size_t>(archive.chunks_size()))
-        {
-            spdlog::error("Invalid index in chunk map");
-            return std::nullopt;
-        }
-
-        // return chunk from array
-        return archive.chunks(static_cast<int>(index));
+        
     }
+
 }

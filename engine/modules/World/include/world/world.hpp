@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 
 #include "native/native.h"
 #include <asio.hpp>
@@ -17,45 +18,64 @@
 
 namespace astre::world
 {
-    class WorldStreamer {
-    public:
-        WorldStreamer(
-            process::IProcess::execution_context_type & execution_context,
-            std::filesystem::path path,
-            ecs::Registry& registry,
-            float chunk_size,
-            unsigned int max_loaded_chunks);
+    static constexpr int LOAD_RADIUS = 0;
 
-        const absl::flat_hash_set<ChunkID> & getAllChunks() const;
+    class WorldStreamer
+    {
+        public:
 
-        asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
-        asio::awaitable<void> saveAll(asset::use_binary_t);
-        asio::awaitable<void> saveAll(asset::use_json_t);
+            template<class Mode>
+            WorldStreamer(
+                process::IProcess::execution_context_type & execution_context,
+                Mode mode,
+                std::filesystem::path path,
+                ecs::Registry& registry,
+                float chunk_size,
+                unsigned int max_loaded_chunks
+            )
+            :   _async_context(execution_context),
+                _archive(std::make_unique<SaveArchive<Mode>>(std::move(path))),
+                _registry(registry),
+                _loader(registry),
+                _serializer(registry),
+                _chunk_size(chunk_size),
+                _max_loaded_chunks(max_loaded_chunks)
+            {}
 
-        std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_binary_t);
-        std::optional<WorldChunk> readChunk(const ChunkID& id, asset::use_json_t);
+            const absl::flat_hash_set<ChunkID> & getAllChunks() const;
 
-        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_binary_t);
-        bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, asset::use_json_t);
+            asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
 
-    private:
-        asio::awaitable<void> loadChunk(const ChunkID& id);
-        asio::awaitable<void> unloadChunk(const ChunkID& id);
+            asio::awaitable<void> saveAll();
 
-        async::AsyncContext<process::IProcess::execution_context_type> _async_context;
+            bool writeChunk(const WorldChunk & chunk);
 
-        ecs::Registry& _registry;
-        asset::EntityLoader  _loader;
-        asset::EntitySerializer _serializer;
+            std::optional<WorldChunk> readChunk(const ChunkID& id);
 
-        SaveArchive _archive;
+            bool removeChunk(const ChunkID& id);
 
-        float _chunk_size;
-        unsigned int _max_loaded_chunks;
+            // will add entity if does not exist
+            bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
+            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
-        absl::flat_hash_map<ChunkID, WorldChunk> _loaded_chunks;
-        absl::flat_hash_set<ChunkID> _to_reload;
-        absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _loaded_chunk_entities;
+        private:
+            asio::awaitable<void> _loadChunk(const ChunkID& id);
+            asio::awaitable<void> _unloadChunk(const ChunkID& id);
+
+            async::AsyncContext<process::IProcess::execution_context_type> _async_context;
+
+            ecs::Registry& _registry;
+            asset::EntityLoader  _loader;
+            asset::EntitySerializer _serializer;
+
+            std::unique_ptr<ISaveArchive> _archive;
+
+            float _chunk_size;
+            unsigned int _max_loaded_chunks;
+
+            absl::flat_hash_map<ChunkID, WorldChunk> _loaded_chunks;
+            absl::flat_hash_set<ChunkID> _to_reload;
+            absl::flat_hash_map<ChunkID, absl::flat_hash_set<ecs::Entity>> _loaded_chunk_entities;
     };
 }

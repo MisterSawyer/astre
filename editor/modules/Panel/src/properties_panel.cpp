@@ -134,11 +134,11 @@ namespace astre::editor::panel
             // --- Light Type ---
             {
                 int type_idx = static_cast<int>(light.type());
-                const char* items[] = { "UNKNOWN", "Directional", "Point", "Spot" };
+                const char* items[] = { "Directional", "Point", "Spot" };
                 ImGui::TextUnformatted("Light Type");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
                 if (ImGui::Combo("##light_type", &type_idx, items, IM_ARRAYSIZE(items))) {
-                    light.set_type(static_cast<astre::ecs::LightType>(type_idx));
+                    light.set_type(static_cast<astre::ecs::LightType>(type_idx + 1));
                     changed = true;
                 }
                 ImGui::PopItemWidth();
@@ -192,7 +192,7 @@ namespace astre::editor::panel
 
                 ImGui::TextUnformatted("Constant");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
-                if(ImGui::DragFloat("##constant", &constant, 0.1f, 0.0f, 100.0f, "%.3f"))
+                if(ImGui::DragFloat("##constant", &constant, 0.1f, 0.0f, 1.0f, "%.3f"))
                 {
                     light.set_constant(constant);
                     changed = true;
@@ -201,7 +201,7 @@ namespace astre::editor::panel
 
                 ImGui::TextUnformatted("Linear");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
-                if(ImGui::DragFloat("##linear", &linear, 0.1f, 0.0f, 100.0f, "%.3f"))
+                if(ImGui::DragFloat("##linear", &linear, 0.1f, 0.0f, 1.0f, "%.3f"))
                 {
                     light.set_linear(linear);
                     changed = true;
@@ -210,7 +210,7 @@ namespace astre::editor::panel
 
                 ImGui::TextUnformatted("Quadratic");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
-                if(ImGui::DragFloat("##quadratic", &quadratic, 0.1f, 0.0f, 100.0f, "%.3f"))
+                if(ImGui::DragFloat("##quadratic", &quadratic, 0.1f, 0.0f, 1.0f, "%.3f"))
                 {
                     light.set_quadratic(quadratic);
                     changed = true;
@@ -296,13 +296,6 @@ namespace astre::editor::panel
             ImGui::TextUnformatted("Inspector");
             ImGui::Separator();
 
-            // if (ImGui::CollapsingHeader("Rendering")) {
-            //     static int  layer   = 0;
-            //     static bool visible = true;
-            //     ImGui::Checkbox("Visible", &visible);
-            //     ImGui::InputInt("Layer", &layer);
-            // }
-
             if(_selected_entity_def)
             {
 
@@ -313,20 +306,20 @@ namespace astre::editor::panel
                 if(entity.has_transform())
                 {
                     _properties_changed |= _drawTransformComponent(*(entity.mutable_transform()));
+                    ImGui::Separator();
                 }
-                ImGui::Separator();
 
                 if(entity.has_visual())
                 {
                     _properties_changed |= _drawVisualComponent(*(entity.mutable_visual()));
+                    ImGui::Separator();
                 }
-                ImGui::Separator();
 
                 if(entity.has_light())
                 {
                     _properties_changed |= _drawLightComponent(*(entity.mutable_light()));
+                    ImGui::Separator();
                 }
-                ImGui::Separator();
 
             }
         }

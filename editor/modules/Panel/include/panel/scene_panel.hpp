@@ -51,6 +51,17 @@ namespace astre::editor::panel
 
         void _drawComponent(bool has, std::string label, world::ChunkID chunk_id, std::string entity_name, SelectedComponent kind);
 
+        bool _addChunk(const world::ChunkID & id);
+        bool _removeChunk(const world::ChunkID & id) noexcept;
+
+        bool _addEntity(const world::ChunkID & id, std::string_view name);
+        bool _renameEntity(const world::ChunkID & id, std::string_view old_name, std::string_view new_name);
+        bool _removeEntity(const world::ChunkID & id, std::string_view name) noexcept;
+
+        bool _addComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component);
+        bool _removeComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component) noexcept;
+        void _drawAddComponentCombo(const world::ChunkID & chunk_id, const ecs::EntityDefinition& entity_def);
+
         world::WorldStreamer & _world_streamer;
 
         bool _visible{true};
@@ -60,6 +71,9 @@ namespace astre::editor::panel
         std::optional<SelectedEntity> _selection;
 
         absl::flat_hash_map<world::ChunkID, absl::flat_hash_map<std::string, ecs::EntityDefinition>> _chunk_entities_defs;
+
+        absl::flat_hash_map<std::string, std::string> _add_component_preview;
+        absl::flat_hash_map<std::string, SelectedComponent> _pending_component;
     };
 
 }

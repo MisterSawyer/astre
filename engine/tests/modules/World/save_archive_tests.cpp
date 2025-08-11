@@ -35,13 +35,13 @@ TEST_F(SaveArchiveTest, WriteAndReadChunk_BinaryFormat) {
 
     std::filesystem::path file = temp_dir / "test_chunk.bin";
     {
-        astre::world::SaveArchive writer(file, astre::asset::use_binary);
-        ASSERT_TRUE(writer.writeChunk(chunk, astre::asset::use_binary));
+        astre::world::SaveArchive<astre::asset::use_binary_t> writer(file);
+        ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::world::SaveArchive reader(file, astre::asset::use_binary);
-        auto result = reader.readChunk(chunk.id(), astre::asset::use_binary);
+        astre::world::SaveArchive<astre::asset::use_binary_t> reader(file);
+        auto result = reader.readChunk(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());
         EXPECT_EQ(result->entities_size(), 1);
@@ -55,13 +55,13 @@ TEST_F(SaveArchiveTest, WriteAndReadChunk_JsonFormat) {
 
     std::filesystem::path file = temp_dir / "test_chunk.json";
     {
-        astre::world::SaveArchive writer(file, astre::asset::use_json);
-        ASSERT_TRUE(writer.writeChunk(chunk, astre::asset::use_json));
+        astre::world::SaveArchive<astre::asset::use_json_t> writer(file);
+        ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::world::SaveArchive reader(file, astre::asset::use_json);
-        auto result = reader.readChunk(chunk.id(), astre::asset::use_json);
+        astre::world::SaveArchive<astre::asset::use_json_t> reader(file);
+        auto result = reader.readChunk(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());
         EXPECT_EQ(result->entities_size(), 1);

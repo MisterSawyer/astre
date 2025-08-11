@@ -38,6 +38,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     world::WorldStreamer world_streamer(  
         app_state.process.getExecutionContext(),
+        asset::use_json,
         paths.resources / "worlds/levels/level_0.json",
         registry,
         32.0f, 32);
@@ -180,7 +181,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 {
                     const auto [chunk_id, entity_def] = *selected_entity_def;
 
-                    world_streamer.updateEntity(chunk_id, entity_def, asset::use_json);
+                    world_streamer.updateEntity(chunk_id, entity_def);
                     scene_panel.loadEntitesDefs();
                 }
             }

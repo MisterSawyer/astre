@@ -50,6 +50,7 @@ namespace astre::entry
                 },
                 .world = world::WorldStreamer(  
                     app_state.process.getExecutionContext(),
+                    asset::use_json,
                     paths.resources / "worlds/levels/level_0.json",
                     registry,
                     32.0f, 32)
