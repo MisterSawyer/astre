@@ -69,6 +69,13 @@ namespace astre::math
     template<typename T>
     inline auto length(T&& v) { return glm::length(std::forward<T>(v)); }
 
+
+	template<typename genType>
+    inline auto length2(genType x) { return glm::length2(x); }
+
+	template<glm::length_t L, typename T, glm::qualifier Q>
+    inline auto length2(glm::vec<L, T, Q> const& v) { return glm::length2(v); }
+
     template<typename T>
     inline auto radians(T&& v) { return glm::radians(std::forward<T>(v)); }
 
@@ -77,6 +84,9 @@ namespace astre::math
 
     template<class T>
     inline auto perspective(T fovy, T aspect, T zNear, T zFar){return glm::perspective(fovy, aspect, zNear, zFar);}
+
+    template<typename T, glm::qualifier Q>
+    inline auto lookAt(glm::vec<3, T, Q> const& eye, glm::vec<3, T, Q> const& center, glm::vec<3, T, Q> const& up){return glm::lookAt(eye, center, up);}
 
 	template<typename T, glm::qualifier Q>
     inline auto translate(const glm::mat<4, 4, T, Q> & m, const glm::vec<3, T, Q> & v){return glm::translate(m, v);}

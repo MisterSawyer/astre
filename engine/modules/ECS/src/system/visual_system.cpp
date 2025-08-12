@@ -34,10 +34,6 @@ namespace astre::ecs::system
                 frame.render_proxies[e].vertex_buffer = *vb_id;
                 frame.render_proxies[e].shader = *sh_id;
 
-                // TODO right now every render proxy will copy uView and uProjection
-                frame.render_proxies[e].inputs.in_mat4["uView"] = frame.view_matrix;
-                frame.render_proxies[e].inputs.in_mat4["uProjection"] = frame.proj_matrix;
-
                 frame.render_proxies[e].inputs.in_bool["useTexture"] = false;
                 
                 if(visual_component.has_color())

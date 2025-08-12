@@ -34,6 +34,11 @@ namespace astre::entry
 
         ecs::Registry registry(app_state.process.getExecutionContext());
 
+        asset::ResourceTracker resource_tracker(app_state.renderer, script_runtime,
+            paths.resources / "shaders",
+            paths.resources / "worlds" / "scripts"
+        );
+
         pipeline::FramesBuffer<GameFrame> buffer;
         pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 1> orchestrator(app_state.process, buffer,
             GameState
@@ -53,6 +58,7 @@ namespace astre::entry
                     asset::use_json,
                     paths.resources / "worlds/levels/level_0.json",
                     registry,
+                    resource_tracker,
                     32.0f, 32)
             }
         );

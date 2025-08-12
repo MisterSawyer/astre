@@ -110,6 +110,7 @@ namespace astre::pipeline
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.deferred_fbo);
         
         render::FrameStats stats;
+        render::ShaderInputs inputs;
 
         for(const auto & [_, proxy] : frame.render_proxies)
         {
@@ -118,10 +119,13 @@ namespace astre::pipeline
             //only draw those that are in opaque phase
             if (!render::hasFlags(proxy.phases & render::RenderPhase::Opaque)) continue;
 
+            inputs = proxy.inputs;
+            inputs.in_mat4["uView"] = frame.view_matrix;
+            inputs.in_mat4["uProjection"] = frame.proj_matrix;
             stats += co_await renderer.render(
                 proxy.vertex_buffer,
                 proxy.shader,
-                proxy.inputs,
+                inputs,
                 options,
                 resources.deferred_fbo
             );
@@ -184,6 +188,8 @@ namespace astre::pipeline
 
         // Early out if no shader or no debug proxies
         if (!resources.debug_overlay_shader) co_return stats;
+       
+        render::ShaderInputs inputs;
 
         for (const auto& [_, proxy] : frame.render_proxies)
         {
@@ -192,10 +198,14 @@ namespace astre::pipeline
             // only draw those that are in debug phase
             if (!render::hasFlags(proxy.phases & render::RenderPhase::Debug)) continue;
 
+            inputs = proxy.inputs;
+            inputs.in_mat4["uView"] = frame.view_matrix;
+            inputs.in_mat4["uProjection"] = frame.proj_matrix;
+
             stats += co_await renderer.render(
                 proxy.vertex_buffer,
                 resources.debug_overlay_shader,
-                proxy.inputs,
+                inputs,
                 render::RenderOptions{
                     .mode = render::RenderMode::Wireframe,
                     .write_depth = false,

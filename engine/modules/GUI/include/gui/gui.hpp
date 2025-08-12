@@ -84,6 +84,7 @@ namespace astre::gui
                 io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
                 io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
                 io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+                io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;   // since this must happen on process thread 
 
                 // Setup Platform/Renderer backends
                 ImGui_ImplWin32_Init(this->_window.getHandle());
@@ -110,7 +111,8 @@ namespace astre::gui
 
                 // Drain queued Win32 messages on the render strand BEFORE NewFrame
                 detail::Win32Msg m;
-                while (_msgQueue.pop(m)) {
+                while (_msgQueue.pop(m)) 
+                {
                     ImGui_ImplWin32_WndProcHandler(_window.getHandle(), m.msg, m.wParam, m.lParam);
                 }
 

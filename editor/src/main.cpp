@@ -37,12 +37,19 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     ecs::Registry registry(app_state.process.getExecutionContext());
 
+    asset::ResourceTracker resource_tracker(app_state.renderer, script_runtime,
+        paths.resources / "shaders" / "glsl",
+        paths.resources / "worlds" / "scripts"
+    );
+
     world::WorldStreamer world_streamer(  
         app_state.process.getExecutionContext(),
         asset::use_json,
         paths.resources / "worlds/levels/level_0.json",
         registry,
-        32.0f, 32);
+        resource_tracker,
+        32.0f, 32
+    );
 
     pipeline::FramesBuffer<EditorFrame> buffer;
     pipeline::PipelineOrchestrator<EditorFrame, EditorState, 6, 3> orchestrator(app_state.process, buffer,
@@ -52,7 +59,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             .registry = registry,
             .systems = ecs::Systems{
                 .transform = ecs::system::TransformSystem(registry),
-                .camera = ecs::system::CameraSystem( "camera", registry),
+                .camera = ecs::system::CameraSystem("camera", registry),
                 .visual = ecs::system::VisualSystem(app_state.renderer, registry),
                 .light = ecs::system::LightSystem(registry),
                 .script = ecs::system::ScriptSystem(script_runtime, registry),
@@ -76,9 +83,11 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         }
     );
 
-    // Logic 1. Input, World 
+    // Logic 1. Input, World
+    controller::EditorFlyCamera flycam;
+
     orchestrator.setLogicStage<1>(
-        []
+        [&flycam]
         (async::LifecycleToken & token, float, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -88,7 +97,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             {
                 auto g = asio::experimental::make_parallel_group(
                     asio::co_spawn(ex, editor_state.app_state.input.update(token),                    asio::deferred),
-                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
+                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition(flycam.position),    asio::deferred)
                 );
                 auto [ord, e1, e2] =
                     co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
@@ -100,11 +109,15 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Logic 2. ECS stage
     orchestrator.setLogicStage<2>(
-        []
+        [&flycam]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
             co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
+
+            // override camera matrices by editor camera
+            flycam.update(dt);
+            flycam.overrideFrame(editor_frame.render_frame, 1280.0f / 728.0f);
         }
     );
 
@@ -149,8 +162,9 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     panel::MainMenuBar main_menu_bar;
     panel::ScenePanel scene_panel(world_streamer);
     panel::PropertiesPanel properties_panel;
-    panel::AssetsPanel assets_panel;
-    panel::ViewportPanel viewport_panel;
+    panel::AssetsPanel assets_panel(resource_tracker);
+
+    panel::ViewportPanel viewport_panel(flycam);
 
     const auto cube_prefab_res = app_state.renderer.getVertexBuffer("cube_prefab");
     if(!cube_prefab_res) throw std::runtime_error("cube prefab not found");

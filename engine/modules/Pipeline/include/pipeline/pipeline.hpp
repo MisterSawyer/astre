@@ -183,7 +183,7 @@ namespace astre::pipeline
                 _buffer(buffer),
                 _stage_state(std::move(init_state)),
                 _accumulator(0.0f),
-                _fixed_logic_step(1.0f / 5.0f)
+                _fixed_logic_step(1.0f / 10.0f)
         {}
         
         template<std::size_t Index>

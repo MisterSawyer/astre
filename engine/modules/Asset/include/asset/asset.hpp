@@ -11,6 +11,7 @@
 
 #include "asset/entity_loader.hpp"
 #include "asset/entity_serializer.hpp"
+#include "asset/resource_tracker.hpp"
 
 namespace astre::asset
 {

@@ -18,7 +18,8 @@
 
 namespace astre::world
 {
-    static constexpr int LOAD_RADIUS = 0;
+    // load 1 chunk in each direction from streaming position
+    static constexpr int LOAD_RADIUS = 1;
 
     class WorldStreamer
     {
@@ -30,12 +31,14 @@ namespace astre::world
                 Mode mode,
                 std::filesystem::path path,
                 ecs::Registry& registry,
+                asset::ResourceTracker & resource_tracker,
                 float chunk_size,
                 unsigned int max_loaded_chunks
             )
             :   _async_context(execution_context),
                 _archive(std::make_unique<SaveArchive<Mode>>(std::move(path))),
                 _registry(registry),
+                _resource_tracker(resource_tracker),
                 _loader(registry),
                 _serializer(registry),
                 _chunk_size(chunk_size),
@@ -66,8 +69,11 @@ namespace astre::world
             async::AsyncContext<process::IProcess::execution_context_type> _async_context;
 
             ecs::Registry& _registry;
+            asset::ResourceTracker & _resource_tracker;
+
             asset::EntityLoader  _loader;
             asset::EntitySerializer _serializer;
+
 
             std::unique_ptr<ISaveArchive> _archive;
 

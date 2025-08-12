@@ -58,6 +58,8 @@ namespace astre::world
 
         const ChunkID center = toChunkID(pos, _chunk_size);
 
+        const auto & all_available_chunks = getAllChunks();
+
         absl::flat_hash_set<ChunkID> required;
         for (int dx = -LOAD_RADIUS; dx <= LOAD_RADIUS; ++dx)
         {
@@ -69,6 +71,7 @@ namespace astre::world
                     id.set_x(center.x() + dx);
                     id.set_y(center.y() + dy);
                     id.set_z(center.z() + dz);
+                    if(all_available_chunks.contains(id) == false) continue;
                     required.insert(std::move(id));
                 }
             }
@@ -101,6 +104,8 @@ namespace astre::world
     {
         co_await _unloadChunk(id);
         co_await _async_context.ensureOnStrand();
+        
+        const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
 
         spdlog::debug("Loading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
@@ -117,8 +122,21 @@ namespace astre::world
             std::optional<ecs::Entity> entity = co_await _registry.createEntity(entity_def.name());
             co_await _async_context.ensureOnStrand();
 
-            if (entity.has_value()) {
+            if (entity.has_value())
+            {
                 _loaded_chunk_entities[id].insert(*entity);
+
+                {
+                    auto g = asio::experimental::make_parallel_group(
+                        asio::co_spawn(_async_context.executor(),  _loader.loadEntity(entity_def, *entity), asio::deferred),
+                        asio::co_spawn(_async_context.executor(), _resource_tracker.ensureFor(entity_def), asio::deferred)
+                    );
+                    auto [ord, e1, e2] =
+                        co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+                    if (e1) std::rethrow_exception(e1);
+                    if (e2) std::rethrow_exception(e2);
+                }
+
                 co_await _loader.loadEntity(entity_def, *entity);
             }
         }
@@ -132,10 +150,11 @@ namespace astre::world
     asio::awaitable<void> WorldStreamer::_unloadChunk(const ChunkID& id) 
     {
         co_await _async_context.ensureOnStrand();
-        spdlog::debug("Unloading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
         if (!_loaded_chunks.contains(id)) co_return;
         if(!_loaded_chunk_entities.contains(id)) co_return;
+
+        spdlog::debug("Unloading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
         const absl::flat_hash_set<astre::ecs::Entity> chunk = _loaded_chunk_entities.at(id);
         for (ecs::Entity e : chunk)

@@ -8,4 +8,6 @@ add_module(NAME "Panel"
     
     DEPENDENCIES
         AstreEngine
+
+        astre_editor::Controller
 )

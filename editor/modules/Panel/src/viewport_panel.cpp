@@ -67,7 +67,47 @@ namespace astre::editor::panel
     }
 
 */
+    static void _drawCameraOverlay(const controller::EditorFlyCamera& camera) noexcept
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (!dl) return;
 
+        const ImVec2 win_pos  = ImGui::GetWindowPos();
+        const ImVec2 cr_min   = ImGui::GetWindowContentRegionMin();
+        const ImVec2 cr_max   = ImGui::GetWindowContentRegionMax();
+        const ImVec2 avail_sz = ImVec2(cr_max.x - cr_min.x, cr_max.y - cr_min.y);
+        if (avail_sz.x <= 2.0f || avail_sz.y <= 2.0f) return;
+
+        // Text
+        char line[128];
+        std::snprintf(line, sizeof(line), "Cam: [%.2f, %.2f, %.2f]",
+                      camera.position.x, camera.position.y, camera.position.z);
+
+        const ImVec2 text_sz = ImGui::CalcTextSize(line);
+        const float pad = 6.0f;
+        const float margin = 8.0f; // distance from the content edges
+        const float rounding = ImGui::GetStyle().FrameRounding;
+
+        // Build rect from bottom-right of content region inward
+        const ImVec2 rect_max = ImVec2(
+            win_pos.x + cr_max.x - margin,
+            win_pos.y + cr_max.y - margin
+        );
+        const ImVec2 rect_min = ImVec2(
+            rect_max.x - (text_sz.x + 2.0f * pad),
+            rect_max.y - (text_sz.y + 2.0f * pad)
+        );
+
+        const ImVec2 anchor = ImVec2(rect_min.x + pad, rect_min.y + pad); // text top-left
+
+        // Background & border
+        dl->AddRectFilled(rect_min, rect_max, IM_COL32(15, 15, 20, 200), rounding);
+        dl->AddRect      (rect_min, rect_max, IM_COL32(255,255,255, 60), rounding);
+
+        // Text
+        dl->AddText(anchor, IM_COL32(255,255,255,255), line);
+    }
+    
 
 
     static void _drawStatsOverlayAt(const ImVec2& anchor,
@@ -127,6 +167,15 @@ namespace astre::editor::panel
             const int w = (int)avail.x;
             const int h = (int)avail.y;
 
+            const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+            const ImVec2 content_top_left = ImVec2(
+                ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x,
+                ImGui::GetWindowPos().y + ImGui::GetWindowContentRegionMin().y
+            );
+
+            _fly_camera.setViewportRect(content_top_left, avail, hovered);
+
             if (ctx.viewport_texture)
             {
                 ImGui::Image(
@@ -146,7 +195,10 @@ namespace astre::editor::panel
             // Submit overlay *after* the image so it appears on top
             _drawStatsOverlayAt(anchor, ctx.logic_fps, ctx.logic_frame_time, ctx.stats);
 
-            ImGui::End();
+            _drawCameraOverlay(_fly_camera);
         }
+
+        ImGui::End();
+
     }
 }
