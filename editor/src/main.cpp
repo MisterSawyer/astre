@@ -241,7 +241,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             }
 
             // something is selected add to frame
-            if(selected_entity_def)
+            if(selected_entity_def && selected_entity_def->second.has_transform())
             {
                 // TODO, id generation
                 editor_frame.render_frame.render_proxies[1000] = selection_render_proxy;
