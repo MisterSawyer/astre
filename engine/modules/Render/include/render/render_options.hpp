@@ -35,6 +35,7 @@ namespace astre::render
     struct RenderOptions
     {
         RenderMode mode = RenderMode::Solid;
-        std::optional<PolygonOffset> polygon_offset;
+        std::optional<PolygonOffset> polygon_offset = std::nullopt;
+        bool write_depth = true;
     };
 }

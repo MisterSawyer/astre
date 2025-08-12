@@ -30,6 +30,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
+    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "debug_overlay");
 
     script::ScriptRuntime script_runtime;
     co_await asset::loadScript(script_runtime, paths.resources / "worlds" / "scripts" / "player_script.lua");
@@ -151,15 +152,48 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     panel::AssetsPanel assets_panel;
     panel::ViewportPanel viewport_panel;
 
+    const auto cube_prefab_res = app_state.renderer.getVertexBuffer("cube_prefab");
+    if(!cube_prefab_res) throw std::runtime_error("cube prefab not found");
+    const auto& cube_prefab = cube_prefab_res.value();
+    render::RenderProxy selection_render_proxy
+    {
+        .visible = true,
+        .phases = render::RenderPhase::Debug,
+        .vertex_buffer = cube_prefab,
+        // no shader will use debug_overlay by default
+    };
+
     orchestrator.setLogicStage<4>(
-        [&properties_panel, &scene_panel]
+        [&properties_panel, &scene_panel, &selection_render_proxy]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
+            
+            const auto selected_entity_def = scene_panel.getSelectedEntityDef();
+
             if(scene_panel.selectedEntityChanged())
             {
                 scene_panel.resetSelectedEntityChanged();
-                properties_panel.setSelectedEntityDef(scene_panel.getSelectedEntityDef());
+                properties_panel.setSelectedEntityDef(selected_entity_def);
+
+                if(selected_entity_def && selected_entity_def->second.has_transform())
+                {
+                    selection_render_proxy.position = math::deserialize(selected_entity_def->second.transform().position());
+                    selection_render_proxy.rotation = math::deserialize(selected_entity_def->second.transform().rotation());
+                    selection_render_proxy.scale = math::deserialize(selected_entity_def->second.transform().scale()) * 1.1f;
+                     
+                    selection_render_proxy.inputs = render::ShaderInputs{
+                        .in_mat4 = {
+                            {"uView", editor_frame.render_frame.view_matrix},
+                            {"uProjection", editor_frame.render_frame.proj_matrix},
+                            {"uModel", 
+                                math::translate(glm::mat4(1.0f), selection_render_proxy.position) *
+                                math::toMat4(selection_render_proxy.rotation) *
+                                math::scale(glm::mat4(1.0f), selection_render_proxy.scale)
+                            }
+                        }
+                    };
+                }
             }
         }
     );
@@ -167,28 +201,53 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // save phase
     orchestrator.setLogicStage<5>(
-        [&world_streamer, &properties_panel, &scene_panel]
+        [&world_streamer, &properties_panel, &scene_panel, &selection_render_proxy]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
+            
+            const auto selected_entity_def = properties_panel.getSelectedEntityDef();
 
             if(properties_panel.propertiesChanged())
             {
                 properties_panel.resetPropertiesChanged();
                 // save to world
-                const auto selected_entity_def = properties_panel.getSelectedEntityDef();
                 if(selected_entity_def)
                 {
                     const auto [chunk_id, entity_def] = *selected_entity_def;
 
                     world_streamer.updateEntity(chunk_id, entity_def);
                     scene_panel.loadEntitesDefs();
+
+                    if(entity_def.has_transform())
+                    {
+                        selection_render_proxy.position = math::deserialize(entity_def.transform().position());
+                        selection_render_proxy.rotation = math::deserialize(entity_def.transform().rotation());
+                        selection_render_proxy.scale = math::deserialize(entity_def.transform().scale()) * 1.1f;
+
+                        selection_render_proxy.inputs = render::ShaderInputs{
+                            .in_mat4 = {
+                                {"uView", editor_frame.render_frame.view_matrix},
+                                {"uProjection", editor_frame.render_frame.proj_matrix},
+                                {"uModel", 
+                                    math::translate(glm::mat4(1.0f), selection_render_proxy.position) *
+                                    math::toMat4(selection_render_proxy.rotation) *
+                                    math::scale(glm::mat4(1.0f), selection_render_proxy.scale)
+                                }
+                            }
+                        };
+                    }
                 }
+            }
+
+            // something is selected add to frame
+            if(selected_entity_def)
+            {
+                // TODO, id generation
+                editor_frame.render_frame.render_proxies[1000] = selection_render_proxy;
             }
         }
     );
-
-
 
     orchestrator.setRenderStage<0>(
         [&app_state, &viewport_fbo]

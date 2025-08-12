@@ -24,6 +24,8 @@ namespace astre::pipeline
 
         std::size_t screen_quad_vb; // where
         std::size_t screen_quad_shader; // const
+
+        std::size_t debug_overlay_shader; 
     };
 
     asio::awaitable<DeferredShadingResources> buildDeferredShadingResources(render::IRenderer & renderer);

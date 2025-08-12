@@ -91,10 +91,15 @@ namespace astre::pipeline
         }
         resources.screen_quad_shader = *screen_quad_shader_res;
 
+        auto debug_shader_res = renderer.getShader("debug_overlay");
+        if (!debug_shader_res) {
+            spdlog::warn("No 'debug_overlay' shader; debug phase will skip.");
+        } else {
+            resources.debug_overlay_shader = *debug_shader_res;
+        }
+
         co_return resources;
     }
-
-
 
     static asio::awaitable<render::FrameStats> _renderFrameToGBuffer(
             render::IRenderer & renderer,
@@ -109,6 +114,9 @@ namespace astre::pipeline
         for(const auto & [_, proxy] : frame.render_proxies)
         {
             if(proxy.visible == false)continue;
+
+            //only draw those that are in opaque phase
+            if (!render::hasFlags(proxy.phases & render::RenderPhase::Opaque)) continue;
 
             stats += co_await renderer.render(
                 proxy.vertex_buffer,
@@ -141,6 +149,9 @@ namespace astre::pipeline
             {
                 if(proxy.visible == false)continue;
 
+                //only draw true casters
+                if (!render::hasFlags(proxy.phases & render::RenderPhase::ShadowCaster)) continue;
+
                 if(shadow_caster_id >= frame.light_space_matrices.size())
                 {
                     continue;
@@ -162,6 +173,40 @@ namespace astre::pipeline
         co_return stats;
     }
     
+    static asio::awaitable<render::FrameStats> _renderDebugOverlays(
+        render::IRenderer& renderer,
+        const render::Frame& frame,
+        const DeferredShadingResources& resources,
+        std::optional<std::size_t> target_fbo                // same 'fbo' used by lighting pass
+    )
+    {
+        render::FrameStats stats;
+
+        // Early out if no shader or no debug proxies
+        if (!resources.debug_overlay_shader) co_return stats;
+
+        for (const auto& [_, proxy] : frame.render_proxies)
+        {
+            if (!proxy.visible) continue;
+
+            // only draw those that are in debug phase
+            if (!render::hasFlags(proxy.phases & render::RenderPhase::Debug)) continue;
+
+            stats += co_await renderer.render(
+                proxy.vertex_buffer,
+                resources.debug_overlay_shader,
+                proxy.inputs,
+                render::RenderOptions{
+                    .mode = render::RenderMode::Wireframe,
+                    .write_depth = false,
+                },
+                target_fbo
+            );
+        }
+
+        co_return stats;
+    }
+
     static asio::awaitable<render::FrameStats> _renderGBuffer(    
         render::IRenderer & renderer,
         const render::Frame & frame,
@@ -218,6 +263,7 @@ namespace astre::pipeline
         render::FrameStats stats;
 
         stats += co_await _renderFrameToGBuffer(renderer, interpolated_frame, render_resources, gbuffer_render_options);
+        // here we should render selection :/ 
         stats += co_await _renderFrameToShadowMaps(renderer, interpolated_frame, render_resources, shadow_map_render_options);
         
         // update light SSBO
@@ -230,6 +276,9 @@ namespace astre::pipeline
               render_resources.light_ssbo, sizeof(render::GPULight) * lights_buffer.size(), lights_buffer.data());
 
         stats += co_await _renderGBuffer(renderer, interpolated_frame, render_resources, fbo);
+
+        // Debug overlays on top of lit image
+        stats += co_await _renderDebugOverlays(renderer, interpolated_frame, render_resources, fbo);
 
         co_return stats;
     }

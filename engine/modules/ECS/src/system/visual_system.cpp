@@ -54,6 +54,9 @@ namespace astre::ecs::system
                 frame.render_proxies[e].position = math::deserialize(transform_component.position());
                 frame.render_proxies[e].rotation = math::deserialize(transform_component.rotation());
                 frame.render_proxies[e].scale = math::deserialize(transform_component.scale());
+
+                // render during opaque and shadow casting phases
+                frame.render_proxies[e].phases =  render::RenderPhase::Opaque | render::RenderPhase::ShadowCaster;
             }
 
         );

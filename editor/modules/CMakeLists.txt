@@ -1,2 +1,4 @@
 add_subdirectory(Layout)
+add_subdirectory(Controller)
+add_subdirectory(Widget)
 add_subdirectory(Panel)

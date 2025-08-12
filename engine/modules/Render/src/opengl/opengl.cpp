@@ -633,8 +633,21 @@ namespace astre::render::opengl
         stats.vertices = vertex_buffer_it->second->numberOfElements();
         stats.triangles = vertex_buffer_it->second->numberOfElements() / 3.0f;
         
+        GLboolean prev_write_depth_mask;
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &prev_write_depth_mask);
+        if(!options.write_depth)
+        {
+            glDepthMask(GL_FALSE);
+        }
+        else
+        {
+            glDepthMask(GL_TRUE);
+        }
+
         glDrawElements(GL_TRIANGLES, (GLsizei)vertex_buffer_it->second->numberOfElements(), GL_UNSIGNED_INT, nullptr);
         
+        glDepthMask(prev_write_depth_mask); 
+
         if(options.polygon_offset)
         {
             glDisable(GL_POLYGON_OFFSET_FILL);

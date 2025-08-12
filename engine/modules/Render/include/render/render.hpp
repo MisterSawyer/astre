@@ -25,9 +25,27 @@
 
 namespace astre::render
 {
+    // Bitmask describing which passes a proxy participates in.
+    enum class RenderPhase : std::uint8_t {
+        None         = 0,
+        Opaque       = 1 << 0,
+        Transparent  = 1 << 1,
+        ShadowCaster = 1 << 2, // should be rendered during shadow pass
+        Debug        = 1 << 3, // gizmos, wire AABBs, helpers
+    };
+
+    [[nodiscard]] inline constexpr RenderPhase operator|(RenderPhase a, RenderPhase b) noexcept {
+        return static_cast<RenderPhase>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
+    }
+    [[nodiscard]] inline constexpr RenderPhase operator&(RenderPhase a, RenderPhase b) noexcept {
+        return static_cast<RenderPhase>(static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b));
+    }
+    inline constexpr bool hasFlags(RenderPhase m) noexcept { return static_cast<std::uint8_t>(m) != 0; }
+
     struct RenderProxy
     {
         bool visible;
+        RenderPhase phases;
         
         std::size_t vertex_buffer;
         std::size_t shader;

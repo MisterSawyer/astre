@@ -124,7 +124,6 @@ namespace astre::editor::panel
         return changed;
     }
 
-
     static bool _drawLightComponent(ecs::LightComponent & light) noexcept
     {
         bool changed = false;
@@ -133,7 +132,7 @@ namespace astre::editor::panel
         {
             // --- Light Type ---
             {
-                int type_idx = static_cast<int>(light.type());
+                int type_idx = static_cast<int>(light.type() - 1);
                 const char* items[] = { "Directional", "Point", "Spot" };
                 ImGui::TextUnformatted("Light Type");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
@@ -270,6 +269,112 @@ namespace astre::editor::panel
         return changed;
     }
 
+    static bool _drawCameraComponent(ecs::CameraComponent &cam) noexcept
+    {
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::PushItemWidth(200.0f); // Compact but editable
+
+            // FOV (degrees)
+            float fov = cam.fov();
+            ImGui::TextUnformatted("Field of View");
+            if (ImGui::SliderFloat("##fov", &fov, 1.0f, 179.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp))
+            {
+                cam.set_fov(fov);
+                changed = true;
+            }
+
+            // Near / Far
+            float nearPlane = cam.near_plane();
+            float farPlane  = cam.far_plane();
+            ImGui::TextUnformatted("Near Plane");
+            if (ImGui::DragFloat("##near_plane", &nearPlane, 0.01f, 0.001f, farPlane - 0.001f, "%.3f"))
+            {
+                cam.set_near_plane(nearPlane);
+                changed = true;
+            }
+            ImGui::TextUnformatted("Far Plane");
+            if (ImGui::DragFloat("##far_plane", &farPlane, 0.1f, nearPlane + 0.001f, 10000.0f, "%.3f"))
+            {
+                cam.set_far_plane(farPlane);
+                changed = true;
+            }
+
+            // Aspect Ratio
+            float aspect = cam.aspect();
+            ImGui::TextUnformatted("Aspect Ratio");
+            if (ImGui::DragFloat("##aspect_ratio", &aspect, 0.01f, 0.1f, 5.0f, "%.3f"))
+            {
+                cam.set_aspect(aspect);
+                changed = true;
+            }
+
+            ImGui::PopItemWidth();
+        }
+        return changed;
+    }
+
+    static bool _drawScriptComponent(ecs::ScriptComponent &script) noexcept
+    {
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            // Copy proto string into a temporary buffer for editing
+            char buffer[256];
+            std::snprintf(buffer, sizeof(buffer), "%s", script.name().c_str());
+
+            ImGui::TextUnformatted("Script Name");
+            ImGui::PushItemWidth(200.0f);
+            if (ImGui::InputText("##script_name", buffer, sizeof(buffer)))
+            {
+                // Update only if value actually changed
+                if (script.name() != buffer)
+                {
+                    script.set_name(buffer);
+                    changed = true;
+                }
+            }
+            ImGui::PopItemWidth();
+        }
+        return changed;
+    }
+
+    static bool _drawInputComponent(ecs::InputComponent &input) noexcept
+    {
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Input", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+           
+        }
+        return changed;
+    }
+
+    static bool _drawHealthComponent(ecs::HealthComponent & health) noexcept
+    {
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Health", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+           
+        }
+        return changed;
+    }
+
+    static bool _drawTerrainComponent(ecs::TerrainComponent & terrain) noexcept
+    {
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Terrain", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+           
+        }
+        return changed;
+    }
+
     void PropertiesPanel::setSelectedEntityDef(std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> def)
     { 
         _selected_entity_def = std::move(def);
@@ -318,6 +423,36 @@ namespace astre::editor::panel
                 if(entity.has_light())
                 {
                     _properties_changed |= _drawLightComponent(*(entity.mutable_light()));
+                    ImGui::Separator();
+                }
+
+                if(entity.has_camera())
+                {
+                    _properties_changed |= _drawCameraComponent(*(entity.mutable_camera()));
+                    ImGui::Separator();
+                }
+
+                if(entity.has_script())
+                {
+                    _properties_changed |= _drawScriptComponent(*(entity.mutable_script()));
+                    ImGui::Separator();
+                }
+
+                if(entity.has_input())
+                {
+                    _properties_changed |= _drawInputComponent(*(entity.mutable_input()));
+                    ImGui::Separator();
+                }
+
+                if(entity.has_health())
+                {
+                    _properties_changed |= _drawHealthComponent(*(entity.mutable_health()));
+                    ImGui::Separator();
+                }
+
+                if(entity.has_terrain())
+                {
+                    _properties_changed |= _drawTerrainComponent(*(entity.mutable_terrain()));
                     ImGui::Separator();
                 }
 
