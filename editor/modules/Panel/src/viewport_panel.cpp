@@ -81,7 +81,7 @@ namespace astre::editor::panel
         // Text
         char line[128];
         std::snprintf(line, sizeof(line), "Cam: [%.2f, %.2f, %.2f]",
-                      camera.position.x, camera.position.y, camera.position.z);
+                      camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
         const ImVec2 text_sz = ImGui::CalcTextSize(line);
         const float pad = 6.0f;

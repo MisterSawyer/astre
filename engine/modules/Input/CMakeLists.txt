@@ -32,6 +32,7 @@ add_module(NAME "Input"
         absl::flat_hash_map
 
         astre::Native
+        astre::Math
         astre::Async
         astre::Process
 )

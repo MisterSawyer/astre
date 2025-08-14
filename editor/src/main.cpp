@@ -97,7 +97,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             {
                 auto g = asio::experimental::make_parallel_group(
                     asio::co_spawn(ex, editor_state.app_state.input.update(token),                    asio::deferred),
-                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition(flycam.position),    asio::deferred)
+                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition(flycam.getPosition()),    asio::deferred)
                 );
                 auto [ord, e1, e2] =
                     co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
@@ -115,9 +115,60 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             co_stop_if(token);
             co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
 
-            // override camera matrices by editor camera
+            if(flycam.isHovered() && editor_state.app_state.input.isKeyJustReleased(input::InputCode::MOUSE_RIGHT))
+            {
+                bool captured = flycam.isCaptured();
+                flycam.setCaptured(!captured);
+
+                if(!captured)
+                {
+                    co_await editor_state.app_state.process.hideCursor();
+                }
+                else
+                {
+                    co_await editor_state.app_state.process.showCursor();
+                }
+            }
+
+            auto md = editor_state.app_state.input.getMouseDelta();
+            flycam.addDeltaYaw(md.x);
+            flycam.addDeltaPitch(-md.y);
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_W))
+            {
+                flycam.moveForward();
+            }
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_S))
+            {
+                flycam.moveBackward();
+            }
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_A))
+            {
+                flycam.moveLeft();
+            }
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_D))
+            {
+                flycam.moveRight();
+            }
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_E))
+            {
+                flycam.moveUp();
+            }
+
+            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_Q))
+            {
+                flycam.moveDown();
+            }
+
             flycam.update(dt);
+
+            // override camera matrices by editor camera
             flycam.overrideFrame(editor_frame.render_frame, 1280.0f / 728.0f);
+
         }
     );
 

@@ -10,114 +10,178 @@
 namespace astre::editor::controller 
 {
 
-    // Editor-only fly camera controlled via ImGui input inside the viewport.
-    class EditorFlyCamera {
+    // Editor-only fly camera
+    class EditorFlyCamera 
+    {
     public:
         // Tunables
         float baseSpeed     = 8.0f;     // m/s
-        float mouseSens     = 1.0f;    // deg/pixel
-        float speedBoost    = 4.0f;     // Shift multiplier
-        float speedSlow     = 0.25f;    // Ctrl multiplier
+        float mouseSens     = 0.5f;    // deg/pixel
         float vfovDegrees   = 60.0f;    // vertical FOV
-        float zNear         = 0.1f;
+        float zNear         = 0.05f;
         float zFar          = 1000.0f;
 
-        // State
-        math::Vec3 position{0.0f, 5.0f, 15.0f};
-        float yawDeg   = -90.0f; // face -Z by default
-        float pitchDeg =  -10.0f;
-
-        // Viewport info (provided by ViewportPanel each frame)
-        void setViewportRect(ImVec2 content_top_left, ImVec2 size, bool hovered) noexcept {
-            _vpPos = content_top_left; _vpSize = size; _vpHovered = hovered;
+        EditorFlyCamera()
+        {
+            _calculateForward();
+            _right = math::normalize(math::cross(_forward, math::Vec3(0,1,0)));
+            _calculateViewMatrix(); 
         }
 
-        // Per-frame update; uses ImGui::GetIO for mouse/keyboard state.
         void update(float dtSeconds) noexcept
         {
-            // control when holding RMB in the viewport
-            _captured = _vpHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right);
+            if (_captured == false || _vp_hovered == false)return; 
 
-            if (_captured == false)return; 
-            
-            ImGuiIO& io = ImGui::GetIO();
+            _yaw_deg   += (_delta_yaw * mouseSens);
+            _pitch_deg += (_delta_pitch * mouseSens);
 
-            ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+            if(_pitch_deg > 89.9f) _pitch_deg = 89.9f;
+            if(_pitch_deg < -89.9f) _pitch_deg = -89.9f;
 
-            // Use current frame MouseDelta for rotation
-            const ImVec2 d = io.MouseDelta;
-            yawDeg   += (d.x * mouseSens);
-            pitchDeg -= (d.y * mouseSens);
-            if (pitchDeg > 89.9f)  pitchDeg = 89.9f;
-            if (pitchDeg < -89.9f) pitchDeg = -89.9f;
-
-            //  Bind cursor to viewport center (backend-friendly)
-            if (_vpSize.x > 2.0f && _vpSize.y > 2.0f) {
-                const ImVec2 center{
-                    _vpPos.x + _vpSize.x * 0.5f,
-                    _vpPos.y + _vpSize.y * 0.5f
-                };
-                // Ask backend to set OS cursor here; ImGui will not count this as user delta.
-                io.WantSetMousePos = true;
-                io.MousePos = center;
+            if (math::length2(_delta_pos) > 0.0f) {
+                _position += math::normalize(_delta_pos) * (baseSpeed * dtSeconds);
             }
 
-            // Scroll to adjust base speed when hovering viewport (nice UX while editing)
-            if (_vpHovered && io.MouseWheel != 0.0f) {
-                const float factor = (io.MouseWheel > 0.0f) ? 1.1f : (1.0f/1.1f);
-                baseSpeed = std::clamp(baseSpeed * factor, 0.5f, 500.0f);
-            }
+            _calculateForward();
+            _right = math::normalize(math::cross(_forward, math::Vec3(0,1,0)));
+            _calculateViewMatrix();
 
-            // WASD/E/Q movement (relative to yaw/pitch)
-            const math::Vec3 fwd = forward();
-            const math::Vec3 right = math::normalize(math::cross(fwd, math::Vec3(0,1,0)));
-            const math::Vec3 up(0,1,0);
-
-            float speed = baseSpeed;
-            if (io.KeyShift) speed *= speedBoost;
-            if (io.KeyCtrl)  speed *= speedSlow;
-
-            math::Vec3 v(0);
-            if (ImGui::IsKeyDown(ImGuiKey_W)) v += fwd;
-            if (ImGui::IsKeyDown(ImGuiKey_S)) v -= fwd;
-            if (ImGui::IsKeyDown(ImGuiKey_A)) v -= right;
-            if (ImGui::IsKeyDown(ImGuiKey_D)) v += right;
-            if (ImGui::IsKeyDown(ImGuiKey_E)) v += up;
-            if (ImGui::IsKeyDown(ImGuiKey_Q)) v -= up;
-
-            if (math::length2(v) > 0.0f) {
-                position += math::normalize(v) * (speed * dtSeconds);
-            }
+            _delta_pos = math::Vec3(0,0,0);
+            _delta_yaw = 0.0f;
+            _delta_pitch = 0.0f;
         }
 
         // Apply to render::Frame (projection built with the given aspect)
-        void overrideFrame(render::Frame& frame, float aspect) const noexcept {
-            frame.view_matrix = viewMatrix();
+        void overrideFrame(render::Frame& frame, float aspect) const noexcept
+        {
+            frame.view_matrix = _view_matrix;
             frame.proj_matrix = math::perspective(math::radians(vfovDegrees), std::max(0.01f, aspect), zNear, zFar);
-            frame.camera_position = position;
+            frame.camera_position = _position;
         }
 
-        // Accessors
-        [[nodiscard]] math::Mat4 viewMatrix() const noexcept {
-            return math::lookAt(position, position + forward(), {0,1,0});
+        void setCaptured(bool captured) noexcept { _captured = captured; }
+        [[nodiscard]] bool isCaptured() const noexcept { return _captured; }
+
+        [[nodisard]] bool isHovered() const noexcept { return _vp_hovered; }
+
+        // Viewport info (provided by ViewportPanel each frame)
+        void setViewportRect(ImVec2 content_top_left, ImVec2 size, bool hovered) noexcept {
+            _vp_pos = content_top_left; _vp_size = size; _vp_hovered = hovered;
         }
-        [[nodiscard]] math::Vec3 forward() const noexcept {
-            const float yawR   = math::radians(yawDeg);
-            const float pitchR = math::radians(pitchDeg);
-            return math::normalize(math::Vec3(
-                std::cos(pitchR)*std::cos(yawR),
-                std::sin(pitchR),
-                std::cos(pitchR)*std::sin(yawR)
-            ));
+
+        [[nodiscard]] ImVec2 viewportSize() const noexcept { return _vp_size; }
+
+        math::Vec3 getPosition() const noexcept { return _position; }
+        math::Vec3 getForward() const noexcept { return _forward; }
+        math::Vec3 getRight() const noexcept { return _right; }
+
+        void moveForward() noexcept {
+            if(!_captured) 
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos += _forward;
         }
-        [[nodiscard]] bool captured() const noexcept { return _captured; }
-        [[nodiscard]] ImVec2 viewportSize() const noexcept { return _vpSize; }
+
+        void moveBackward() noexcept {
+            if(!_captured)
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos -= _forward;
+        }
+
+        void moveRight() noexcept {
+            if(!_captured)
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos += _right;
+        }
+
+        void moveLeft() noexcept {
+            if(!_captured)
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos -= _right;
+        }
+
+        void moveUp() noexcept {
+            if(!_captured)
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos += math::Vec3(0,1,0);
+        }
+
+        void moveDown() noexcept {
+            if(!_captured)
+            {
+                _delta_pos = math::Vec3(0,0,0);
+                return;
+            } 
+            _delta_pos -= math::Vec3(0,1,0);
+        }
+
+        void addDeltaYaw(float delta_yaw) noexcept { 
+            if(!_captured)
+            {
+                _delta_yaw = 0.0f;
+                return;
+            }
+            _delta_yaw += delta_yaw;
+        }
+        
+        void addDeltaPitch(float delta_pitch) noexcept {
+            if(!_captured)
+            {
+                _delta_pitch = 0.0f;
+                return;
+            }
+            _delta_pitch += delta_pitch;
+        }
 
     private:
-        ImVec2 _vpPos{0,0};
-        ImVec2 _vpSize{0,0};
-        bool _vpHovered{false};
+        void _calculateForward() noexcept
+        {
+            const float yaw_R   = math::radians(_yaw_deg);
+            const float pitch_R = math::radians(_pitch_deg);
+            _forward =  math::normalize(math::Vec3(
+                std::cos(pitch_R)*std::cos(yaw_R),
+                std::sin(pitch_R),
+                std::cos(pitch_R)*std::sin(yaw_R)
+            ));
+        }
+
+        void _calculateViewMatrix() noexcept
+        {
+            _view_matrix = math::lookAt(_position, _position + _forward, {0,1,0});
+        }
+
+        ImVec2 _vp_pos{0,0};
+        ImVec2 _vp_size{0,0};
+        bool _vp_hovered{false};
         bool _captured{false};
+
+        // State
+        math::Mat4 _view_matrix;
+        math::Vec3 _forward;
+        math::Vec3 _right;
+
+        math::Vec3 _position{0.0f, 5.0f, 15.0f};
+        math::Vec3 _delta_pos{0.0f, 0.0f, 0.0f};
+
+        float _yaw_deg   = -90.0f; // face -Z by default
+        float _delta_yaw = 0.0f;
+
+        float _pitch_deg =  -10.0f;
+        float _delta_pitch = 0.0f;
     };
 
 }

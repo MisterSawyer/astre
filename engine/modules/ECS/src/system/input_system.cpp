@@ -14,7 +14,7 @@ namespace astre::ecs::system
         google::protobuf::RepeatedField<int> serialized_just_pressed;
         google::protobuf::RepeatedField<int> serialized_just_released;
 
-        for(const auto & held : _input_service.getPressed())
+        for(const auto & held : _input_service.getHeld())
         {
             serialized_pressed.Add(held);
         }

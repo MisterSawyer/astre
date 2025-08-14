@@ -66,13 +66,19 @@ namespace astre::process::windows
 
 
         protected:
-            bool initOpenGL();
-            bool registerClass(const WNDCLASSEX & class_structure);
-            bool unregisterClass(std::string class_name);
+            bool _initOpenGL();
+
+            bool _registerClass(const WNDCLASSEX & class_structure);
+            bool _unregisterClass(std::string class_name);
+
+            bool _registerRawInputDevices();
+            bool _unregisterRawInputDevices();
 
         private:
             absl::flat_hash_map<std::string, const WNDCLASSEX> _registered_classes;
             absl::flat_hash_map<native::window_handle, std::optional<WindowCallbacks>> _window_handles;
+
+            bool _rid_registered;
 
             native::opengl_context_handle _default_oglctx_handle;
             absl::flat_hash_set<native::opengl_context_handle> _oglctx_handles;

@@ -8,6 +8,7 @@
 #include <asio.hpp>
 #include <absl/container/flat_hash_set.h>
 
+#include "math/math.hpp"
 #include "async/async.hpp"
 #include "process/process.hpp"
 
@@ -40,11 +41,16 @@ namespace astre::input
 
             asio::awaitable<void> recordMouseMoved(async::LifecycleToken & token, float x, float y, float dx, float dy);
 
-            bool isKeyPressed(InputCode key) const;
+            bool isKeyHeld(InputCode key) const;
+            bool isKeyJustPressed(InputCode key) const;
+            bool isKeyJustReleased(InputCode key) const;
 
-            const absl::flat_hash_set<InputCode> & getPressed() const { return _held_keys; }
+            const absl::flat_hash_set<InputCode> & getHeld() const { return _held_keys; }
             const absl::flat_hash_set<InputCode> & getJustPressed() const { return _just_pressed; }
             const absl::flat_hash_set<InputCode> & getJustReleased() const { return _just_released; }
+
+            const math::Vec2 & getMousePosition() const { return _mouse_pos; }
+            const math::Vec2 & getMouseDelta() const { return _mouse_delta; }
 
             asio::awaitable<void> update(async::LifecycleToken & token);
 
@@ -52,10 +58,14 @@ namespace astre::input
             async::AsyncContext<process::IProcess::execution_context_type> _input_context;
 
             std::deque<InputEvent> _event_queue;
+
             absl::flat_hash_set<InputCode> _held_keys;
 
             absl::flat_hash_set<InputCode> _just_pressed;
             absl::flat_hash_set<InputCode> _just_released;
+
+            math::Vec2 _mouse_pos;
+            math::Vec2 _mouse_delta;
     };
 
 }

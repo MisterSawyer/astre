@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <GL/glew.h>
 #include <GL/wglew.h>
+#include <hidusage.h>     // HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_*
 
 #include "formatter/formatter.hpp"
 #include "process/process.hpp"
@@ -98,7 +99,8 @@ namespace astre::process::windows
     :   _default_oglctx_handle(nullptr),
         _cursor_visible(true),
         _procedure_context(),
-        _execution_context(number_of_threads)
+        _execution_context(number_of_threads),
+        _rid_registered(false)
     {
         spdlog::debug("[winapi] WinapiProcess constructor called");
     }
@@ -161,8 +163,10 @@ namespace astre::process::windows
         }
 
         while(_registered_classes.empty() == false){
-            unregisterClass(_registered_classes.begin()->first);
+            _unregisterClass(_registered_classes.begin()->first);
         }
+
+        _unregisterRawInputDevices();
 
         spdlog::debug("[winapi]  WinapiProcess stopping and closing");
 
@@ -170,7 +174,7 @@ namespace astre::process::windows
         _procedure_context.close();
     }
 
-    bool WinapiProcess::registerClass( const WNDCLASSEX & class_structure)
+    bool WinapiProcess::_registerClass( const WNDCLASSEX & class_structure)
     {
         std::string name = (std::stringstream{} << class_structure.lpszClassName).str();
 
@@ -198,7 +202,7 @@ namespace astre::process::windows
         return true;
     }
 
-    bool WinapiProcess::unregisterClass(std::string name)
+    bool WinapiProcess::_unregisterClass(std::string name)
     {
         spdlog::debug(std::format("[winapi-class-manager] unregistering WinApi class {} ...", name));
 
@@ -220,146 +224,7 @@ namespace astre::process::windows
         return true;
     }
 
-    asio::awaitable<native::window_handle> WinapiProcess::registerWindow(std::string name, unsigned int width, unsigned int height)
-    {
-        co_await _procedure_context.ensureOnStrand();
-
-        spdlog::debug("[winapi] registerWindow");
-
-        const std::string class_name = "WINAPI:window";
-
-        if(_registered_classes.contains(class_name) == false){
-            spdlog::debug(std::format("[winapi] Window class not registered. Trying to register now ..."));
-
-            const bool registration_result = registerClass(
-                    defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
-            );
-
-            if(registration_result == false){
-                spdlog::error(std::format("[winapi] Cannot register Window class"));
-                
-                co_return nullptr;
-            }
-        }
-
-        const auto class_structure = _registered_classes.at(class_name);
-
-        spdlog::debug(std::format("[winapi] Process DPI setting awareness to DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2"));
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
-        native::window_handle window_handle = CreateWindowExA(
-            0,                                  // dwExStyle
-            class_name.c_str(),                  // lpClassName
-            name.c_str(),                 // lpWindowName
-            WS_OVERLAPPEDWINDOW,                // dwStyle
-            CW_USEDEFAULT,                      // X
-            CW_USEDEFAULT,                      // Y
-            (int)width,              // nWidth
-            (int)height,             // nHeight
-            NULL,                               //hWndParent
-            NULL,                               // hMenu
-            class_structure.hInstance,   // hInstance
-            nullptr                             // lpParam
-        );
-
-        if(window_handle != nullptr){
-            spdlog::debug(std::format("[winapi] constructing window [{}] ", window_handle));
-        }else{
-            spdlog::error(std::format("[winapi] constructing window failed"));
-            
-            co_return nullptr;
-        }
-
-        // store pointer to instance of process in winapi class
-        SetWindowLongPtrW(window_handle, 0, reinterpret_cast<LONG_PTR>(this));
-
-        native::device_context device_context = GetDC(window_handle);
-        if(device_context == nullptr){
-            spdlog::error(std::format("[winapi] cannot retrive device context for {}", window_handle));
-            DestroyWindow(window_handle);
-            co_return nullptr;
-        }
-
-        PIXELFORMATDESCRIPTOR pfd = generateAdvancedPFD();
-        const int pixel_format_ID = ChoosePixelFormat(device_context, &pfd);
-        spdlog::debug(std::format("[winapi] choosen pixel format ID {} ", pixel_format_ID));
-
-        if(pixel_format_ID <= 0 || SetPixelFormat(device_context, pixel_format_ID, &pfd) == false) {
-            spdlog::error(std::format( "[winapi] cannot set pixel format for {}", window_handle));
-            ReleaseDC(window_handle, device_context);
-            DestroyWindow(window_handle);
-            co_return nullptr;
-        }
-
-        ReleaseDC(window_handle, device_context);
-
-        _window_handles.try_emplace(window_handle, std::nullopt);
-
-        spdlog::info(std::format("[winapi] Window {} created", window_handle));
-
-        RAWINPUTDEVICE rid;
-        rid.usUsagePage = 0x01; // Generic desktop controls
-        rid.usUsage = 0x02;     // Mouse
-        rid.dwFlags = 0; // Receive input only when focused
-        rid.hwndTarget = window_handle;
-
-        if (!RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
-            spdlog::error("Failed to register raw input device: {}", GetLastError());
-            DestroyWindow(window_handle);  // clean up
-            co_return nullptr;
-        }
-
-        co_return window_handle;
-    }
-
-    asio::awaitable<bool> WinapiProcess::unregisterWindow(native::window_handle window)
-    {
-        co_await _procedure_context.ensureOnStrand();
-
-        spdlog::debug(std::format("[winapi] unregistering Window {} ...", window));
-
-        if(_window_handles.contains(window) == false){
-            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
-            co_return false;
-        }
-
-        ReleaseDC(window, GetDC(window));
-        DestroyWindow(window);
-        
-        _window_handles.erase(window);
-
-        spdlog::info(std::format("[winapi-class-manager] window {} destroyed", window));
-        co_return true;
-    }
-
-    asio::awaitable<bool> WinapiProcess::setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks)
-    {
-        co_await _procedure_context.ensureOnStrand();
-
-        spdlog::debug("[winapi] setWindowCallbacks");
-
-        if(_window_handles.contains(window) == false){
-            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
-            co_return false;
-        }
-        _window_handles.at(window) = std::move(callbacks);
-        co_return true;
-    }
-
-    asio::awaitable<void> WinapiProcess::registerProcedureCallback(native::window_handle window, native::procedure callback)
-    {
-        co_await _procedure_context.ensureOnStrand();
-
-        spdlog::debug("[winapi] registerProcedureCallback");
-
-        if(_window_handles.contains(window) == false){
-            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
-            co_return;
-        }
-        _window_procedures[window] = std::move(callback);
-    }
-
-    bool WinapiProcess::initOpenGL()
+    bool WinapiProcess::_initOpenGL()
     {
         if(_default_oglctx_handle != nullptr){
             spdlog::debug(std::format("[winapi] default context already created"));
@@ -371,7 +236,7 @@ namespace astre::process::windows
         if(_registered_classes.contains(class_name) == false){
             spdlog::debug(std::format("[winapi] Window class not registered. Trying to register now ..."));
 
-            const bool registration_result = registerClass(
+            const bool registration_result = _registerClass(
                     defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
             );
 
@@ -446,6 +311,206 @@ namespace astre::process::windows
         return true;
     }
 
+    bool WinapiProcess::_registerRawInputDevices()
+    {
+        if(_rid_registered) return true;
+
+        RAWINPUTDEVICE rid{};
+        rid.usUsagePage = HID_USAGE_PAGE_GENERIC;     // Generic Desktop
+        rid.usUsage     = HID_USAGE_GENERIC_MOUSE;     // Mouse
+        rid.dwFlags     = 0;     //todo RIDEV_NOLEGACY no WM_MOUSEMOVE/WM_*BUTTON
+        // Optional: rid.dwFlags |= RIDEV_INPUTSINK; // receive while unfocused
+        //rid.hwndTarget  = nullptr;
+
+        if (!RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
+            spdlog::error("Failed to register raw input device: {}", GetLastError());
+            return false;
+        }
+
+        spdlog::debug("[winapi] Raw input device registered");
+        _rid_registered = true;
+        return true;
+    }
+
+    bool WinapiProcess::_unregisterRawInputDevices()
+    {
+        if(_rid_registered == false) return true;
+
+        // Per Win32: when using RIDEV_REMOVE, hwndTarget MUST be NULL.
+        // We may have registered multiple classes; try removing both at once first.
+        RAWINPUTDEVICE both[] = {
+            { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE,     RIDEV_REMOVE, nullptr },
+            { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_KEYBOARD,  RIDEV_REMOVE, nullptr }
+        };
+
+        auto try_unregister = [](RAWINPUTDEVICE* devs, UINT count) -> bool {
+            return ::RegisterRawInputDevices(devs, count, sizeof(RAWINPUTDEVICE)) != FALSE;
+        };
+
+        if (try_unregister(both, static_cast<UINT>(std::size(both))))
+        {
+            spdlog::debug("[winapi] Raw input device unregistered");
+            _rid_registered = false;
+            return true;
+        }
+
+        // Fallbacks: handle older/quirky systems or cases where only one was registered.
+        RAWINPUTDEVICE mouse{ HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE,    RIDEV_REMOVE, nullptr };
+        RAWINPUTDEVICE keybd{ HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_KEYBOARD, RIDEV_REMOVE, nullptr };
+
+        if (try_unregister(&mouse, 1))
+        {
+            spdlog::debug("[winapi] Raw input device unregistered");
+            _rid_registered = false;
+            return true;
+        }
+
+        if (try_unregister(&keybd, 1))
+        {
+            spdlog::debug("[winapi] Raw input device unregistered");
+            _rid_registered = false;
+            return true;
+        }
+
+        const DWORD err = ::GetLastError();
+        spdlog::warn("RawInput unregistration failed (RIDEV_REMOVE). GetLastError={}", err);
+        return false;
+    }
+
+    asio::awaitable<native::window_handle> WinapiProcess::registerWindow(std::string name, unsigned int width, unsigned int height)
+    {
+        co_await _procedure_context.ensureOnStrand();
+
+        spdlog::debug("[winapi] registerWindow");
+
+        const std::string class_name = "WINAPI:window";
+
+        if(_registered_classes.contains(class_name) == false){
+            spdlog::debug(std::format("[winapi] Window class not registered. Trying to register now ..."));
+
+            const bool registration_result = _registerClass(
+                    defaultWindowClass<WinapiProcess *>(WinapiProcess::procedure, class_name)
+            );
+
+            if(registration_result == false){
+                spdlog::error(std::format("[winapi] Cannot register Window class"));
+                
+                co_return nullptr;
+            }
+        }
+
+        const auto class_structure = _registered_classes.at(class_name);
+
+        spdlog::debug(std::format("[winapi] Process DPI setting awareness to DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2"));
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+        native::window_handle window_handle = CreateWindowExA(
+            0,                                  // dwExStyle
+            class_name.c_str(),                  // lpClassName
+            name.c_str(),                 // lpWindowName
+            WS_OVERLAPPEDWINDOW,                // dwStyle
+            CW_USEDEFAULT,                      // X
+            CW_USEDEFAULT,                      // Y
+            (int)width,              // nWidth
+            (int)height,             // nHeight
+            NULL,                               //hWndParent
+            NULL,                               // hMenu
+            class_structure.hInstance,   // hInstance
+            nullptr                             // lpParam
+        );
+
+        if(window_handle != nullptr){
+            spdlog::debug(std::format("[winapi] constructing window [{}] ", window_handle));
+        }else{
+            spdlog::error(std::format("[winapi] constructing window failed"));
+            
+            co_return nullptr;
+        }
+
+        // store pointer to instance of process in winapi class
+        SetWindowLongPtrW(window_handle, 0, reinterpret_cast<LONG_PTR>(this));
+
+        native::device_context device_context = GetDC(window_handle);
+        if(device_context == nullptr){
+            spdlog::error(std::format("[winapi] cannot retrive device context for {}", window_handle));
+            DestroyWindow(window_handle);
+            co_return nullptr;
+        }
+
+        PIXELFORMATDESCRIPTOR pfd = generateAdvancedPFD();
+        const int pixel_format_ID = ChoosePixelFormat(device_context, &pfd);
+        spdlog::debug(std::format("[winapi] choosen pixel format ID {} ", pixel_format_ID));
+
+        if(pixel_format_ID <= 0 || SetPixelFormat(device_context, pixel_format_ID, &pfd) == false) {
+            spdlog::error(std::format( "[winapi] cannot set pixel format for {}", window_handle));
+            ReleaseDC(window_handle, device_context);
+            DestroyWindow(window_handle);
+            co_return nullptr;
+        }
+
+        ReleaseDC(window_handle, device_context);
+
+        if(_registerRawInputDevices() == false)
+        {
+            spdlog::error("[winapi] cannot register raw input devices");
+            DestroyWindow(window_handle);
+            co_return nullptr;
+        }
+
+        _window_handles.try_emplace(window_handle, std::nullopt);
+
+        spdlog::info(std::format("[winapi] Window {} created", window_handle));
+
+        co_return window_handle;
+    }
+
+    asio::awaitable<bool> WinapiProcess::unregisterWindow(native::window_handle window)
+    {
+        co_await _procedure_context.ensureOnStrand();
+
+        spdlog::debug(std::format("[winapi] unregistering Window {} ...", window));
+
+        if(_window_handles.contains(window) == false){
+            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
+            co_return false;
+        }
+
+        ReleaseDC(window, GetDC(window));
+        DestroyWindow(window);
+        
+        _window_handles.erase(window);
+
+        spdlog::info(std::format("[winapi-class-manager] window {} destroyed", window));
+        co_return true;
+    }
+
+    asio::awaitable<bool> WinapiProcess::setWindowCallbacks(native::window_handle window, WindowCallbacks && callbacks)
+    {
+        co_await _procedure_context.ensureOnStrand();
+
+        spdlog::debug("[winapi] setWindowCallbacks");
+
+        if(_window_handles.contains(window) == false){
+            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
+            co_return false;
+        }
+        _window_handles.at(window) = std::move(callbacks);
+        co_return true;
+    }
+
+    asio::awaitable<void> WinapiProcess::registerProcedureCallback(native::window_handle window, native::procedure callback)
+    {
+        co_await _procedure_context.ensureOnStrand();
+
+        spdlog::debug("[winapi] registerProcedureCallback");
+
+        if(_window_handles.contains(window) == false){
+            spdlog::error(std::format("[winapi-class-manager] window {} not registered", window));
+            co_return;
+        }
+        _window_procedures[window] = std::move(callback);
+    }
+
     asio::awaitable<native::opengl_context_handle> WinapiProcess::registerOGLContext(native::window_handle window_handle, unsigned int major_version, unsigned int minor_version)
     {
         co_await _procedure_context.ensureOnStrand();
@@ -470,7 +535,7 @@ namespace astre::process::windows
 
         if(_default_oglctx_handle == nullptr)
         {
-            if(initOpenGL() == false || _default_oglctx_handle == nullptr)
+            if(_initOpenGL() == false || _default_oglctx_handle == nullptr)
             {
                 spdlog::error(std::format("[winapi] cannot obtain default context, err: {}", GetLastError()));
                 co_return nullptr;
@@ -684,14 +749,20 @@ namespace astre::process::windows
             GetRawInputData((HRAWINPUT)lparam, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
             if (size == 0) break;
 
-            std::vector<BYTE> buffer(size);
-            if (GetRawInputData((HRAWINPUT)lparam, RID_INPUT, buffer.data(), &size, sizeof(RAWINPUTHEADER)) != size)
+            // Reuse a thread_local buffer to avoid per-message mallocs
+            thread_local std::vector<BYTE> buffer(size);
+            if (buffer.size() < size) buffer.resize(size);
+
+            if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lparam), RID_INPUT, buffer.data(), &size, sizeof(RAWINPUTHEADER)) != size)
                 break;
 
             RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(buffer.data());
-            if (raw->header.dwType == RIM_TYPEMOUSE) {
-                LONG dx = raw->data.mouse.lLastX;
-                LONG dy = raw->data.mouse.lLastY;
+            if (raw->header.dwType == RIM_TYPEMOUSE)
+            {
+                const RAWMOUSE& rm = raw->data.mouse;
+
+                LONG dx = rm.lLastX;
+                LONG dy = rm.lLastY;
 
                 POINT screen_pos;
                 GetCursorPos(&screen_pos);
@@ -699,7 +770,7 @@ namespace astre::process::windows
                 POINT client_pos = screen_pos;
                 ScreenToClient(window, &client_pos);
 
-                if(window_callbacks.onMouseMove != nullptr)
+                if(window_callbacks.onMouseMove != nullptr && (dx != 0 || dy != 0))
                 {
                     asio::co_spawn(_execution_context,
                         window_callbacks.onMouseMove(
@@ -742,6 +813,24 @@ namespace astre::process::windows
             if (window_callbacks.onMouseButtonUp)
             {
                 asio::co_spawn(_execution_context, window_callbacks.onMouseButtonUp(MK_LBUTTON), asio::detached);
+            }
+            return 0;
+        }
+
+        case WM_RBUTTONDOWN:
+        {
+            if (window_callbacks.onMouseButtonDown)
+            {
+                asio::co_spawn(_execution_context, window_callbacks.onMouseButtonDown(MK_RBUTTON), asio::detached);
+            }
+            return 0;
+        }
+
+        case WM_RBUTTONUP:
+        {
+            if (window_callbacks.onMouseButtonUp)
+            {
+                asio::co_spawn(_execution_context, window_callbacks.onMouseButtonUp(MK_RBUTTON), asio::detached);
             }
             return 0;
         }

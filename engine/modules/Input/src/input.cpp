@@ -165,9 +165,19 @@ namespace astre::input
         co_return;
     }
 
-    bool InputService::isKeyPressed(InputCode key) const
+    bool InputService::isKeyHeld(InputCode key) const
     {
         return isInputPresent(key, _held_keys);
+    }
+
+    bool InputService::isKeyJustPressed(InputCode key) const
+    {
+        return isInputPresent(key, _just_pressed);
+    }
+
+    bool InputService::isKeyJustReleased(InputCode key) const
+    {
+        return isInputPresent(key, _just_released);
     }
 
     asio::awaitable<void> InputService::update(async::LifecycleToken & token)
@@ -179,6 +189,8 @@ namespace astre::input
         co_await _input_context.ensureOnStrand();
         _just_pressed.clear();
         _just_released.clear();
+        _mouse_delta.x = 0.0f;
+        _mouse_delta.y = 0.0f;
 
         std::swap(events, _event_queue); // fast, av
 
@@ -199,6 +211,14 @@ namespace astre::input
                     {
                         _just_released.insert(event.code());
                     }
+                    break;
+                case InputEventType::MouseMove:
+                    _mouse_pos.x = event.mouse().x();
+                    _mouse_pos.y = event.mouse().y();
+                    _mouse_delta.x += event.mouse().dx();
+                    _mouse_delta.y += event.mouse().dy();
+                    break;
+                default:
                     break;
             }
         }
