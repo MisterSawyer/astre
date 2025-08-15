@@ -19,7 +19,7 @@ struct EditorState
     ecs::Registry & registry;
     ecs::Systems systems;
 
-    world::WorldStreamer & world_streamer;
+    world::WorldStreamer world_streamer;
     
     pipeline::LogicFrameTimer logic_timer;
 
@@ -60,15 +60,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
         paths.resources / "shaders" / "glsl",
         paths.resources / "worlds" / "scripts"
-    );
-
-    world::WorldStreamer world_streamer(  
-        app_state.process.getExecutionContext(),
-        asset::use_json,
-        paths.resources / "worlds/levels/level_0.json",
-        registry,
-        resource_tracker,
-        32.0f, 32
     );
 
     // Create viewport FBO
@@ -115,7 +106,14 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .script = ecs::system::ScriptSystem(app_state.script, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
-            .world_streamer = world_streamer,
+            .world_streamer = world::WorldStreamer(  
+                app_state.process.getExecutionContext(),
+                asset::use_json,
+                paths.resources / "worlds/levels/level_0.json",
+                registry,
+                resource_tracker,
+                32.0f, 32
+            ),
 
             .logic_timer = pipeline::LogicFrameTimer(),
 
@@ -125,7 +123,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .viewport_texture = viewport_fbo_textures.at(0)
             },
             .main_menu_bar = panel::MainMenuBar(),
-            .scene_panel = panel::ScenePanel(world_streamer),
+            .scene_panel = panel::ScenePanel(),
             .properties_panel = panel::PropertiesPanel(),
             .assets_panel = panel::AssetsPanel(resource_tracker),
             .viewport_panel = panel::ViewportPanel(),
@@ -192,12 +190,63 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     // Logic 4.
+    bool should_reload_scene = true;
     orchestrator.setLogicStage<4>(
-        []
+        [&should_reload_scene]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
+
+            if(should_reload_scene)
+            {
+                should_reload_scene = false;
+                editor_state.scene_panel.loadEntitesDefs(editor_state.world_streamer);
+            }
+
+            // handle removed chunks
+            for(const auto & removed_chunk : editor_state.scene_panel.getRemovedChunks())
+            {
+                editor_state.world_streamer.removeChunk(removed_chunk);
+                should_reload_scene = true;
+            }
+            // handle created chunks
+            for(const auto & new_chunk : editor_state.scene_panel.getCreatedChunks())
+            {
+                editor_state.world_streamer.writeChunk(new_chunk);
+                should_reload_scene = true;
+            }
             
+            // handle added entities
+            for(auto & [chunk_id, new_entities] : editor_state.scene_panel.getCreatedEntities())
+            {
+                for(auto & new_entity : new_entities)
+                {
+                    editor_state.world_streamer.createEntity(chunk_id, new_entity);
+                    should_reload_scene = true;
+                }
+            }
+            // handle updated entities
+            for(auto & [chunk_id, updated_entities] : editor_state.scene_panel.getUpdatedEntities())
+            {
+                for(auto & updated_entity : updated_entities)
+                {
+                    editor_state.world_streamer.updateEntity(chunk_id, updated_entity);
+                    should_reload_scene = true;
+                }
+            }
+            // handle removed entities
+            for(const auto & [chunk_id, removed_entities] : editor_state.scene_panel.getRemovedEntities())
+            {
+                for(const auto & removed_entity : removed_entities)
+                {
+                    editor_state.world_streamer.removeEntity(chunk_id, removed_entity);
+                    should_reload_scene = true;
+                }
+            }
+
+            editor_state.scene_panel.resetEvents();
+
+            // handle selected entity
             const auto scene_selected_entity_def = editor_state.scene_panel.getSelectedEntityDef();
 
             if(editor_state.scene_panel.selectedEntityChanged())
@@ -222,7 +271,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                     auto [chunk_id, entity_def] = *properties_selected_entity_def;
 
                     editor_state.world_streamer.updateEntity(chunk_id, entity_def);
-                    editor_state.scene_panel.loadEntitesDefs();
+                    should_reload_scene = true;
                 }
             }
 

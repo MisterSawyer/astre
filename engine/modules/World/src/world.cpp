@@ -29,7 +29,7 @@ namespace astre::world
         return _archive->writeChunk(chunk);
     }
 
-    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, ecs::EntityDefinition & entity_def)
+    bool WorldStreamer::createEntity(const ChunkID & chunk_id, ecs::EntityDefinition entity_def)
     {
         std::size_t entity_id = entity_def.id();
         if(entity_id == ecs::INVALID_ENTITY)
@@ -54,6 +54,17 @@ namespace astre::world
             entity_def.set_id(entity_id);
         }
 
+        _to_reload.emplace(chunk_id);
+        return _archive->updateEntity(chunk_id, entity_def);
+    }
+
+    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    {
+        if(entity_def.id() == ecs::INVALID_ENTITY)
+        {
+            spdlog::error("[world] Invalid entity id");
+            return false;
+        }
         _to_reload.emplace(chunk_id);
         return _archive->updateEntity(chunk_id, entity_def);
     }

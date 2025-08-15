@@ -17,9 +17,17 @@ namespace astre::world
     inline bool operator==(const ChunkID& lhs, const ChunkID& rhs)
     { return lhs.x() == rhs.x() && lhs.y() == rhs.y() && lhs.z() == rhs.z(); }
 
+    inline bool operator==(const WorldChunk& lhs, const WorldChunk& rhs)
+    { return lhs.id() == rhs.id(); }
+
     template <typename H>
     inline H AbslHashValue(H h, const ChunkID & id) {
         return H::combine(std::move(h), id.x(), id.y(), id.z());
+    }
+
+    template <typename H>
+    inline H AbslHashValue(H h, const WorldChunk & world_chunk) {
+        return H::combine(std::move(h), world_chunk.id());
     }
 
     struct ChunkIndexEntry

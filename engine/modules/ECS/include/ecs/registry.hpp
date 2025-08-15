@@ -5,8 +5,6 @@
 #include "native/native.h"
 #include <asio.hpp>
 
-#include "generated/ECS/proto/entity_definition.pb.h"
-
 #include "async/async.hpp"
 #include "process/process.hpp"
 

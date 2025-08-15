@@ -45,22 +45,20 @@ namespace astre::editor::panel
     }
 
 
-    ScenePanel::ScenePanel(world::WorldStreamer & world_streamer)
-    : _world_streamer(world_streamer)
+    ScenePanel::ScenePanel()
     {
-        loadEntitesDefs();
     }
 
-    void ScenePanel::loadEntitesDefs()
+    void ScenePanel::loadEntitesDefs(world::WorldStreamer & world_streamer)
     {
         _chunk_entities_defs.clear();
         
-        for(const auto & chunk_id : _world_streamer.getAllChunks())
+        for(const auto & chunk_id : world_streamer.getAllChunks())
         {
             _chunk_entities_defs.emplace(chunk_id, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>());
 
             // then for every node we obtain chunk definition
-            auto chunk_res = _world_streamer.readChunk(chunk_id);
+            auto chunk_res = world_streamer.readChunk(chunk_id);
                         
             if (chunk_res.has_value())
             {
@@ -77,63 +75,58 @@ namespace astre::editor::panel
 
     bool ScenePanel::_addChunk(const world::ChunkID & id)
     {
+        if(_chunk_entities_defs.contains(id))return false;
+
         // create empty chunk if not exists
-        if (_world_streamer.getAllChunks().contains(id)) return false;
         world::WorldChunk new_chunk{};
         new_chunk.mutable_id()->CopyFrom(id);
-        const bool ok = _world_streamer.writeChunk(new_chunk);
-        if (ok) loadEntitesDefs();
-        return ok;
+        
+        _created_chunks.emplace(new_chunk);
+
+        return true;
     }
 
     bool ScenePanel::_removeChunk(const world::ChunkID & id) noexcept
     {
-        const bool ok = _world_streamer.removeChunk(id);
-        if (ok) 
-        {
-            _selection.reset();
-            _selected_entity_changed = true;
-            loadEntitesDefs();
-        }
-        return ok;
+        if(_chunk_entities_defs.contains(id) == false)return false;
+
+        _removed_chunks.emplace(id);
+        _selection.reset();
+        _selected_entity_changed = true;
+        
+        return true;
     }
 
     bool ScenePanel::_addEntity(const world::ChunkID & id, std::string_view name)
     {
+        if(_chunk_entities_defs.contains(id) == false)return false;
+
         ecs::EntityDefinition new_entity{};
         new_entity.set_name(name);
         
-        //ENTITY ID ASSIGMENT 
+        _created_entities[id].emplace(new_entity);
 
-        const bool ok = _world_streamer.updateEntity(id, new_entity);
-        if (ok) 
-        {
-            _selection.reset();
-            _selected_entity_changed = true;
-            loadEntitesDefs();
-        }
-        return ok;
+        _selection.reset();
+        _selected_entity_changed = true;
+        
+        return true;
     }
 
     bool ScenePanel::_renameEntity(const world::ChunkID & id, const ecs::Entity & entity, std::string_view new_name)
     {
-
         return false;
-
     }
 
     bool ScenePanel::_removeEntity(const world::ChunkID & id, const ecs::Entity & entity) noexcept
     {
         if(_chunk_entities_defs.contains(id) == false || _chunk_entities_defs.at(id).contains(entity) == false)return false;
 
-        const bool ok = _world_streamer.removeEntity(id, _chunk_entities_defs.at(id).at(entity));
-        if (ok) 
-        {
-            _selection.reset();
-            _selected_entity_changed = true;
-            loadEntitesDefs();
-        }
-        return ok;
+        _removed_entities[id].emplace(_chunk_entities_defs.at(id).at(entity));
+
+        _selection.reset();
+        _selected_entity_changed = true;
+
+        return true;
     }
 
     void ScenePanel::selectEntity(const ecs::Entity & entity)
@@ -180,46 +173,6 @@ namespace astre::editor::panel
         _selected_entity_changed = false;
     }
 
-    void ScenePanel::_drawComponent(bool has, std::string label, const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent kind)
-    {
-        if (!has) return;
-
-        // Use Selectable for a clean selection UX
-        ImGuiSelectableFlags sflags = ImGuiSelectableFlags_AllowDoubleClick;
-
-        bool selected = _selection &&
-                _selection->chunk_id == chunk_id &&
-                _selection->entity == entity &&
-                _selection->component == kind;
-
-        if (ImGui::Selectable(label.c_str(), selected, sflags)) 
-        {
-            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity != entity)))
-            {
-                _selected_entity_changed = true;
-            }
-
-            // Selecting a component auto-selects the entity as requested
-            _selection = SelectedEntity{chunk_id, entity, kind};
-        }
-
-        // Right-click: remove component
-        if (ImGui::BeginPopupContextItem(std::format("##cmp_ctx_{}_{}_{}_{}", 
-        (int)chunk_id.x(), (int)chunk_id.y(), (int)chunk_id.z(),
-             label).c_str())) {
-            if (ImGui::MenuItem("Remove component")) 
-            {
-                _removeComponent(chunk_id, entity, kind);
-                const bool ok =  _world_streamer.updateEntity(chunk_id, _chunk_entities_defs.at(chunk_id).at(entity));
-                if (ok) 
-                {
-                    _selected_entity_changed = true;
-                }
-            }
-            ImGui::EndPopup();
-        }
-    }
-
     bool ScenePanel::_addComponent(const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent component)
     {
         if (component == SelectedComponent::None) return false;
@@ -264,6 +217,8 @@ namespace astre::editor::panel
                 spdlog::error("Unsupported component: {}", (int)component);
                 return false;
         }
+
+        _updated_entities[chunk_id].emplace(_chunk_entities_defs.at(chunk_id).at(entity));
 
         return true;
     }
@@ -312,6 +267,8 @@ namespace astre::editor::panel
                 spdlog::error("Unsupported component: {}", (int)component);
                 return false;
         }
+
+        _updated_entities[chunk_id].emplace(_chunk_entities_defs.at(chunk_id).at(entity));
 
         return true;
     }
@@ -365,9 +322,7 @@ namespace astre::editor::panel
         ImGui::BeginDisabled(!can_add);
         if (ImGui::SmallButton("+"))
         {
-            _addComponent(chunk_id, entity_def.id(), pending);
-            const bool ok = _world_streamer.updateEntity(chunk_id, entity_def);
-            if (ok) 
+            if (_addComponent(chunk_id, entity_def.id(), pending)) 
             {
                 _selected_entity_changed = true;
             }
@@ -376,6 +331,44 @@ namespace astre::editor::panel
             pending = SelectedComponent::None;
         }
         ImGui::EndDisabled();
+    }
+
+    void ScenePanel::_drawComponent(bool has, std::string label, const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent kind)
+    {
+        if (!has) return;
+
+        // Use Selectable for a clean selection UX
+        ImGuiSelectableFlags sflags = ImGuiSelectableFlags_AllowDoubleClick;
+
+        bool selected = _selection &&
+                _selection->chunk_id == chunk_id &&
+                _selection->entity == entity &&
+                _selection->component == kind;
+
+        if (ImGui::Selectable(label.c_str(), selected, sflags)) 
+        {
+            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity != entity)))
+            {
+                _selected_entity_changed = true;
+            }
+
+            // Selecting a component auto-selects the entity as requested
+            _selection = SelectedEntity{chunk_id, entity, kind};
+        }
+
+        // Right-click: remove component
+        if (ImGui::BeginPopupContextItem(std::format("##cmp_ctx_{}_{}_{}_{}", 
+        (int)chunk_id.x(), (int)chunk_id.y(), (int)chunk_id.z(),
+             label).c_str())) {
+            if (ImGui::MenuItem("Remove component")) 
+            {
+                if (_removeComponent(chunk_id, entity, kind)) 
+                {
+                    _selected_entity_changed = true;
+                }
+            }
+            ImGui::EndPopup();
+        }
     }
 
     void ScenePanel::draw(const panel::DrawContext& ctx) noexcept {

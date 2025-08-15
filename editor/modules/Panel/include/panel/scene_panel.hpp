@@ -33,7 +33,7 @@ namespace astre::editor::panel
     class ScenePanel final : public IPanel 
     {
     public:
-        ScenePanel(world::WorldStreamer & world_streamer);
+        ScenePanel();
 
         std::string_view name() const noexcept override { return "Scene"; }
         bool visible() const noexcept override { return _visible; }
@@ -47,7 +47,24 @@ namespace astre::editor::panel
         bool selectedEntityChanged() const noexcept;
         void resetSelectedEntityChanged() noexcept;
 
-        void loadEntitesDefs();
+        const absl::flat_hash_set<world::WorldChunk> & getCreatedChunks() const noexcept { return _created_chunks; }
+        const absl::flat_hash_set<world::ChunkID> & getRemovedChunks() const noexcept { return _removed_chunks; }
+
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> & getCreatedEntities() { return _created_entities; }
+        const absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> & getRemovedEntities() const noexcept { return _removed_entities; }
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> & getUpdatedEntities() { return _updated_entities; }
+
+        void resetEvents() noexcept 
+        {
+            _created_chunks.clear();
+            _removed_chunks.clear();
+            
+            _created_entities.clear();
+            _removed_entities.clear();
+            _updated_entities.clear();
+        }
+
+        void loadEntitesDefs(world::WorldStreamer & world_streamer);
 
     private:
 
@@ -64,8 +81,6 @@ namespace astre::editor::panel
         bool _removeComponent(const world::ChunkID & id, const ecs::Entity & entity, SelectedComponent component) noexcept;
         void _drawAddComponentCombo(const world::ChunkID & chunk_id, ecs::EntityDefinition & entity_def);
 
-        world::WorldStreamer & _world_streamer;
-
         bool _visible{true};
 
         // Selection state
@@ -73,6 +88,14 @@ namespace astre::editor::panel
         std::optional<SelectedEntity> _selection;
 
         absl::flat_hash_map<world::ChunkID, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>> _chunk_entities_defs;
+
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> _created_entities;
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> _updated_entities;
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> _removed_entities;
+
+        absl::flat_hash_set<world::WorldChunk> _created_chunks;
+        absl::flat_hash_set<world::ChunkID> _removed_chunks;
+
 
         absl::flat_hash_map<std::string, std::string> _add_component_preview;
         absl::flat_hash_map<std::string, SelectedComponent> _pending_component;

@@ -57,9 +57,9 @@ namespace astre::world
 
             bool removeChunk(const ChunkID& id);
 
-            // will add entity if does not exist
-            // will assign id to entity_def if not specified
-            bool updateEntity(const ChunkID & chunk_id, ecs::EntityDefinition & entity_def);
+            bool createEntity(const ChunkID & chunk_id, ecs::EntityDefinition entity_def);
+
+            bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
             bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
