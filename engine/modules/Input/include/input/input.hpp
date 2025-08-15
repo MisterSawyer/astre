@@ -28,18 +28,18 @@ namespace astre::input
     class InputService
     {
         public:
-            InputService(process::IProcess & process);
+            InputService(process::IProcess & process, async::LifecycleToken & token);
             InputService(const InputService&) = delete;
             InputService(InputService&&) = delete;
             InputService& operator=(const InputService&) = delete;
             InputService& operator=(InputService&&) = delete;
             ~InputService() = default;
 
-            asio::awaitable<void> recordKeyPressed(async::LifecycleToken & token, InputCode key);
+            asio::awaitable<void> recordKeyPressed(InputCode key);
 
-            asio::awaitable<void> recordKeyReleased(async::LifecycleToken & token, InputCode key);
+            asio::awaitable<void> recordKeyReleased(InputCode key);
 
-            asio::awaitable<void> recordMouseMoved(async::LifecycleToken & token, float x, float y, float dx, float dy);
+            asio::awaitable<void> recordMouseMoved(float x, float y, float dx, float dy);
 
             bool isKeyHeld(InputCode key) const;
             bool isKeyJustPressed(InputCode key) const;
@@ -52,10 +52,12 @@ namespace astre::input
             const math::Vec2 & getMousePosition() const { return _mouse_pos; }
             const math::Vec2 & getMouseDelta() const { return _mouse_delta; }
 
-            asio::awaitable<void> update(async::LifecycleToken & token);
+            asio::awaitable<void> update();
 
         private:
             async::AsyncContext<process::IProcess::execution_context_type> _input_context;
+
+            async::LifecycleToken & _token;
 
             std::deque<InputEvent> _event_queue;
 

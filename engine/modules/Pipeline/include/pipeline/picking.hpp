@@ -9,7 +9,6 @@
 
 namespace astre::pipeline
 {
-
     struct PickingResources
     {
         std::size_t fbo = 0;

@@ -2,6 +2,24 @@
 
 namespace astre::pipeline
 {
+    asio::awaitable<void> runPreECS(AppState & app_state, world::WorldStreamer & world_streamer, const math::Vec3 & load_position)
+    {
+        auto & ex = app_state.process.getExecutionContext();
+        const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
+        
+        // --- Input + world in parallel
+        {
+            auto g = asio::experimental::make_parallel_group(
+                    asio::co_spawn(ex, app_state.input.update(),                       asio::deferred),
+                    asio::co_spawn(ex, world_streamer.updateLoadPosition(load_position), asio::deferred)
+                );
+            auto [ord, e1, e2] =
+                    co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+            if (e1) std::rethrow_exception(e1);
+            if (e2) std::rethrow_exception(e2);
+        } 
+    }
+
     asio::awaitable<void> runECS(ecs::Systems & systems, float dt, render::Frame & render_frame)
     {
         auto ex = co_await asio::this_coro::executor;

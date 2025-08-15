@@ -1,8 +1,6 @@
 #pragma once
 #include <string_view>
 
-#include "controller/editor_fly_camera.hpp"
-
 #include "panel/panel_interface.hpp"
 
 namespace astre::editor::panel 
@@ -11,8 +9,7 @@ namespace astre::editor::panel
     class ViewportPanel final : public IPanel 
     {
     public:
-        ViewportPanel(controller::EditorFlyCamera & fly_camera) 
-        : _fly_camera(fly_camera) {}
+        ViewportPanel() = default;
 
         std::string_view name() const noexcept override { return "Viewport"; }
         bool visible() const noexcept override { return _visible; }
@@ -20,10 +17,17 @@ namespace astre::editor::panel
 
         void draw(const DrawContext& ctx) noexcept override;
 
+        const math::Vec2& getImgPos() const noexcept { return _img_pos; }
+        const math::Vec2& getImgSize() const noexcept { return _img_size; }
+
+        bool isHovered() const noexcept { return _hovered; }
+
     private:
         bool _visible{true};
+        bool _hovered{false};
 
-        controller::EditorFlyCamera & _fly_camera;
+        math::Vec2 _img_pos;
+        math::Vec2 _img_size;
     };
 
 }

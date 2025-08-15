@@ -14,25 +14,19 @@
 #include "ecs/ecs.hpp"
 #include "asset/asset.hpp"
 #include "input/input.hpp"
-#include "gui/gui.hpp"
 
+#include "pipeline/app_state.hpp"
+#include "pipeline/frame_buffer.hpp"
+
+#include "pipeline/display.hpp"
 #include "pipeline/deferred_shading.hpp"
 #include "pipeline/picking.hpp"
 
+#include "pipeline/logic_frame_timer.hpp"
 #include "pipeline/logic_pipelines.hpp"
 
 namespace astre::pipeline
-{
-    struct AppState
-    {
-        process::IProcess & process;
-        window::IWindow & window;
-        render::IRenderer & renderer;
-        input::InputService & input;
-        gui::GUIService & gui;
-    };
-
-    class App
+{    class App
     {
         public:
         App(process::IProcess & process, std::string title, unsigned int width, unsigned int height)
@@ -55,10 +49,12 @@ namespace astre::pipeline
             async::LifecycleToken fnc_token;
             async::LifecycleToken app_token;
 
-            input::InputService input(_process);
+            input::InputService input(_process, fnc_token);
 
             gui::GUIService gui(_process, *window, *renderer);
             co_await gui.init();
+
+            script::ScriptRuntime script_runtime;
 
             co_await _process.setWindowCallbacks(window->getHandle(), 
             process::WindowCallbacks{
@@ -89,30 +85,25 @@ namespace astre::pipeline
                     //co_await window->resize(width, height); is it even needed?
                     co_await renderer->updateViewportSize(width, height);
                 },
-                .onKeyPress = [&fnc_token, &input](int key) -> asio::awaitable<void>
+                .onKeyPress = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_stop_if(fnc_token);
-                    co_await input.recordKeyPressed(fnc_token, input::keyToInputCode(key));
+                    co_await input.recordKeyPressed(input::keyToInputCode(key));
                 },
-                .onKeyRelease = [&fnc_token, &input](int key) -> asio::awaitable<void>
+                .onKeyRelease = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_stop_if(fnc_token);
-                    co_await input.recordKeyReleased(fnc_token, input::keyToInputCode(key));
+                    co_await input.recordKeyReleased(input::keyToInputCode(key));
                 },
-                .onMouseButtonDown = [&fnc_token, &input](int key) -> asio::awaitable<void>
+                .onMouseButtonDown = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_stop_if(fnc_token);
-                    co_await input.recordKeyPressed(fnc_token, input::keyToInputCode(key));
+                    co_await input.recordKeyPressed(input::keyToInputCode(key));
                 },
-                .onMouseButtonUp = [&fnc_token, &input](int key) -> asio::awaitable<void>
+                .onMouseButtonUp = [&input](int key) -> asio::awaitable<void>
                 {
-                    co_stop_if(fnc_token);
-                    co_await input.recordKeyReleased(fnc_token, input::keyToInputCode(key));
+                    co_await input.recordKeyReleased(input::keyToInputCode(key));
                 },
-                .onMouseMove = [&fnc_token, &input](int x, int y, float dx, float dy) -> asio::awaitable<void>
+                .onMouseMove = [&input](int x, int y, float dx, float dy) -> asio::awaitable<void>
                 {
-                    co_stop_if(fnc_token);
-                    co_await input.recordMouseMoved(fnc_token, (float)x, (float)y, dx, dy);
+                    co_await input.recordMouseMoved((float)x, (float)y, dx, dy);
                 }
             });
 
@@ -127,7 +118,8 @@ namespace astre::pipeline
                     .window = *window,
                     .renderer = *renderer,
                     .input = input,
-                    .gui = gui
+                    .gui = gui,
+                    .script = script_runtime
                 },
                 std::forward<Args>(args)...
             );
@@ -150,24 +142,6 @@ namespace astre::pipeline
             unsigned int _height;
     };
 
-
-    template <typename T, std::size_t Count = 3>
-    class FramesBuffer : public std::array<T, Count>
-    {
-    public:        
-        static_assert(Count >= 2, "Need at least 2 frames for interpolation");
-
-        T& current()                    { return std::array<T, Count>::at(_index); }
-        const T& previous() const       { return std::array<T, Count>::at((_index + Count - 1) % Count); }
-        const T& beforePrevious() const { return std::array<T, Count>::at((_index + Count - 2) % Count); }
-
-        void rotate() { _index = (_index + 1) % Count; }
-        std::size_t index() const { return _index; }
-
-    private:
-        std::size_t _index = 0;
-    };
-
     template<typename FrameState, typename StageState, std::size_t LogicStagesCount = 1, std::size_t RenderStagesCount = 1>
     class PipelineOrchestrator
     {
@@ -175,13 +149,13 @@ namespace astre::pipeline
         using LogicStage = std::function<
             asio::awaitable<void>(async::LifecycleToken &, float, FrameState&, StageState&)>;
         using RenderStage = std::function<
-            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &)>;
+            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &, StageState &)>;
         using SyncStage = std::function<
             asio::awaitable<void>(async::LifecycleToken &, StageState&)>;
 
-        PipelineOrchestrator(process::IProcess & process, FramesBuffer<FrameState>& buffer, StageState && init_state)
+        PipelineOrchestrator(process::IProcess & process, StageState && init_state)
             :   _process(process),
-                _buffer(buffer),
+                _buffer(),
                 _stage_state(std::move(init_state)),
                 _accumulator(0.0f),
                 _fixed_logic_step(1.0f / 10.0f)
@@ -281,12 +255,13 @@ namespace astre::pipeline
                     token,
                     alpha, 
                     _buffer.beforePrevious().render_frame,
-                    _buffer.previous().render_frame);
+                    _buffer.previous().render_frame,
+                    _stage_state);
             }
         }
 
         process::IProcess & _process;
-        FramesBuffer<FrameState> & _buffer;
+        FramesBuffer<FrameState> _buffer;
 
         std::array<LogicStage, LogicStagesCount> _logic_stages;
         float _fixed_logic_step;

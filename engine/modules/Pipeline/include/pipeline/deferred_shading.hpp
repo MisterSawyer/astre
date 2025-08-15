@@ -25,7 +25,10 @@ namespace astre::pipeline
         std::size_t screen_quad_vb; // where
         std::size_t screen_quad_shader; // const
 
-        std::size_t debug_overlay_shader; 
+        std::size_t debug_overlay_shader;
+
+        render::RenderOptions gbuffer_render_options;
+        render::RenderOptions shadow_map_render_options;
     };
 
     asio::awaitable<std::optional<DeferredShadingResources>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size);
@@ -34,7 +37,5 @@ namespace astre::pipeline
         render::IRenderer & renderer,
         const DeferredShadingResources & resources,
         float alpha, const render::Frame & prev, const render::Frame & curr,
-        const render::RenderOptions & gbuffer_render_options,
-        const render::RenderOptions & shadow_map_render_options,
         std::optional<std::size_t> fbo = std::nullopt);
 }

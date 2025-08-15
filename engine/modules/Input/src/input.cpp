@@ -116,13 +116,13 @@ namespace astre::input
         return InputCode::UNKNOWN_InputCode;
     }
 
-    InputService::InputService(process::IProcess & process)
-    :   _input_context(process.getExecutionContext())
+    InputService::InputService(process::IProcess & process, async::LifecycleToken & token)
+    :   _input_context(process.getExecutionContext()), _token(token)
     {}
 
-    asio::awaitable<void> InputService::recordKeyPressed(async::LifecycleToken & token, InputCode key)
+    asio::awaitable<void> InputService::recordKeyPressed(InputCode key)
     {
-        co_stop_if(token);
+        co_stop_if(_token);
 
         InputEvent event;
         event.set_type(InputEventType::Pressed);
@@ -134,9 +134,9 @@ namespace astre::input
         co_return;
     }
 
-    asio::awaitable<void> InputService::recordKeyReleased(async::LifecycleToken & token, InputCode key)
+    asio::awaitable<void> InputService::recordKeyReleased(InputCode key)
     {
-        co_stop_if(token);
+        co_stop_if(_token);
 
         InputEvent event;
         event.set_type(InputEventType::Released);
@@ -148,9 +148,9 @@ namespace astre::input
         co_return;
     }
 
-    asio::awaitable<void> InputService::recordMouseMoved(async::LifecycleToken & token, float x, float y, float dx, float dy)
+    asio::awaitable<void> InputService::recordMouseMoved(float x, float y, float dx, float dy)
     {
-        co_stop_if(token);
+        co_stop_if(_token);
 
         InputEvent event;
         event.set_type(InputEventType::MouseMove);
@@ -180,9 +180,9 @@ namespace astre::input
         return isInputPresent(key, _just_released);
     }
 
-    asio::awaitable<void> InputService::update(async::LifecycleToken & token)
+    asio::awaitable<void> InputService::update()
     {
-        co_stop_if(token);
+        co_stop_if(_token);
         
         std::deque<InputEvent> events;
 

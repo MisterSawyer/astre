@@ -8,6 +8,17 @@ namespace astre::pipeline
     {
         DeferredShadingResources resources;
 
+        resources.gbuffer_render_options =
+            render::RenderOptions{
+                .mode = render::RenderMode::Solid
+            };
+
+        resources.shadow_map_render_options =
+            render::RenderOptions{
+                .mode = render::RenderMode::Solid,
+                .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
+            };
+
         // Create deffered FBO ( GBuffer )
         auto deferred_fbo_res = co_await renderer.createFrameBufferObject(
             "fbo::deferred", size,
@@ -104,8 +115,7 @@ namespace astre::pipeline
     static asio::awaitable<render::FrameStats> _renderFrameToGBuffer(
             render::IRenderer & renderer,
             const render::Frame & frame,
-            const DeferredShadingResources & resources,
-            const render::RenderOptions & options)
+            const DeferredShadingResources & resources)
     {
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.deferred_fbo);
         
@@ -126,7 +136,7 @@ namespace astre::pipeline
                 proxy.vertex_buffer,
                 proxy.shader,
                 inputs,
-                options,
+                resources.gbuffer_render_options,
                 resources.deferred_fbo
             );
         }
@@ -137,8 +147,7 @@ namespace astre::pipeline
     static asio::awaitable<render::FrameStats> _renderFrameToShadowMaps(
             render::IRenderer & renderer,
             const render::Frame & frame,
-            const DeferredShadingResources & resources,
-            const render::RenderOptions & options)
+            const DeferredShadingResources & resources)
     {
         render::FrameStats stats;
         // for every shadow caster we need to render whole scene 
@@ -168,7 +177,7 @@ namespace astre::pipeline
                             {"uLightSpaceMatrix", frame.light_space_matrices.at(shadow_caster_id)}
                         }
                     },
-                    options,
+                    resources.shadow_map_render_options,
                     resources.shadow_map_fbos.at(shadow_caster_id)
                 );
             }
@@ -263,8 +272,6 @@ namespace astre::pipeline
             render::IRenderer & renderer,
             const DeferredShadingResources & render_resources,
             float alpha, const render::Frame & prev, const render::Frame & curr,
-            const render::RenderOptions & gbuffer_render_options,
-            const render::RenderOptions & shadow_map_render_options,
             std::optional<std::size_t> fbo)
     {
         // Render interpolated frame using prev <-> curr, using alpha
@@ -272,9 +279,9 @@ namespace astre::pipeline
 
         render::FrameStats stats;
 
-        stats += co_await _renderFrameToGBuffer(renderer, interpolated_frame, render_resources, gbuffer_render_options);
+        stats += co_await _renderFrameToGBuffer(renderer, interpolated_frame, render_resources);
         // here we should render selection :/ 
-        stats += co_await _renderFrameToShadowMaps(renderer, interpolated_frame, render_resources, shadow_map_render_options);
+        stats += co_await _renderFrameToShadowMaps(renderer, interpolated_frame, render_resources);
         
         // update light SSBO
         std::vector<render::GPULight> lights_buffer;

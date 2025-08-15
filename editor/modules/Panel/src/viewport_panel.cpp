@@ -4,70 +4,7 @@
 
 namespace astre::editor::panel
 {
-/*
-    static void _drawRenderOptionsEditor(const char* label, render::RenderOptions& options)
-    {
-        static const char* mode_names[] = {
-            "Wireframe", "Solid", "Textured", "Shadow", "ShadowTextured"
-        };
-
-        int current_mode = static_cast<int>(options.mode);
-        if (ImGui::Combo("Render Mode", &current_mode, mode_names, static_cast<int>(render::RenderMode::_COUNT)))
-        {
-            options.mode = static_cast<render::RenderMode>(current_mode);
-        }
-
-        bool has_offset = options.polygon_offset.has_value();
-        if (ImGui::Checkbox("Enable Polygon Offset", &has_offset))
-        {
-            if (has_offset && !options.polygon_offset)
-                options.polygon_offset = render::PolygonOffset{0.0f, 0.0f};
-            else if (!has_offset)
-                options.polygon_offset.reset();
-        }
-
-        if (options.polygon_offset)
-        {
-            ImGui::SliderFloat("Offset Factor", &options.polygon_offset->factor, -10.0f, 10.0f, "%.2f");
-            ImGui::SliderFloat("Offset Units", &options.polygon_offset->units, -10.0f, 10.0f, "%.2f");
-        }
-    }
-
-    bool VSYNC_ENABLED = true;
-    bool VSYNC_CHANGED = true;
-
-    static void _drawRenderControlWindow(
-        render::RenderOptions& gbuffer_render_options,
-        render::RenderOptions& shadow_map_render_options)
-    {
-        ImGui::Begin("Render Settings", nullptr,
-            ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoSavedSettings);
-
-        if (ImGui::CollapsingHeader("GBuffer Pass", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::PushID("GBuffer");
-            _drawRenderOptionsEditor("GBuffer", gbuffer_render_options);
-            ImGui::PopID();
-        }
-
-        if (ImGui::CollapsingHeader("Shadow Pass", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::PushID("Shadow");
-            _drawRenderOptionsEditor("Shadow", shadow_map_render_options);
-            ImGui::PopID();
-        }
-
-        ImGui::Separator();
-        if(ImGui::Checkbox("Enable VSync", &VSYNC_ENABLED))
-        {
-            VSYNC_CHANGED = true;
-        }
-        ImGui::End();
-    }
-
-*/
-    static void _drawCameraOverlay(const controller::EditorFlyCamera& camera) noexcept
+    static void _drawCameraOverlay(const math::Vec3 & camera_position) noexcept
     {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         if (!dl) return;
@@ -81,7 +18,7 @@ namespace astre::editor::panel
         // Text
         char line[128];
         std::snprintf(line, sizeof(line), "Cam: [%.2f, %.2f, %.2f]",
-                      camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+                      camera_position.x, camera_position.y, camera_position.z);
 
         const ImVec2 text_sz = ImGui::CalcTextSize(line);
         const float pad = 6.0f;
@@ -175,12 +112,16 @@ namespace astre::editor::panel
                 );
 
                 // query the actual image rectangle
-                const ImVec2 imgMin = ImGui::GetItemRectMin();
-                const ImVec2 imgMax = ImGui::GetItemRectMax();
-                const ImVec2 imgSize = ImVec2(imgMax.x - imgMin.x, imgMax.y - imgMin.y);
-                const bool   hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+                const ImVec2 img_min = ImGui::GetItemRectMin();
+                const ImVec2 img_max = ImGui::GetItemRectMax();
 
-                _fly_camera.setViewportRect(imgMin, imgSize, hovered);
+                _img_size.x = img_max.x - img_min.x;
+                _img_size.y = img_max.y - img_min.y;
+                
+                _img_pos.x = img_min.x;
+                _img_pos.y = img_min.y;
+
+                _hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
             }
 
             // Compute anchor at top-left
@@ -192,7 +133,7 @@ namespace astre::editor::panel
             // Submit overlay *after* the image so it appears on top
             _drawStatsOverlayAt(anchor, ctx.logic_fps, ctx.logic_frame_time, ctx.stats);
 
-            _drawCameraOverlay(_fly_camera);
+            _drawCameraOverlay(ctx.camera_position);
         }
 
         ImGui::End();

@@ -20,11 +20,30 @@ struct EditorState
     ecs::Systems systems;
 
     world::WorldStreamer & world_streamer;
+    
+    pipeline::LogicFrameTimer logic_timer;
+
+    layout::DockSpace dock_space;
+
+    panel::DrawContext ctx;
+
+    panel::MainMenuBar main_menu_bar;
+    panel::ScenePanel scene_panel;
+    panel::PropertiesPanel properties_panel;
+    panel::AssetsPanel assets_panel;
+    panel::ViewportPanel viewport_panel;
+
+    controller::SelectionOverlayController selection_overlay_controller;
+
+    controller::EditorFlyCamera flycam;
 };
 
 asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
 {
+    // Load Vertex Buffers
     co_await asset::loadVertexBuffersPrefabs(app_state.renderer);
+    
+    // Load Shaders
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
@@ -33,12 +52,12 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "debug_overlay");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "picking_id64");
 
-    script::ScriptRuntime script_runtime;
-    co_await asset::loadScript(script_runtime, paths.resources / "worlds" / "scripts" / "player_script.lua");
+    // Load Scripts
+    co_await asset::loadScript(app_state.script, paths.resources / "worlds" / "scripts" / "player_script.lua");
 
     ecs::Registry registry(app_state.process.getExecutionContext());
 
-    asset::ResourceTracker resource_tracker(app_state.renderer, script_runtime,
+    asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
         paths.resources / "shaders" / "glsl",
         paths.resources / "worlds" / "scripts"
     );
@@ -52,8 +71,38 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         32.0f, 32
     );
 
-    pipeline::FramesBuffer<EditorFrame> buffer;
-    pipeline::PipelineOrchestrator<EditorFrame, EditorState, 6, 3> orchestrator(app_state.process, buffer,
+    // Create viewport FBO
+    auto display_resources_res = co_await pipeline::buildDisplayResources(app_state.renderer, {1280, 728});
+    if(!display_resources_res) 
+    {
+        spdlog::error("Failed to create display resources");
+         co_return;
+    }
+    const auto & display_resources = *display_resources_res;
+    // Get viewport FBO texture
+    auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(display_resources.viewport_fbo);
+    assert(viewport_fbo_textures.size() == 1);
+
+    // Create picking FBO
+    auto picking_resources_res = co_await pipeline::buildPickingResources(app_state.renderer, display_resources.size);
+    if(!picking_resources_res)
+    {
+        spdlog::error("Failed to build picking resources");
+        co_return;
+    }
+    const pipeline::PickingResources & picking_resources = *picking_resources_res;
+
+    // Create deferred shading FBO
+    auto render_resources_res = co_await pipeline::buildDeferredShadingResources(app_state.renderer, display_resources.size);
+    if(!render_resources_res)
+    {
+        spdlog::error("Failed to build deferred shading resources");
+        co_return;
+    }
+    const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
+
+    // Create orchestrator
+    pipeline::PipelineOrchestrator<EditorFrame, EditorState, 5, 3> orchestrator(app_state.process,
         EditorState
         {
             .app_state = app_state,
@@ -63,376 +112,181 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .camera = ecs::system::CameraSystem(5, registry),
                 .visual = ecs::system::VisualSystem(app_state.renderer, registry),
                 .light = ecs::system::LightSystem(registry),
-                .script = ecs::system::ScriptSystem(script_runtime, registry),
+                .script = ecs::system::ScriptSystem(app_state.script, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
-            .world_streamer = world_streamer
+            .world_streamer = world_streamer,
+
+            .logic_timer = pipeline::LogicFrameTimer(),
+
+            .dock_space = layout::DockSpace(),
+
+            .ctx = panel::DrawContext{
+                .viewport_texture = viewport_fbo_textures.at(0)
+            },
+            .main_menu_bar = panel::MainMenuBar(),
+            .scene_panel = panel::ScenePanel(world_streamer),
+            .properties_panel = panel::PropertiesPanel(),
+            .assets_panel = panel::AssetsPanel(resource_tracker),
+            .viewport_panel = panel::ViewportPanel(),
+
+            .selection_overlay_controller = controller::SelectionOverlayController(app_state.renderer),
+
+            .flycam = controller::EditorFlyCamera()
         }
     );
     
     // Logic 0. summary start stage
-    std::chrono::steady_clock::time_point logic_last_time;
-    std::chrono::steady_clock::time_point logic_start;
-
     orchestrator.setLogicStage<0>(
-        [&logic_last_time, &logic_start]
+        []
         (async::LifecycleToken & token, float, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
-            logic_last_time = logic_start;
-            logic_start = std::chrono::steady_clock::now();
+            editor_state.logic_timer.start();
         }
     );
 
-    // Logic 1. Input, World
-    controller::EditorFlyCamera flycam;
-
+    // Logic 1. PRE ECS, load world depending on flycamera position
     orchestrator.setLogicStage<1>(
-        [&flycam]
+        []
         (async::LifecycleToken & token, float, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
-            auto & ex = editor_state.app_state.process.getExecutionContext();
-            const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
-            // --- Input + world in parallel
-            {
-                auto g = asio::experimental::make_parallel_group(
-                    asio::co_spawn(ex, editor_state.app_state.input.update(token),                    asio::deferred),
-                    asio::co_spawn(ex, editor_state.world_streamer.updateLoadPosition(flycam.getPosition()),    asio::deferred)
-                );
-                auto [ord, e1, e2] =
-                    co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
-                if (e1) std::rethrow_exception(e1);
-                if (e2) std::rethrow_exception(e2);
-            }
+            co_await pipeline::runPreECS(editor_state.app_state, editor_state.world_streamer, editor_state.flycam.getPosition());
         }
     );
-
-
-    // Create viewport FBO
-    const std::pair<unsigned, unsigned> viewport_size = {1280, 728};
-    auto viewport_fbo_res = co_await app_state.renderer.createFrameBufferObject(
-        "fbo::viewport", viewport_size,
-        {
-            {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},
-        }
-    );
-    if (!viewport_fbo_res) {
-        spdlog::error("Failed to create viewport FBO");
-        // TODO throw?
-        co_return;
-    }
-    std::size_t viewport_fbo = *viewport_fbo_res;
-    auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(viewport_fbo);
-    assert(viewport_fbo_textures.size() == 1);
-
-    const float viewport_aspect = (float)viewport_size.first / (float)viewport_size.second;
-
-
-    auto picking_resources_res = co_await pipeline::buildPickingResources(app_state.renderer, viewport_size);
-    if(!picking_resources_res)
-    {
-        spdlog::error("Failed to build picking resources");
-        co_return;
-    }
-    const pipeline::PickingResources & picking_resources = *picking_resources_res;
-
-    panel::ScenePanel scene_panel(world_streamer);
 
     // Logic 2. ECS stage
     orchestrator.setLogicStage<2>(
-        [&flycam, &viewport_aspect, &picking_resources, &scene_panel]
+        [&display_resources, &picking_resources]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
             co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
 
-            if(flycam.isHovered() && editor_state.app_state.input.isKeyJustReleased(input::InputCode::MOUSE_RIGHT))
-            {
-                bool captured = flycam.isCaptured();
-                flycam.setCaptured(!captured);
+            editor_state.flycam.setViewportRect(editor_state.viewport_panel.getImgPos(), editor_state.viewport_panel.getImgSize());
+            editor_state.flycam.setHovered(editor_state.viewport_panel.isHovered());
 
-                if(!captured)
-                {
-                    co_await editor_state.app_state.process.hideCursor();
-                }
-                else
-                {
-                    co_await editor_state.app_state.process.showCursor();
-                }
-            }
+            co_await editor_state.flycam.update(dt, editor_state.app_state, picking_resources,  
+                [&](ecs::Entity entity) { editor_state.scene_panel.selectEntity(entity); });
 
-            auto md = editor_state.app_state.input.getMouseDelta();
-            flycam.addDeltaYaw(md.x);
-            flycam.addDeltaPitch(-md.y);
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_W))
-            {
-                flycam.moveForward();
-            }
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_S))
-            {
-                flycam.moveBackward();
-            }
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_A))
-            {
-                flycam.moveLeft();
-            }
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_D))
-            {
-                flycam.moveRight();
-            }
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_E))
-            {
-                flycam.moveUp();
-            }
-
-            if(editor_state.app_state.input.isKeyHeld(input::InputCode::KEY_Q))
-            {
-                flycam.moveDown();
-            }
-
-            flycam.update(dt);
+            editor_state.ctx.camera_position = editor_state.flycam.getPosition();
 
             // override camera matrices by editor camera
-            flycam.overrideFrame(editor_frame.render_frame, viewport_aspect);
-
-
-            if(flycam.isHovered() && 
-                !flycam.isCaptured() &&
-                editor_state.app_state.input.isKeyJustPressed(input::InputCode::MOUSE_LEFT)
-            )
-            {
-                auto relative_mouse_pos = editor_state.app_state.input.getMousePosition() - flycam.getViewportPosition();
-
-                relative_mouse_pos.x = std::clamp(relative_mouse_pos.x / flycam.getViewportSize().x, 0.0f, 0.99f); // [0,1)
-                relative_mouse_pos.y = std::clamp(relative_mouse_pos.y / flycam.getViewportSize().y, 0.0f, 0.99f); // [0,1)
-
-                int x = relative_mouse_pos.x * picking_resources.size.first;
-                int y = (1.0f - relative_mouse_pos.y) * picking_resources.size.second;
-
-                auto selected_id_res = co_await editor_state.app_state.renderer.readPixelUint64(picking_resources.fbo, 0, x, y);
-                if(selected_id_res)
-                {
-                    const std::uint64_t & selected_id = *selected_id_res;
-                    scene_panel.selectEntity(selected_id);
-                }
-            }
-
+            editor_state.flycam.overrideFrame(editor_frame.render_frame, display_resources.aspect);
         }
     );
 
     // Logic 3. summary end stage
-    constexpr float logic_frame_smoothing = 0.9f;
-
-    panel::DrawContext ctx
-    {
-        .viewport_texture = viewport_fbo_textures.at(0)
-    };
-
     orchestrator.setLogicStage<3>(
-        [&logic_start, &logic_last_time, &logic_frame_smoothing, &ctx]
+        []
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
-            const float frame_time_ms =
-                std::chrono::duration<float>(std::chrono::steady_clock::now() - logic_start).count() * 1000.0f;
-            ctx.logic_frame_time = (ctx.logic_frame_time * logic_frame_smoothing) + (frame_time_ms * (1.0f - logic_frame_smoothing));
-            const float current_fps =
-                1.0f / std::max(std::chrono::duration<float>(logic_start - logic_last_time).count(), 1e-6f);
-            ctx.logic_fps = (ctx.logic_fps * logic_frame_smoothing) + (current_fps * (1.0f - logic_frame_smoothing));
+
+            editor_state.logic_timer.end();
+
+            editor_state.ctx.logic_frame_time = editor_state.logic_timer.getFrameTime();
+            editor_state.ctx.logic_fps = editor_state.logic_timer.getFPS();
         }
     );
 
-    panel::MainMenuBar main_menu_bar;
-    panel::PropertiesPanel properties_panel;
-    panel::AssetsPanel assets_panel(resource_tracker);
-
-    panel::ViewportPanel viewport_panel(flycam);
-
-    const auto cube_prefab_res = app_state.renderer.getVertexBuffer("cube_prefab");
-    if(!cube_prefab_res) throw std::runtime_error("cube prefab not found");
-    const auto& cube_prefab = cube_prefab_res.value();
-    render::RenderProxy selection_render_proxy
-    {
-        .visible = true,
-        .phases = render::RenderPhase::Debug,
-        .vertex_buffer = cube_prefab,
-        // no shader will use debug_overlay by default
-    };
-
+    // Logic 4.
     orchestrator.setLogicStage<4>(
-        [&properties_panel, &scene_panel, &selection_render_proxy]
+        []
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
             
-            const auto selected_entity_def = scene_panel.getSelectedEntityDef();
+            const auto scene_selected_entity_def = editor_state.scene_panel.getSelectedEntityDef();
 
-            if(scene_panel.selectedEntityChanged())
+            if(editor_state.scene_panel.selectedEntityChanged())
             {
-                scene_panel.resetSelectedEntityChanged();
-                properties_panel.setSelectedEntityDef(selected_entity_def);
+                editor_state.scene_panel.resetSelectedEntityChanged();
+                editor_state.properties_panel.setSelectedEntityDef(scene_selected_entity_def);
 
-                if(selected_entity_def && selected_entity_def->second.has_transform())
-                {
-                    selection_render_proxy.position = math::deserialize(selected_entity_def->second.transform().position());
-                    selection_render_proxy.rotation = math::deserialize(selected_entity_def->second.transform().rotation());
-                    selection_render_proxy.scale = math::deserialize(selected_entity_def->second.transform().scale()) * 1.1f;
-                     
-                    selection_render_proxy.inputs = render::ShaderInputs{
-                        .in_mat4 = {
-                            {"uView", editor_frame.render_frame.view_matrix},
-                            {"uProjection", editor_frame.render_frame.proj_matrix},
-                            {"uModel", 
-                                math::translate(glm::mat4(1.0f), selection_render_proxy.position) *
-                                math::toMat4(selection_render_proxy.rotation) *
-                                math::scale(glm::mat4(1.0f), selection_render_proxy.scale)
-                            }
-                        }
-                    };
-                }
+                editor_state.selection_overlay_controller.update(scene_selected_entity_def, editor_frame.render_frame);
             }
-        }
-    );
 
+            const auto properties_selected_entity_def = editor_state.properties_panel.getSelectedEntityDef();
 
-    // save phase
-    orchestrator.setLogicStage<5>(
-        [&world_streamer, &properties_panel, &scene_panel, &selection_render_proxy]
-        (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
-        {
-            co_stop_if(token);
-            
-            const auto selected_entity_def = properties_panel.getSelectedEntityDef();
-
-            if(properties_panel.propertiesChanged())
+            if(editor_state.properties_panel.propertiesChanged())
             {
-                properties_panel.resetPropertiesChanged();
+                editor_state.properties_panel.resetPropertiesChanged();
+
+                editor_state.selection_overlay_controller.update(properties_selected_entity_def, editor_frame.render_frame);
+
                 // save to world
-                if(selected_entity_def)
+                if(properties_selected_entity_def)
                 {
-                    auto [chunk_id, entity_def] = *selected_entity_def;
+                    auto [chunk_id, entity_def] = *properties_selected_entity_def;
 
-                    world_streamer.updateEntity(chunk_id, entity_def);
-                    scene_panel.loadEntitesDefs();
-
-                    if(entity_def.has_transform())
-                    {
-                        selection_render_proxy.position = math::deserialize(entity_def.transform().position());
-                        selection_render_proxy.rotation = math::deserialize(entity_def.transform().rotation());
-                        selection_render_proxy.scale = math::deserialize(entity_def.transform().scale()) * 1.1f;
-
-                        selection_render_proxy.inputs = render::ShaderInputs{
-                            .in_mat4 = {
-                                {"uView", editor_frame.render_frame.view_matrix},
-                                {"uProjection", editor_frame.render_frame.proj_matrix},
-                                {"uModel", 
-                                    math::translate(glm::mat4(1.0f), selection_render_proxy.position) *
-                                    math::toMat4(selection_render_proxy.rotation) *
-                                    math::scale(glm::mat4(1.0f), selection_render_proxy.scale)
-                                }
-                            }
-                        };
-                    }
+                    editor_state.world_streamer.updateEntity(chunk_id, entity_def);
+                    editor_state.scene_panel.loadEntitesDefs();
                 }
             }
 
-            // something is selected add to frame
-            if(selected_entity_def && selected_entity_def->second.has_transform())
-            {
-                // TODO, id generation
-                editor_frame.render_frame.render_proxies[1000] = selection_render_proxy;
-            }
+            // add overlay to frame
+            editor_state.selection_overlay_controller.draw(editor_frame.render_frame);
         }
     );
 
+    // Render 0.
     orchestrator.setRenderStage<0>(
-        [&app_state, &viewport_fbo]
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
+        [&display_resources]
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await app_state.renderer.clearScreen({0.1f, 0.1f, 0.1f, 1.0f}, viewport_fbo);
+            co_await editor_state.app_state.renderer.clearScreen({0.1f, 0.1f, 0.1f, 1.0f}, display_resources.viewport_fbo);
         }
     );
 
-    render::RenderOptions gbuffer_render_options
-    {
-        .mode = render::RenderMode::Solid
-    };
-    render::RenderOptions shadow_map_render_options
-    {
-        .mode = render::RenderMode::Solid,
-        .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
-    };
-
-    auto render_resources_res = co_await pipeline::buildDeferredShadingResources(app_state.renderer, viewport_size);
-    if(!render_resources_res)
-    {
-        spdlog::error("Failed to build deferred shading resources");
-        co_return;
-    }
-    const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
-
+    // Render 1.
     orchestrator.setRenderStage<1>(
-        [&app_state, &render_resources, &picking_resources, &gbuffer_render_options, &shadow_map_render_options, &viewport_fbo, &ctx]
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
+        [&render_resources, &picking_resources, &display_resources]
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
 
-            ctx.stats = co_await pipeline::deferredShadingStage(
-                app_state.renderer,
+            editor_state.ctx.stats = co_await pipeline::deferredShadingStage(
+                editor_state.app_state.renderer,
                 render_resources,
                 alpha, prev, curr,
-                gbuffer_render_options, shadow_map_render_options,
-                viewport_fbo);
+                display_resources.viewport_fbo);
 
             co_await pipeline::renderPickingIds(
-                app_state.renderer,
+                editor_state.app_state.renderer,
                 curr,
                 picking_resources
-            );
-            
+            ); 
         }
     );
 
-    layout::DockSpace dock_space;
-
+    // Render 2.
     orchestrator.setRenderStage<2>(
-        [&app_state, 
-        &dock_space,
-        &ctx,
-        &main_menu_bar,
-        &scene_panel,
-        &properties_panel,
-        &assets_panel,
-        &viewport_panel]
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
+        []
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await app_state.gui.newFrame();
-
-            co_await app_state.gui.draw(&layout::DockSpace::build, &dock_space);
             
-            ctx.scene_dock_id = dock_space.getLeftDockId();
-            ctx.properties_dock_id = dock_space.getRightDockId();
-            ctx.assets_dock_id = dock_space.getBottomDockId();
-            ctx.viewport_dock_id = dock_space.getCenterDockId();
+            co_await editor_state.app_state.gui.newFrame();
 
-            co_await app_state.gui.draw(&panel::MainMenuBar::draw, &main_menu_bar, std::cref(ctx));
-            co_await app_state.gui.draw(&panel::ScenePanel::draw, &scene_panel, std::cref(ctx));
-            co_await app_state.gui.draw(&panel::PropertiesPanel::draw, &properties_panel, std::cref(ctx));
-            co_await app_state.gui.draw(&panel::AssetsPanel::draw, &assets_panel, std::cref(ctx));
-            co_await app_state.gui.draw(&panel::ViewportPanel::draw, &viewport_panel, std::cref(ctx));
+            co_await editor_state.app_state.gui.draw(&layout::DockSpace::build, &(editor_state.dock_space));
+            
+            editor_state.ctx.scene_dock_id = editor_state.dock_space.getLeftDockId();
+            editor_state.ctx.properties_dock_id = editor_state.dock_space.getRightDockId();
+            editor_state.ctx.assets_dock_id = editor_state.dock_space.getBottomDockId();
+            editor_state.ctx.viewport_dock_id = editor_state.dock_space.getCenterDockId();
 
-            co_await app_state.gui.render();
+            co_await editor_state.app_state.gui.draw(&panel::MainMenuBar::draw, &editor_state.main_menu_bar, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::ScenePanel::draw, &editor_state.scene_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::PropertiesPanel::draw, &editor_state.properties_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::AssetsPanel::draw, &editor_state.assets_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::ViewportPanel::draw, &editor_state.viewport_panel, std::cref(editor_state.ctx));
+
+            co_await editor_state.app_state.gui.render();
         }
     );
-
 
     // Sync stage
     orchestrator.setSyncStage([]

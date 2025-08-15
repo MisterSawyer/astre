@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "math/math.hpp"
 #include "render/render.hpp"
 
 namespace astre::editor::panel
@@ -19,5 +20,7 @@ namespace astre::editor::panel
         float logic_fps{0.0f};
         float logic_frame_time{0.0f};
         astre::render::FrameStats stats;
+
+        math::Vec3 camera_position;
     };
 }

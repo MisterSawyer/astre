@@ -29,18 +29,16 @@ namespace astre::entry
         co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
         co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
 
-        script::ScriptRuntime script_runtime;
-        co_await asset::loadScript(script_runtime, paths.resources / "worlds" / "scripts" / "player_script.lua");
+        co_await asset::loadScript(app_state.script, paths.resources / "worlds" / "scripts" / "player_script.lua");
 
         ecs::Registry registry(app_state.process.getExecutionContext());
 
-        asset::ResourceTracker resource_tracker(app_state.renderer, script_runtime,
+        asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
             paths.resources / "shaders",
             paths.resources / "worlds" / "scripts"
         );
 
-        pipeline::FramesBuffer<GameFrame> buffer;
-        pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 1> orchestrator(app_state.process, buffer,
+        pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 1> orchestrator(app_state.process,
             GameState
             {
                 .app_state = app_state,
@@ -50,7 +48,7 @@ namespace astre::entry
                     .camera = ecs::system::CameraSystem(5, registry),
                     .visual = ecs::system::VisualSystem(app_state.renderer, registry),
                     .light = ecs::system::LightSystem(registry),
-                    .script = ecs::system::ScriptSystem(script_runtime, registry),
+                    .script = ecs::system::ScriptSystem(app_state.script, registry),
                     .input = ecs::system::InputSystem(app_state.input, registry)
                 },
                 .world = world::WorldStreamer(  
@@ -91,7 +89,7 @@ namespace astre::entry
                 // --- Input + world in parallel
                 {
                     auto g = asio::experimental::make_parallel_group(
-                        asio::co_spawn(ex, game_state.app_state.input.update(token),                    asio::deferred),
+                        asio::co_spawn(ex, game_state.app_state.input.update(),                    asio::deferred),
                         asio::co_spawn(ex, game_state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
                     );
 
@@ -146,28 +144,17 @@ namespace astre::entry
 
 
         render::FrameStats render_stats;
-
-        render::RenderOptions gbuffer_render_options
-        {
-            .mode = render::RenderMode::Solid
-        };
-        render::RenderOptions shadow_map_render_options
-        {
-            .mode = render::RenderMode::Solid,
-            .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
-        };
         
         orchestrator.setRenderStage<0>(
-            [&app_state, &render_resources, &gbuffer_render_options, &shadow_map_render_options, &render_stats]
-            (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
+            [&render_resources, &render_stats]
+            (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, GameState & game_state) -> asio::awaitable<void>
             {
                 co_stop_if(token);
 
                 render_stats = co_await pipeline::deferredShadingStage(
-                        app_state.renderer,
+                        game_state.app_state.renderer,
                         render_resources,
-                        alpha, prev, curr,
-                        gbuffer_render_options, shadow_map_render_options);
+                        alpha, prev, curr);
             }
         );
         

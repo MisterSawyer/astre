@@ -4,8 +4,11 @@
 #include <spdlog/spdlog.h>
 #include <imgui.h>
 
+#include "process/process.hpp"
 #include "math/math.hpp"
 #include "render/render.hpp"
+#include "input/input.hpp"
+#include "pipeline/pipeline.hpp"
 
 namespace astre::editor::controller 
 {
@@ -28,27 +31,14 @@ namespace astre::editor::controller
             _calculateViewMatrix(); 
         }
 
-        void update(float dtSeconds) noexcept
+        asio::awaitable<void> update(float dt, pipeline::AppState & app_state,
+            const pipeline::PickingResources & picking_resources, std::function<void(ecs::Entity)> onSelected) noexcept
         {
-            if (_captured == false || _vp_hovered == false)return; 
+            co_await _handleInput(app_state.process, app_state.input);
+            co_await _updateSelectedEntity(app_state.renderer, picking_resources, app_state.input, std::move(onSelected));
 
-            _yaw_deg   += (_delta_yaw * mouseSens);
-            _pitch_deg += (_delta_pitch * mouseSens);
-
-            if(_pitch_deg > 89.9f) _pitch_deg = 89.9f;
-            if(_pitch_deg < -89.9f) _pitch_deg = -89.9f;
-
-            if (math::length2(_delta_pos) > 0.0f) {
-                _position += math::normalize(_delta_pos) * (baseSpeed * dtSeconds);
-            }
-
-            _calculateForward();
-            _right = math::normalize(math::cross(_forward, math::Vec3(0,1,0)));
-            _calculateViewMatrix();
-
-            _delta_pos = math::Vec3(0,0,0);
-            _delta_yaw = 0.0f;
-            _delta_pitch = 0.0f;
+            if (_captured == false || _vp_hovered == false)co_return;
+            _updatePosition(dt);
         }
 
         // Apply to render::Frame (projection built with the given aspect)
@@ -62,19 +52,23 @@ namespace astre::editor::controller
         void setCaptured(bool captured) noexcept { _captured = captured; }
         [[nodiscard]] bool isCaptured() const noexcept { return _captured; }
 
+        void setHovered(bool hovered) noexcept { _vp_hovered = hovered; }
         [[nodisard]] bool isHovered() const noexcept { return _vp_hovered; }
 
         // Viewport info (provided by ViewportPanel each frame)
-        void setViewportRect(ImVec2 content_top_left, ImVec2 size, bool hovered) noexcept {
-            _vp_pos = content_top_left; _vp_size = size; _vp_hovered = hovered;
+        void setViewportRect(math::Vec2 content_top_left, math::Vec2 size) noexcept {
+            _vp_pos.x = content_top_left.x;
+            _vp_pos.y = content_top_left.y;
+            _vp_size.x = size.x;
+            _vp_size.y = size.y;
         }
 
         [[nodiscard]] math::Vec2 getViewportSize() const noexcept { return {_vp_size.x, _vp_size.y}; }
         [[nodiscard]] math::Vec2 getViewportPosition() const noexcept { return {_vp_pos.x, _vp_pos.y}; }
 
-        math::Vec3 getPosition() const noexcept { return _position; }
-        math::Vec3 getForward() const noexcept { return _forward; }
-        math::Vec3 getRight() const noexcept { return _right; }
+        const math::Vec3 & getPosition() const noexcept { return _position; }
+        const math::Vec3 & getForward() const noexcept { return _forward; }
+        const math::Vec3 & getRight() const noexcept { return _right; }
 
         void moveForward() noexcept {
             if(!_captured) 
@@ -149,6 +143,105 @@ namespace astre::editor::controller
         }
 
     private:
+        asio::awaitable<void> _handleInput(process::IProcess & process, const input::InputService & input)
+        {
+            if(isHovered() && input.isKeyJustReleased(input::InputCode::MOUSE_RIGHT))
+            {
+                bool captured = isCaptured();
+                setCaptured(!captured);
+
+                if(!captured)
+                {
+                    co_await process.hideCursor();
+                }
+                else
+                {
+                    co_await process.showCursor();
+                }
+            }
+
+            auto md = input.getMouseDelta();
+            addDeltaYaw(md.x);
+            addDeltaPitch(-md.y);
+
+            if(input.isKeyHeld(input::InputCode::KEY_W))
+            {
+                moveForward();
+            }
+
+            if(input.isKeyHeld(input::InputCode::KEY_S))
+            {
+                moveBackward();
+            }
+
+            if(input.isKeyHeld(input::InputCode::KEY_A))
+            {
+                moveLeft();
+            }
+
+            if(input.isKeyHeld(input::InputCode::KEY_D))
+            {
+                moveRight();
+            }
+
+            if(input.isKeyHeld(input::InputCode::KEY_E))
+            {
+                moveUp();
+            }
+
+            if(input.isKeyHeld(input::InputCode::KEY_Q))
+            {
+                moveDown();
+            }
+        }
+
+        void _updatePosition(float dt)
+        {
+            _yaw_deg   += (_delta_yaw * mouseSens);
+            _pitch_deg += (_delta_pitch * mouseSens);
+
+            if(_pitch_deg > 89.9f) _pitch_deg = 89.9f;
+            if(_pitch_deg < -89.9f) _pitch_deg = -89.9f;
+
+            if (math::length2(_delta_pos) > 0.0f) {
+                _position += math::normalize(_delta_pos) * (baseSpeed * dt);
+            }
+
+            _calculateForward();
+            _right = math::normalize(math::cross(_forward, math::Vec3(0,1,0)));
+            _calculateViewMatrix();
+
+            _delta_pos = math::Vec3(0,0,0);
+            _delta_yaw = 0.0f;
+            _delta_pitch = 0.0f;
+        }
+
+        asio::awaitable<void> _updateSelectedEntity(
+            render::IRenderer & renderer,
+            const pipeline::PickingResources & picking_resources,
+            const input::InputService & input,
+            std::function<void(ecs::Entity)> onSelected)
+        {
+            if(isHovered() && !isCaptured() &&
+                input.isKeyJustPressed(input::InputCode::MOUSE_LEFT)
+            )
+            {
+                auto relative_mouse_pos = input.getMousePosition() - getViewportPosition();
+
+                relative_mouse_pos.x = std::clamp(relative_mouse_pos.x / getViewportSize().x, 0.0f, 0.99f); // [0,1)
+                relative_mouse_pos.y = std::clamp(relative_mouse_pos.y / getViewportSize().y, 0.0f, 0.99f); // [0,1)
+
+                int x = relative_mouse_pos.x * picking_resources.size.first;
+                int y = (1.0f - relative_mouse_pos.y) * picking_resources.size.second;
+
+                auto selected_id_res = co_await renderer.readPixelUint64(picking_resources.fbo, 0, x, y);
+                if(selected_id_res)
+                {
+                    onSelected(*selected_id_res);
+                }
+            }
+        } 
+
         void _calculateForward() noexcept
         {
             const float yaw_R   = math::radians(_yaw_deg);
