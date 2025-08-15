@@ -406,6 +406,10 @@ namespace astre::editor::panel
 
                 auto & [chunk_id, entity] = *_selected_entity_def;
                 ImGui::TextUnformatted(entity.name().c_str());
+                ImGui::SameLine();
+                ImGui::Dummy(ImVec2(0.0f, 32.0f));
+                ImGui::SameLine();
+                ImGui::TextUnformatted(std::format("id:{}", std::to_string(entity.id())).c_str());
                 ImGui::Separator();
 
                 if(entity.has_transform())

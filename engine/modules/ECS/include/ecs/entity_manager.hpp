@@ -22,7 +22,7 @@ namespace astre::ecs
              * 
              * @return The ID of the newly created entity.
              */
-            Entity createEntity();
+            std::optional<Entity> spawnEntity(std::optional<std::size_t> entity_id);
 
             /**
              * @brief Destroys an entity and its associated components.

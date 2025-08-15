@@ -13,9 +13,7 @@ namespace astre::ecs
     Registry::Registry(Registry && other)
     :   _async_context(std::move(other._async_context)),
         _entities(std::move(other._entities)),
-        _components(_entities, std::move(other._components)),
-        _names_to_entities(std::move(other._names_to_entities)),
-        _entities_to_names(std::move(other._entities_to_names))
+        _components(_entities, std::move(other._components))
     {}
 
     Registry& Registry::operator=(Registry && other)
@@ -25,52 +23,30 @@ namespace astre::ecs
         _async_context = std::move(other._async_context);
         _entities = std::move(other._entities);
         _components = std::move(other._components);
-        _names_to_entities = std::move(other._names_to_entities);
-        _entities_to_names = std::move(other._entities_to_names);
         
         return *this;
     }
 
-    asio::awaitable<std::optional<Entity>> Registry::createEntity(std::string name)
+    asio::awaitable<std::optional<Entity>> Registry::spawnEntity(const EntityDefinition & entity_def)
     {
         co_await _async_context.ensureOnStrand();
+        const auto res_id = _entities.spawnEntity(entity_def.id());
 
-        if(_names_to_entities.contains(name))
+        if(!res_id) 
         {
-            spdlog::error("Entity with name {} already exists in the level", name); 
+            spdlog::error("Failed to create entity");
             co_return std::nullopt;
         }
 
-        _names_to_entities.emplace(name, _entities.createEntity());
-        _entities_to_names.emplace(_names_to_entities.at(name), name);
+        _entity_names[entity_def.id()] = entity_def.name();
 
-        co_return _names_to_entities.at(name);
+        co_return res_id;
     }
 
     asio::awaitable<void> Registry::destroyEntity(Entity entity)
     {
         co_await _async_context.ensureOnStrand();
-
-        if(_entities_to_names.contains(entity))
-        {
-            _names_to_entities.erase(_entities_to_names.at(entity));
-            _entities_to_names.erase(entity);
-
-            _entities.destroyEntity(entity);
-        }
-    }
-
-    std::optional<Entity> Registry::getEntity(std::string name) const
-    {
-        if(!_names_to_entities.contains(name)) return std::nullopt;
-        return _names_to_entities.at(name);
-    }
-
-    asio::awaitable<std::optional<std::string>> Registry::getName(Entity entity) const
-    {
-        co_await _async_context.ensureOnStrand();
-
-        if(!_entities_to_names.contains(entity)) co_return std::nullopt;
-        co_return _entities_to_names.at(entity);
+        _entity_names.erase(entity);
+        _entities.destroyEntity(entity);
     }
 }

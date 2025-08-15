@@ -19,14 +19,14 @@ namespace astre::editor::panel
     struct SelectedEntity 
     {
         world::ChunkID chunk_id;
-        std::string entity_name;
+        ecs::Entity entity;
         SelectedComponent component{SelectedComponent::None};
     };
 
     inline bool operator==(const SelectedEntity& lhs, const SelectedEntity& rhs) noexcept 
     {
         return  lhs.chunk_id == rhs.chunk_id &&
-                lhs.entity_name == rhs.entity_name &&
+                lhs.entity == rhs.entity &&
                 lhs.component == rhs.component;
     }
 
@@ -42,6 +42,8 @@ namespace astre::editor::panel
         void draw(const DrawContext& ctx) noexcept override;
 
         std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> getSelectedEntityDef() const;
+
+        void selectEntity(const ecs::Entity & entity);
         bool selectedEntityChanged() const noexcept;
         void resetSelectedEntityChanged() noexcept;
 
@@ -49,18 +51,18 @@ namespace astre::editor::panel
 
     private:
 
-        void _drawComponent(bool has, std::string label, world::ChunkID chunk_id, std::string entity_name, SelectedComponent kind);
+        void _drawComponent(bool has, std::string label, const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent kind);
 
         bool _addChunk(const world::ChunkID & id);
         bool _removeChunk(const world::ChunkID & id) noexcept;
 
         bool _addEntity(const world::ChunkID & id, std::string_view name);
-        bool _renameEntity(const world::ChunkID & id, std::string_view old_name, std::string_view new_name);
-        bool _removeEntity(const world::ChunkID & id, std::string_view name) noexcept;
+        bool _renameEntity(const world::ChunkID & id, const ecs::Entity & entity, std::string_view new_name);
+        bool _removeEntity(const world::ChunkID & id, const ecs::Entity & entity) noexcept;
 
-        bool _addComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component);
-        bool _removeComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component) noexcept;
-        void _drawAddComponentCombo(const world::ChunkID & chunk_id, const ecs::EntityDefinition& entity_def);
+        bool _addComponent(const world::ChunkID & id, const ecs::Entity & entity, SelectedComponent component);
+        bool _removeComponent(const world::ChunkID & id, const ecs::Entity & entity, SelectedComponent component) noexcept;
+        void _drawAddComponentCombo(const world::ChunkID & chunk_id, ecs::EntityDefinition & entity_def);
 
         world::WorldStreamer & _world_streamer;
 
@@ -70,7 +72,7 @@ namespace astre::editor::panel
         bool _selected_entity_changed{false};
         std::optional<SelectedEntity> _selection;
 
-        absl::flat_hash_map<world::ChunkID, absl::flat_hash_map<std::string, ecs::EntityDefinition>> _chunk_entities_defs;
+        absl::flat_hash_map<world::ChunkID, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>> _chunk_entities_defs;
 
         absl::flat_hash_map<std::string, std::string> _add_component_preview;
         absl::flat_hash_map<std::string, SelectedComponent> _pending_component;

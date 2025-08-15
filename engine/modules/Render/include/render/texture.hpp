@@ -14,6 +14,9 @@ namespace astre::render
      */
     enum class TextureFormat
     {
+        R_32,
+        RG_32,
+
         RGB_8,
         RGB_16,
         RGB_32,

@@ -47,7 +47,7 @@ namespace astre::entry
                 .registry = registry,
                 .systems = ecs::Systems{
                     .transform = ecs::system::TransformSystem(registry),
-                    .camera = ecs::system::CameraSystem( "camera", registry),
+                    .camera = ecs::system::CameraSystem(5, registry),
                     .visual = ecs::system::VisualSystem(app_state.renderer, registry),
                     .light = ecs::system::LightSystem(registry),
                     .script = ecs::system::ScriptSystem(script_runtime, registry),
@@ -135,7 +135,15 @@ namespace astre::entry
         );
 
         // Render 0. Deferred render stage
-        pipeline::DeferredShadingResources render_resources = co_await pipeline::buildDeferredShadingResources(app_state.renderer);
+        const std::pair<unsigned, unsigned> viewport_size = {1280, 728};
+        auto render_resources_res = co_await pipeline::buildDeferredShadingResources(app_state.renderer, viewport_size);
+        if(!render_resources_res)
+        {
+            spdlog::error("Failed to build deferred shading resources");
+            co_return;
+        }
+        const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
+
 
         render::FrameStats render_stats;
 

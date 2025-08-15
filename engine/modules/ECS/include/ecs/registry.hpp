@@ -5,6 +5,8 @@
 #include "native/native.h"
 #include <asio.hpp>
 
+#include "generated/ECS/proto/entity_definition.pb.h"
+
 #include "async/async.hpp"
 #include "process/process.hpp"
 
@@ -27,12 +29,16 @@ namespace astre::ecs
 
             inline ~Registry() = default;
 
-            asio::awaitable<std::optional<Entity>> createEntity(std::string name);
+            asio::awaitable<std::optional<Entity>> spawnEntity(const EntityDefinition & entity_def);
             asio::awaitable<void> destroyEntity(Entity entity);
-            
-            std::optional<Entity> getEntity(std::string name) const;
-            asio::awaitable<std::optional<std::string>> getName(Entity entity) const;
 
+            asio::awaitable<std::optional<std::string>> getName(Entity entity) const 
+            {
+                co_await _async_context.ensureOnStrand();
+                if(_entity_names.contains(entity)) co_return _entity_names.at(entity);
+                co_return std::nullopt;
+             }
+            
             template<class ComponentType>
             inline asio::awaitable<void> addComponent(Entity entity, ComponentType&& component)
             {
@@ -91,7 +97,6 @@ namespace astre::ecs
             EntityManager _entities;
             ComponentManager _components;
 
-            absl::flat_hash_map<std::string, Entity> _names_to_entities;
-            absl::flat_hash_map<Entity, std::string> _entities_to_names;
+            absl::flat_hash_map<Entity, std::string> _entity_names;
     };   
 }

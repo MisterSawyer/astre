@@ -28,7 +28,7 @@ namespace astre::pipeline
         std::size_t debug_overlay_shader; 
     };
 
-    asio::awaitable<DeferredShadingResources> buildDeferredShadingResources(render::IRenderer & renderer);
+    asio::awaitable<std::optional<DeferredShadingResources>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size);
 
     asio::awaitable<render::FrameStats> deferredShadingStage(
         render::IRenderer & renderer,

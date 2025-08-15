@@ -13,14 +13,15 @@ package astre.ecs;
 
 message EntityDefinition
 {
-    string name = 1;
+    uint64 id = 1;
+    string name = 2;
 
-    optional TransformComponent transform = 2;
-    optional HealthComponent health = 3;
-    optional VisualComponent visual = 4;
-    optional InputComponent input = 5;
-    optional CameraComponent camera = 6;
-    optional TerrainComponent terrain = 7;
-    optional LightComponent light = 8;
-    optional ScriptComponent script = 9;
+    optional TransformComponent transform = 3;
+    optional HealthComponent health = 4;
+    optional VisualComponent visual = 5;
+    optional InputComponent input = 6;
+    optional CameraComponent camera = 7;
+    optional TerrainComponent terrain = 8;
+    optional LightComponent light = 9;
+    optional ScriptComponent script = 10;
 }

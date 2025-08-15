@@ -69,7 +69,8 @@ namespace astre::editor::controller
             _vp_pos = content_top_left; _vp_size = size; _vp_hovered = hovered;
         }
 
-        [[nodiscard]] ImVec2 viewportSize() const noexcept { return _vp_size; }
+        [[nodiscard]] math::Vec2 getViewportSize() const noexcept { return {_vp_size.x, _vp_size.y}; }
+        [[nodiscard]] math::Vec2 getViewportPosition() const noexcept { return {_vp_pos.x, _vp_pos.y}; }
 
         math::Vec3 getPosition() const noexcept { return _position; }
         math::Vec3 getForward() const noexcept { return _forward; }

@@ -203,13 +203,13 @@ namespace astre::world
             return false;
         }
 
-        // Replace or append entity by name()
+        // Replace or append entity by id()
         auto* entities = chunk.mutable_entities();
-        const std::string& key_name = entity_def.name();
+        const std::size_t & entity_id = entity_def.id();
 
         auto it = std::find_if(entities->begin(), entities->end(),
             [&](const ecs::EntityDefinition& e) {
-                return e.name() == key_name;
+                return e.id() == entity_id;
             }
         );
 

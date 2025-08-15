@@ -37,8 +37,8 @@ namespace astre::editor::panel
         // use a compact, stable textual key (no allocations beyond small-string)
         ImGui::PushID(std::format("chunk:{}:{}:{}", c.x(), c.y(), c.z()).c_str());
     }
-    inline void _pushID(const world::ChunkID& c, std::string_view name) noexcept {
-        ImGui::PushID(std::format("ent:{}:{}:{}:{}", c.x(), c.y(), c.z(), name).c_str());
+    inline void _pushID(const world::ChunkID& c, const ecs::Entity & entity) noexcept {
+        ImGui::PushID(std::format("ent:{}:{}:{}:{}", c.x(), c.y(), c.z(), entity).c_str());
     }
     inline void _pushID(astre::editor::panel::SelectedComponent kind) noexcept {
         ImGui::PushID(static_cast<int>(kind)); // enum is stable
@@ -57,7 +57,7 @@ namespace astre::editor::panel
         
         for(const auto & chunk_id : _world_streamer.getAllChunks())
         {
-            _chunk_entities_defs.emplace(chunk_id, absl::flat_hash_map<std::string, ecs::EntityDefinition>());
+            _chunk_entities_defs.emplace(chunk_id, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>());
 
             // then for every node we obtain chunk definition
             auto chunk_res = _world_streamer.readChunk(chunk_id);
@@ -69,7 +69,7 @@ namespace astre::editor::panel
                 // then for every entity in chunk
                 for(const auto & entity_def : chunk.entities())
                 {
-                    _chunk_entities_defs.at(chunk_id).emplace(entity_def.name(), entity_def);
+                    _chunk_entities_defs.at(chunk_id).emplace(entity_def.id(), entity_def);
                 }
             }
         }
@@ -102,6 +102,9 @@ namespace astre::editor::panel
     {
         ecs::EntityDefinition new_entity{};
         new_entity.set_name(name);
+        
+        //ENTITY ID ASSIGMENT 
+
         const bool ok = _world_streamer.updateEntity(id, new_entity);
         if (ok) 
         {
@@ -112,19 +115,18 @@ namespace astre::editor::panel
         return ok;
     }
 
-    bool ScenePanel::_renameEntity(const world::ChunkID & id, std::string_view old_name, std::string_view new_name)
+    bool ScenePanel::_renameEntity(const world::ChunkID & id, const ecs::Entity & entity, std::string_view new_name)
     {
-        if (old_name == new_name) return true;
 
         return false;
 
     }
 
-    bool ScenePanel::_removeEntity(const world::ChunkID & id, std::string_view name) noexcept
+    bool ScenePanel::_removeEntity(const world::ChunkID & id, const ecs::Entity & entity) noexcept
     {
-        if(_chunk_entities_defs.contains(id) == false || _chunk_entities_defs.at(id).contains(name) == false)return false;
+        if(_chunk_entities_defs.contains(id) == false || _chunk_entities_defs.at(id).contains(entity) == false)return false;
 
-        const bool ok = _world_streamer.removeEntity(id, _chunk_entities_defs.at(id).at(name));
+        const bool ok = _world_streamer.removeEntity(id, _chunk_entities_defs.at(id).at(entity));
         if (ok) 
         {
             _selection.reset();
@@ -134,16 +136,36 @@ namespace astre::editor::panel
         return ok;
     }
 
+    void ScenePanel::selectEntity(const ecs::Entity & entity)
+    {
+        if(entity == ecs::INVALID_ENTITY)
+        {
+            _selection.reset();
+            _selected_entity_changed = true;
+            return;
+        }
+        
+        for(const auto [chunk_id, entities] : _chunk_entities_defs)
+        {
+            if(entities.contains(entity))
+            {
+                _selection = SelectedEntity{chunk_id, entity};
+                _selected_entity_changed = true;
+                return;
+            }
+        }
+    }
+
     std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> ScenePanel::getSelectedEntityDef() const
     {
         if (_selection)
         {
             if( _chunk_entities_defs.contains(_selection->chunk_id) == false ||
-                _chunk_entities_defs.at(_selection->chunk_id).contains(_selection->entity_name) == false)
+                _chunk_entities_defs.at(_selection->chunk_id).contains(_selection->entity) == false)
             {
                 return std::nullopt;
             }
-            return std::make_pair(_selection->chunk_id, _chunk_entities_defs.at(_selection->chunk_id).at(_selection->entity_name));
+            return std::make_pair(_selection->chunk_id, _chunk_entities_defs.at(_selection->chunk_id).at(_selection->entity));
         }
         return std::nullopt;
     }
@@ -158,7 +180,7 @@ namespace astre::editor::panel
         _selected_entity_changed = false;
     }
 
-    void ScenePanel::_drawComponent(bool has, std::string label, world::ChunkID chunk_id, std::string entity_name, SelectedComponent kind)
+    void ScenePanel::_drawComponent(bool has, std::string label, const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent kind)
     {
         if (!has) return;
 
@@ -167,18 +189,18 @@ namespace astre::editor::panel
 
         bool selected = _selection &&
                 _selection->chunk_id == chunk_id &&
-                _selection->entity_name == entity_name &&
+                _selection->entity == entity &&
                 _selection->component == kind;
 
         if (ImGui::Selectable(label.c_str(), selected, sflags)) 
         {
-            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity_name != entity_name)))
+            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity != entity)))
             {
                 _selected_entity_changed = true;
             }
 
             // Selecting a component auto-selects the entity as requested
-            _selection = SelectedEntity{std::move(chunk_id), std::move(entity_name), kind};
+            _selection = SelectedEntity{chunk_id, entity, kind};
         }
 
         // Right-click: remove component
@@ -187,8 +209,8 @@ namespace astre::editor::panel
              label).c_str())) {
             if (ImGui::MenuItem("Remove component")) 
             {
-                _removeComponent(chunk_id, entity_name, kind);
-                const bool ok =  _world_streamer.updateEntity(chunk_id, _chunk_entities_defs.at(chunk_id).at(entity_name));
+                _removeComponent(chunk_id, entity, kind);
+                const bool ok =  _world_streamer.updateEntity(chunk_id, _chunk_entities_defs.at(chunk_id).at(entity));
                 if (ok) 
                 {
                     _selected_entity_changed = true;
@@ -198,44 +220,44 @@ namespace astre::editor::panel
         }
     }
 
-    bool ScenePanel::_addComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component)
+    bool ScenePanel::_addComponent(const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent component)
     {
         if (component == SelectedComponent::None) return false;
 
-        if(_chunk_entities_defs.contains(id) == false || _chunk_entities_defs.at(id).contains(name) == false)return false;
+        if(_chunk_entities_defs.contains(chunk_id) == false || _chunk_entities_defs.at(chunk_id).contains(entity) == false)return false;
 
         switch(component)
         {
             case SelectedComponent::Transform:
-                _chunk_entities_defs.at(id).at(name).mutable_transform()->CopyFrom(ecs::TransformComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_transform()->CopyFrom(ecs::TransformComponent{});
                 break;
 
             case SelectedComponent::Health:
-                _chunk_entities_defs.at(id).at(name).mutable_health()->CopyFrom(ecs::HealthComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_health()->CopyFrom(ecs::HealthComponent{});
                 break;
 
             case SelectedComponent::Visual:
-                _chunk_entities_defs.at(id).at(name).mutable_visual()->CopyFrom(ecs::VisualComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_visual()->CopyFrom(ecs::VisualComponent{});
                 break;
 
             case SelectedComponent::Input:
-                _chunk_entities_defs.at(id).at(name).mutable_input()->CopyFrom(ecs::InputComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_input()->CopyFrom(ecs::InputComponent{});
                 break;
 
             case SelectedComponent::Camera:
-                _chunk_entities_defs.at(id).at(name).mutable_camera()->CopyFrom(ecs::CameraComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_camera()->CopyFrom(ecs::CameraComponent{});
                 break;
             
             case SelectedComponent::Terrain:
-                _chunk_entities_defs.at(id).at(name).mutable_terrain()->CopyFrom(ecs::TerrainComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_terrain()->CopyFrom(ecs::TerrainComponent{});
                 break;
             
             case SelectedComponent::Light:
-                _chunk_entities_defs.at(id).at(name).mutable_light()->CopyFrom(ecs::LightComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_light()->CopyFrom(ecs::LightComponent{});
                 break;
             
             case SelectedComponent::Script:
-                _chunk_entities_defs.at(id).at(name).mutable_script()->CopyFrom(ecs::ScriptComponent{});
+                _chunk_entities_defs.at(chunk_id).at(entity).mutable_script()->CopyFrom(ecs::ScriptComponent{});
                 break;
 
             default:
@@ -246,44 +268,44 @@ namespace astre::editor::panel
         return true;
     }
 
-    bool ScenePanel::_removeComponent(const world::ChunkID & id, std::string_view name, SelectedComponent component) noexcept
+    bool ScenePanel::_removeComponent(const world::ChunkID & chunk_id, const ecs::Entity & entity, SelectedComponent component) noexcept
     {
         if (component == SelectedComponent::None) return false;
 
-        if(_chunk_entities_defs.contains(id) == false || _chunk_entities_defs.at(id).contains(name) == false) return false;
+        if(_chunk_entities_defs.contains(chunk_id) == false || _chunk_entities_defs.at(chunk_id).contains(entity) == false) return false;
 
         switch(component)
         {
             case SelectedComponent::Transform:
-                _chunk_entities_defs.at(id).at(name).clear_transform();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_transform();
                 break;
 
             case SelectedComponent::Health:
-                _chunk_entities_defs.at(id).at(name).clear_health();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_health();
                 break;
 
             case SelectedComponent::Visual:
-                _chunk_entities_defs.at(id).at(name).clear_visual();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_visual();
                 break;
 
             case SelectedComponent::Input:
-                _chunk_entities_defs.at(id).at(name).clear_input();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_input();
                 break;
 
             case SelectedComponent::Camera:
-                _chunk_entities_defs.at(id).at(name).clear_camera();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_camera();
                 break;
             
             case SelectedComponent::Terrain:
-                _chunk_entities_defs.at(id).at(name).clear_terrain();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_terrain();
                 break;
             
             case SelectedComponent::Light:
-                _chunk_entities_defs.at(id).at(name).clear_light();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_light();
                 break;
 
             case SelectedComponent::Script:
-                _chunk_entities_defs.at(id).at(name).clear_script();
+                _chunk_entities_defs.at(chunk_id).at(entity).clear_script();
                 break;
             
             default:
@@ -295,9 +317,9 @@ namespace astre::editor::panel
     }
 
     void ScenePanel::_drawAddComponentCombo(const world::ChunkID& chunk_id,
-                                            const ecs::EntityDefinition& entity_def)
+                                            ecs::EntityDefinition& entity_def)
     {
-        const std::string key      = std::format("addcmp:{}:{}:{}:{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), entity_def.name());
+        const std::string key      = std::format("addcmp:{}:{}:{}:{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), entity_def.id());
         const std::string combo_id = std::format("##{}", key);
 
         // preview + pending come from your previous step
@@ -343,7 +365,7 @@ namespace astre::editor::panel
         ImGui::BeginDisabled(!can_add);
         if (ImGui::SmallButton("+"))
         {
-            _addComponent(chunk_id, entity_def.name(), pending);
+            _addComponent(chunk_id, entity_def.id(), pending);
             const bool ok = _world_streamer.updateEntity(chunk_id, entity_def);
             if (ok) 
             {
@@ -398,7 +420,7 @@ namespace astre::editor::panel
         if (world_open) 
         {
             // for every chunk we create a node
-            for(const auto & [chunk_id, entity_defs] : _chunk_entities_defs)
+            for(auto & [chunk_id, entity_defs] : _chunk_entities_defs)
             {
                 _pushID(chunk_id);
 
@@ -422,7 +444,7 @@ namespace astre::editor::panel
                         _selected_entity_changed = true;
                     }
 
-                    _selection = SelectedEntity{chunk_id, "", SelectedComponent::None};
+                    _selection = SelectedEntity{chunk_id, 0, SelectedComponent::None};
                 }
 
 
@@ -449,49 +471,49 @@ namespace astre::editor::panel
                 if (chunk_open)
                 {                        
                     // then for every entity in chunk
-                    for(const auto & [name, entity_def] : entity_defs)
+                    for(auto & [entity, entity_def] : entity_defs)
                     {
-                        _pushID(chunk_id, name);
+                        _pushID(chunk_id, entity);
 
                         // Selected row highlight for the entity itself (no component selected)
                         ImGuiTreeNodeFlags entity_node_flags = ImGuiTreeNodeFlags_SpanFullWidth;
 
                         if (_selection &&
                             _selection->chunk_id == chunk_id &&
-                            _selection->entity_name == name)
+                            _selection->entity == entity)
                         {
                             entity_node_flags |= ImGuiTreeNodeFlags_Selected;
                         }
 
-                        bool open_entity_row = ImGui::TreeNodeEx(name.c_str(), entity_node_flags);
+                        bool open_entity_row = ImGui::TreeNodeEx(entity_def.name().c_str(), entity_node_flags);
 
                         // Clicking the entity row selects the entity (component=None)
                         if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) 
                         {
-                            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity_name != name)))
+                            if(!_selection || (_selection && (_selection->chunk_id != chunk_id || _selection->entity != entity)))
                             {
                                 _selected_entity_changed = true;
                             }
 
-                            _selection = SelectedEntity{chunk_id, name, SelectedComponent::None};
+                            _selection = SelectedEntity{chunk_id, entity, SelectedComponent::None};
                         }
 
                         // Right-click entity row
-                        if (ImGui::BeginPopupContextItem(std::format("##entity_ctx_{}_{}_{}_{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), name).c_str())) {
+                        if (ImGui::BeginPopupContextItem(std::format("##entity_ctx_{}_{}_{}_{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), entity).c_str())) {
                             if (ImGui::MenuItem("Rename...")) {
                                 _rename_entity = {};
                                 _rename_entity.open = true;
                                 _rename_entity.chunk = chunk_id;
-                                _rename_entity.old_name = name;
-                                std::snprintf(_rename_entity.name, sizeof(_rename_entity.name), "%s", name.c_str());
+                                //_rename_entity.old_name = name;
+                                std::snprintf(_rename_entity.name, sizeof(_rename_entity.name), "%s", entity_def.name().c_str());
                             }
                             if (ImGui::MenuItem("Delete...")) {
                                 _confirm = {};
                                 _confirm.open = true;
                                 _confirm.title = "Delete Entity";
-                                _confirm.message = std::format("Do you want to delete entity '{}' ?", name);
-                                _confirm.on_confirm = [this, chunk_id, name](){
-                                    _removeEntity(chunk_id, name);
+                                _confirm.message = std::format("Do you want to delete entity '{}' ?", entity_def.name());
+                                _confirm.on_confirm = [this, chunk_id, entity](){
+                                    _removeEntity(chunk_id, entity);
                                 };
                             }
                             ImGui::EndPopup();
@@ -504,35 +526,35 @@ namespace astre::editor::panel
                             ImGui::Separator();
                             
                             _pushID(SelectedComponent::Transform);
-                            _drawComponent(entity_def.has_transform(), "TransformComponent", chunk_id, name, SelectedComponent::Transform);
+                            _drawComponent(entity_def.has_transform(), "TransformComponent", chunk_id, entity, SelectedComponent::Transform);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Health);
-                            _drawComponent(entity_def.has_health(),    "HealthComponent", chunk_id, name,    SelectedComponent::Health);
+                            _drawComponent(entity_def.has_health(),    "HealthComponent", chunk_id, entity,    SelectedComponent::Health);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Visual);
-                            _drawComponent(entity_def.has_visual(),    "VisualComponent", chunk_id, name,    SelectedComponent::Visual);
+                            _drawComponent(entity_def.has_visual(),    "VisualComponent", chunk_id, entity,    SelectedComponent::Visual);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Input);
-                            _drawComponent(entity_def.has_input(),     "InputComponent", chunk_id, name,     SelectedComponent::Input);
+                            _drawComponent(entity_def.has_input(),     "InputComponent", chunk_id, entity,     SelectedComponent::Input);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Camera);
-                            _drawComponent(entity_def.has_camera(),    "CameraComponent", chunk_id, name,    SelectedComponent::Camera);
+                            _drawComponent(entity_def.has_camera(),    "CameraComponent", chunk_id, entity,    SelectedComponent::Camera);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Terrain);
-                            _drawComponent(entity_def.has_terrain(),   "TerrainComponent", chunk_id, name,   SelectedComponent::Terrain);
+                            _drawComponent(entity_def.has_terrain(),   "TerrainComponent", chunk_id, entity,   SelectedComponent::Terrain);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Light);
-                            _drawComponent(entity_def.has_light(),     "LightComponent", chunk_id, name,     SelectedComponent::Light);
+                            _drawComponent(entity_def.has_light(),     "LightComponent", chunk_id, entity,     SelectedComponent::Light);
                             ImGui::PopID();
 
                             _pushID(SelectedComponent::Script);
-                            _drawComponent(entity_def.has_script(),    "ScriptComponent", chunk_id, name,    SelectedComponent::Script);
+                            _drawComponent(entity_def.has_script(),    "ScriptComponent", chunk_id, entity,    SelectedComponent::Script);
                             ImGui::PopID();
 
                             ImGui::Separator();
@@ -600,7 +622,7 @@ namespace astre::editor::panel
         if (ImGui::BeginPopupModal("Rename Entity", &_rename_entity.open, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::InputText("New name", _rename_entity.name, sizeof(_rename_entity.name));
             if (ImGui::Button("Rename")) {
-                _renameEntity(_rename_entity.chunk, _rename_entity.old_name, _rename_entity.name);
+                //_renameEntity(_rename_entity.chunk, _rename_entity.old_name, _rename_entity.name);
                 _rename_entity.open = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -652,7 +674,7 @@ namespace astre::editor::panel
 
         {
             const bool hasChunkSelection = _selection.has_value();
-            const bool hasEntitySelection = hasChunkSelection && !_selection->entity_name.empty();
+            const bool hasEntitySelection = hasChunkSelection && _selection->entity != ecs::INVALID_ENTITY;
         
             // Add Chunk button
             if (ImGui::SmallButton("+"))
@@ -701,9 +723,9 @@ namespace astre::editor::panel
                 _confirm = {};
                 _confirm.open = true;
                 _confirm.title = "Delete Entity";
-                _confirm.message = std::format("Do you want to delete entity '{}' ?", _selection->entity_name);
+                _confirm.message = std::format("Do you want to delete entity '{}' ?", _selection->entity);
                 _confirm.on_confirm = [this]() {
-                    _removeEntity(_selection->chunk_id, _selection->entity_name);
+                    _removeEntity(_selection->chunk_id, _selection->entity);
                 };
             }
             ImGui::EndDisabled();

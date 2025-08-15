@@ -5,9 +5,9 @@
 
 namespace astre::ecs::system
 {
-    CameraSystem::CameraSystem(std::string active_camera_entity_name, Registry & registry)
+    CameraSystem::CameraSystem(ecs::Entity active_camera_entity, Registry & registry)
         :   System(registry),
-            _active_camera_entity_name(std::move(active_camera_entity_name))
+            active_camera_entity(std::move(active_camera_entity))
     {}
 
     void CameraSystem::run(float dt, render::Frame & frame)
@@ -16,14 +16,7 @@ namespace astre::ecs::system
         frame.view_matrix = math::Mat4(1.0f);
         frame.proj_matrix = math::Mat4(1.0f);
 
-        const auto entity = getRegistry().getEntity(_active_camera_entity_name);
-        if(!entity)
-        {
-            spdlog::error("{} entity not loaded in ECS registry", _active_camera_entity_name);
-            return;
-        }
-
-        getRegistry().runOnSingleWithComponents<TransformComponent, CameraComponent>(*entity,
+        getRegistry().runOnSingleWithComponents<TransformComponent, CameraComponent>(active_camera_entity,
             [&](const Entity e, const TransformComponent & transform_component, const CameraComponent & camera_component)
             {
                 frame.camera_position = math::deserialize(transform_component.position());

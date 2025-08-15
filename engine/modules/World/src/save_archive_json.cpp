@@ -171,13 +171,19 @@ namespace astre::world
             return false;
         }
 
-        // Replace or append entity by name()
+        // Replace or append entity by id()
         auto* entities = chunk.mutable_entities();
-        const std::string& key_name = entity_def.name();
+        const std::size_t & entity_id = entity_def.id();
+
+        if(entity_id == ecs::INVALID_ENTITY)
+        {
+            spdlog::error("Failed to create entity");
+            return false;
+        }
 
         auto it = std::find_if(entities->begin(), entities->end(),
             [&](const ecs::EntityDefinition& e) {
-                return e.name() == key_name;
+                return e.id() == entity_id;
             }
         );
 
@@ -228,13 +234,13 @@ namespace astre::world
             return false;
         }
 
-        // remove entity by name
+        // remove entity by id
         auto* entities = archive.mutable_chunks(chunk_idx)->mutable_entities();
-        const std::string& target = entity_def.name();
+        const std::size_t & entity_id = entity_def.id();
         int entity_idx = -1;
         for (int i = 0; i < entities->size(); ++i) 
         {
-            if (entities->Get(i).name() == target)
+            if (entities->Get(i).id() == entity_id)
             {
                 entity_idx = i;
                 break;
@@ -242,7 +248,7 @@ namespace astre::world
         }
         if (entity_idx < 0)
         {
-            spdlog::warn("[save-archive] removeEntity: entity '{}' not found in chunk", target);
+            spdlog::warn("[save-archive] removeEntity: entity '{}' not found in chunk", entity_id);
             return false;
         }
         entities->DeleteSubrange(entity_idx, 1);
@@ -279,7 +285,7 @@ namespace astre::world
 
         // Note: _chunk_index / _all_chunks unchanged (we only modified entities within a chunk)
         spdlog::debug("[save-archive] entity '{}' removed from chunk ({},{},{})",
-                      target, chunk_id.x(), chunk_id.y(), chunk_id.z());
+                      entity_id, chunk_id.x(), chunk_id.y(), chunk_id.z());
         return true;
     }
 

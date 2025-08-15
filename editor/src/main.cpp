@@ -31,6 +31,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
     co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "debug_overlay");
+    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "picking_id64");
 
     script::ScriptRuntime script_runtime;
     co_await asset::loadScript(script_runtime, paths.resources / "worlds" / "scripts" / "player_script.lua");
@@ -59,7 +60,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             .registry = registry,
             .systems = ecs::Systems{
                 .transform = ecs::system::TransformSystem(registry),
-                .camera = ecs::system::CameraSystem("camera", registry),
+                .camera = ecs::system::CameraSystem(5, registry),
                 .visual = ecs::system::VisualSystem(app_state.renderer, registry),
                 .light = ecs::system::LightSystem(registry),
                 .script = ecs::system::ScriptSystem(script_runtime, registry),
@@ -107,9 +108,40 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         }
     );
 
+
+    // Create viewport FBO
+    const std::pair<unsigned, unsigned> viewport_size = {1280, 728};
+    auto viewport_fbo_res = co_await app_state.renderer.createFrameBufferObject(
+        "fbo::viewport", viewport_size,
+        {
+            {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},
+        }
+    );
+    if (!viewport_fbo_res) {
+        spdlog::error("Failed to create viewport FBO");
+        // TODO throw?
+        co_return;
+    }
+    std::size_t viewport_fbo = *viewport_fbo_res;
+    auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(viewport_fbo);
+    assert(viewport_fbo_textures.size() == 1);
+
+    const float viewport_aspect = (float)viewport_size.first / (float)viewport_size.second;
+
+
+    auto picking_resources_res = co_await pipeline::buildPickingResources(app_state.renderer, viewport_size);
+    if(!picking_resources_res)
+    {
+        spdlog::error("Failed to build picking resources");
+        co_return;
+    }
+    const pipeline::PickingResources & picking_resources = *picking_resources_res;
+
+    panel::ScenePanel scene_panel(world_streamer);
+
     // Logic 2. ECS stage
     orchestrator.setLogicStage<2>(
-        [&flycam]
+        [&flycam, &viewport_aspect, &picking_resources, &scene_panel]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -167,29 +199,35 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             flycam.update(dt);
 
             // override camera matrices by editor camera
-            flycam.overrideFrame(editor_frame.render_frame, 1280.0f / 728.0f);
+            flycam.overrideFrame(editor_frame.render_frame, viewport_aspect);
+
+
+            if(flycam.isHovered() && 
+                !flycam.isCaptured() &&
+                editor_state.app_state.input.isKeyJustPressed(input::InputCode::MOUSE_LEFT)
+            )
+            {
+                auto relative_mouse_pos = editor_state.app_state.input.getMousePosition() - flycam.getViewportPosition();
+
+                relative_mouse_pos.x = std::clamp(relative_mouse_pos.x / flycam.getViewportSize().x, 0.0f, 0.99f); // [0,1)
+                relative_mouse_pos.y = std::clamp(relative_mouse_pos.y / flycam.getViewportSize().y, 0.0f, 0.99f); // [0,1)
+
+                int x = relative_mouse_pos.x * picking_resources.size.first;
+                int y = (1.0f - relative_mouse_pos.y) * picking_resources.size.second;
+
+                auto selected_id_res = co_await editor_state.app_state.renderer.readPixelUint64(picking_resources.fbo, 0, x, y);
+                if(selected_id_res)
+                {
+                    const std::uint64_t & selected_id = *selected_id_res;
+                    scene_panel.selectEntity(selected_id);
+                }
+            }
 
         }
     );
 
     // Logic 3. summary end stage
     constexpr float logic_frame_smoothing = 0.9f;
-
-    // Create viewport FBO
-    auto viewport_fbo_res = co_await app_state.renderer.createFrameBufferObject(
-        "fbo::viewport", {1280, 728},
-        {
-            {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},
-        }
-    );
-    if (!viewport_fbo_res) {
-        spdlog::error("Failed to create viewport FBO");
-        // TODO throw?
-        co_return;
-    }
-    std::size_t viewport_fbo = *viewport_fbo_res;
-    auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(viewport_fbo);
-    assert(viewport_fbo_textures.size() == 1);
 
     panel::DrawContext ctx
     {
@@ -211,7 +249,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     panel::MainMenuBar main_menu_bar;
-    panel::ScenePanel scene_panel(world_streamer);
     panel::PropertiesPanel properties_panel;
     panel::AssetsPanel assets_panel(resource_tracker);
 
@@ -279,7 +316,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 // save to world
                 if(selected_entity_def)
                 {
-                    const auto [chunk_id, entity_def] = *selected_entity_def;
+                    auto [chunk_id, entity_def] = *selected_entity_def;
 
                     world_streamer.updateEntity(chunk_id, entity_def);
                     scene_panel.loadEntitesDefs();
@@ -333,9 +370,16 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         .polygon_offset = render::PolygonOffset{.factor = 1.5f, .units = 4.0f}
     };
 
-    pipeline::DeferredShadingResources render_resources = co_await pipeline::buildDeferredShadingResources(app_state.renderer);
+    auto render_resources_res = co_await pipeline::buildDeferredShadingResources(app_state.renderer, viewport_size);
+    if(!render_resources_res)
+    {
+        spdlog::error("Failed to build deferred shading resources");
+        co_return;
+    }
+    const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
+
     orchestrator.setRenderStage<1>(
-        [&app_state, &render_resources, &gbuffer_render_options, &shadow_map_render_options, &viewport_fbo, &ctx]
+        [&app_state, &render_resources, &picking_resources, &gbuffer_render_options, &shadow_map_render_options, &viewport_fbo, &ctx]
         (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr) -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -346,6 +390,12 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 alpha, prev, curr,
                 gbuffer_render_options, shadow_map_render_options,
                 viewport_fbo);
+
+            co_await pipeline::renderPickingIds(
+                app_state.renderer,
+                curr,
+                picking_resources
+            );
             
         }
     );

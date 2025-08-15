@@ -6,6 +6,12 @@ namespace astre::render::opengl
     {
         switch(format)
         {
+            case TextureFormat::R_32 :
+                return GL_R32UI;
+
+            case TextureFormat::RG_32 :
+                return GL_RG32UI;
+
             case TextureFormat::RGB_8 :
                 return GL_RGB8UI;
             case TextureFormat::RGB_16 :

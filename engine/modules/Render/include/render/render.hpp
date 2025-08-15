@@ -325,6 +325,9 @@ namespace astre::render
          * @return A vector of size_t containing the IDs of the textures attached to the FBO object.
          */
         virtual std::vector<std::size_t> getFrameBufferObjectTextures(std::size_t id) const = 0;
+
+
+        virtual asio::awaitable<std::optional<std::uint64_t>> readPixelUint64(std::size_t fbo, unsigned attachment, int x, int y) = 0;
     };
 
     template<class RendererImplType>
@@ -443,6 +446,11 @@ namespace astre::render
             inline std::vector<std::size_t> getFrameBufferObjectTextures(std::size_t id) const override {
                 return base::impl().getFrameBufferObjectTextures(std::move(id));
             }
+
+            inline asio::awaitable<std::optional<std::uint64_t>> readPixelUint64(std::size_t fbo, unsigned attachment, int x, int y){
+                return base::impl().readPixelUint64(std::move(fbo), std::move(attachment), std::move(x), std::move(y));
+            }
+
     };
 
     template<class RendererImplType>

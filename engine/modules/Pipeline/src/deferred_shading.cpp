@@ -4,13 +4,13 @@
 
 namespace astre::pipeline
 {
-    asio::awaitable<DeferredShadingResources> buildDeferredShadingResources(render::IRenderer & renderer)
+    asio::awaitable<std::optional<DeferredShadingResources>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size)
     {
         DeferredShadingResources resources;
 
         // Create deffered FBO ( GBuffer )
         auto deferred_fbo_res = co_await renderer.createFrameBufferObject(
-            "fbo::deferred", {1280, 728},
+            "fbo::deferred", size,
             {
                 {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},
                 {render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Color, render::TextureFormat::RGB_16F},
@@ -43,7 +43,7 @@ namespace astre::pipeline
         for (unsigned int i = 0; i < ecs::system::LightSystem::MAX_SHADOW_CASTERS; ++i) 
         {
             auto fbo = co_await renderer.createFrameBufferObject(
-                "fbo::shadow_map" + std::to_string(i), {1280, 728},
+                "fbo::shadow_map" + std::to_string(i), size,
                 {{render::FBOAttachment::Type::Texture, render::FBOAttachment::Point::Depth, render::TextureFormat::Depth_32F}}
             );
 

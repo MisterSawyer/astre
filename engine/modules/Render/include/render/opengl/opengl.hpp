@@ -113,6 +113,8 @@ namespace astre::render::opengl
             async::AsyncContext<asio::io_context> & getAsyncContext();
             void join();
 
+            asio::awaitable<std::optional<std::uint64_t>> readPixelUint64(std::size_t fbo, unsigned attachment, int x, int y);
+
         protected:
 
             template<class ImplType, class T, class ... Args>

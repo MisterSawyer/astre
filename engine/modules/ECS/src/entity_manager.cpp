@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include "ecs/entity_manager.hpp"
 
 namespace astre::ecs
@@ -21,9 +23,31 @@ namespace astre::ecs
         return *this;
     }
     
-    Entity EntityManager::createEntity() 
+    std::optional<Entity> EntityManager::spawnEntity(std::optional<std::size_t> entity_id) 
     {
-        Entity entity = _next_entity++;
+        Entity entity = INVALID_ENTITY;
+
+        if(entity_id)
+        {
+            entity = *entity_id;
+        }
+        else
+        {
+            entity = _next_entity++;
+        }
+
+        if(entity == INVALID_ENTITY)
+        {
+            spdlog::error("Failed to create entity");
+            return std::nullopt;
+        }
+
+        if(_masks.contains(entity))
+        {
+            spdlog::error("Entity {} already exists", entity);
+            return std::nullopt;
+        }
+
         _masks[entity] = std::bitset<MAX_COMPONENT_TYPES>();
         return entity;
     }

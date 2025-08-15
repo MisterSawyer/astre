@@ -4,6 +4,7 @@
       "id": { "x": 0, "y": 0, "z": 0 },
       "entities": [
         {
+          "id" : 1,
           "name": "terrain",
           "transform": {
             "position": {
@@ -30,6 +31,7 @@
           }
         },
         {
+          "id" : 2,
           "name": "wall",
           "transform": {
             "position": {
@@ -51,6 +53,7 @@
           }
         },
         {
+          "id" : 3,
           "name": "ceiling",
           "transform": {
             "position": {
@@ -72,6 +75,7 @@
           }
         },
         {
+          "id" : 4,
           "name": "player",
           "transform": {
             "scale": {
@@ -114,6 +118,7 @@
           }
         },
         {
+          "id" : 5,
           "name": "camera",
           "input": {},
           "transform": {
@@ -151,6 +156,7 @@
           }
         },
         {
+          "id" : 6,
           "name": "enemy0",
           "transform": {
             "position": {
@@ -190,6 +196,7 @@
           }
         },
         {
+          "id" : 7,
           "name": "enemy1",
           "transform": {
             "position": {
@@ -220,6 +227,7 @@
           }
         },
         {
+          "id" : 8,
           "name": "enemy2",
           "transform": {
             "position": {
@@ -241,6 +249,7 @@
           }
         },
         {
+          "id" : 9,
           "name": "enemy3",
           "transform": {
             "position": {
@@ -262,6 +271,7 @@
           }
         },
         {
+          "id" : 10,
           "name": "enemy4",
           "transform": {
             "position": {

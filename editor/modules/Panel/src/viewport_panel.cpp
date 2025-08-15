@@ -164,26 +164,23 @@ namespace astre::editor::panel
             ImGui::TextUnformatted("Viewport");
             
             const ImVec2 avail = ImGui::GetContentRegionAvail();
-            const int w = (int)avail.x;
-            const int h = (int)avail.y;
-
-            const bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-            const ImVec2 content_top_left = ImVec2(
-                ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x,
-                ImGui::GetWindowPos().y + ImGui::GetWindowContentRegionMin().y
-            );
-
-            _fly_camera.setViewportRect(content_top_left, avail, hovered);
 
             if (ctx.viewport_texture)
             {
                 ImGui::Image(
                     (ImTextureID)(intptr_t)ctx.viewport_texture,
-                    ImVec2((float)w, (float)h),
+                    avail,
                     ImVec2(0.0f, 1.0f),  // uv0
                     ImVec2(1.0f, 0.0f)   // uv1 (flipped)
                 );
+
+                // query the actual image rectangle
+                const ImVec2 imgMin = ImGui::GetItemRectMin();
+                const ImVec2 imgMax = ImGui::GetItemRectMax();
+                const ImVec2 imgSize = ImVec2(imgMax.x - imgMin.x, imgMax.y - imgMin.y);
+                const bool   hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                _fly_camera.setViewportRect(imgMin, imgSize, hovered);
             }
 
             // Compute anchor at top-left

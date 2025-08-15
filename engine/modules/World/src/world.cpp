@@ -29,8 +29,31 @@ namespace astre::world
         return _archive->writeChunk(chunk);
     }
 
-    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    bool WorldStreamer::updateEntity(const ChunkID & chunk_id, ecs::EntityDefinition & entity_def)
     {
+        std::size_t entity_id = entity_def.id();
+        if(entity_id == ecs::INVALID_ENTITY)
+        {
+            auto is_unique = [this](const std::size_t & new_entity_id)
+            {
+                for(const auto & [chunk_id, entities] : _loaded_chunk_entities)
+                {
+                    if(entities.contains(new_entity_id)) return false;
+                }
+
+                return true;
+            };
+
+            entity_id = 1;
+            while(!is_unique(entity_id))
+            {
+                ++entity_id;
+            }
+            
+            spdlog::debug("[world] Assigning new entity id: {}", entity_id);
+            entity_def.set_id(entity_id);
+        }
+
         _to_reload.emplace(chunk_id);
         return _archive->updateEntity(chunk_id, entity_def);
     }
@@ -119,7 +142,7 @@ namespace astre::world
         // load chunk entites
         for (const auto& entity_def : (*chunk).entities()) 
         {
-            std::optional<ecs::Entity> entity = co_await _registry.createEntity(entity_def.name());
+            std::optional<ecs::Entity> entity = co_await _registry.spawnEntity(entity_def);
             co_await _async_context.ensureOnStrand();
 
             if (entity.has_value())
@@ -138,6 +161,10 @@ namespace astre::world
                 }
 
                 co_await _loader.loadEntity(entity_def, *entity);
+            }
+            else
+            {
+                spdlog::error("Failed to spawn entity");
             }
         }
         

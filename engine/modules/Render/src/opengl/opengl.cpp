@@ -700,4 +700,27 @@ namespace astre::render::opengl
     {
         return _viewport_resolution;
     }
+
+    asio::awaitable<std::optional<std::uint64_t>> OpenGLRenderer::readPixelUint64(std::size_t fbo, unsigned attachment, int x, int y)
+    {
+        if (!good()) co_return std::nullopt;
+        co_await _render_context->ensureOnStrand();
+
+        auto it = _frame_buffer_objects.find(fbo);
+        if (it == _frame_buffer_objects.end()) co_return std::nullopt;
+
+        const auto& f = it->second;
+        if (!f->enable()) co_return std::nullopt;
+
+        const auto [w, h] = f->getResolution();
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment);
+
+        std::uint32_t rg[2] = {0, 0};
+        glReadPixels(x, y, 1, 1, GL_RG_INTEGER, GL_UNSIGNED_INT, rg);
+
+        f->disable();
+        co_return (std::uint64_t{rg[0]} | (std::uint64_t{rg[1]} << 32)); // lo | (hi<<32)
+    }
+
+
 }
