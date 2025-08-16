@@ -9,6 +9,9 @@
 
 #include "panel/panel_interface.hpp"
 
+#include "model/chunk_entities_registry.hpp"
+#include "controller/selection_controller.hpp"
+
 namespace astre::editor::panel 
 {
     class ScenePanel final : public IPanel 
@@ -19,13 +22,17 @@ namespace astre::editor::panel
             None, Transform, Health, Visual, Input, Camera, Terrain, Light, Script
         };
 
-        ScenePanel();
+        ScenePanel(const model::ChunkEntityRegistry & chunk_entities_registry) 
+        : _chunk_entities_registry(chunk_entities_registry) 
+        {};
 
         std::string_view name() const noexcept override { return "Scene"; }
         bool visible() const noexcept override { return _visible; }
         void setVisible(bool v) noexcept override { _visible = v; }
 
-        void draw(DrawContext& ctx) noexcept override;
+        void draw(const model::DrawContext& ctx) noexcept override;
+
+        void updateSelectedEntity(controller::SelectionController & selection_controller);
 
         const absl::flat_hash_set<world::WorldChunk> & getCreatedChunks() const noexcept { return _created_chunks; }
         const absl::flat_hash_set<world::ChunkID> & getRemovedChunks() const noexcept { return _removed_chunks; }
@@ -44,27 +51,30 @@ namespace astre::editor::panel
             _updated_entities.clear();
         }
 
-        void loadEntitesDefs(world::WorldStreamer & world_streamer);
-
     private:
-
+        struct Selection
+        {
+            std::optional<world::ChunkID>           chunk_id;
+            std::optional<ecs::EntityDefinition>    entity_def;
+            std::optional<SelectedComponent>        component;
+        };
 
         bool _addChunk(const world::ChunkID & id);
-        bool _removeChunk(DrawContext& ctx, const world::ChunkID & id) noexcept;
+        bool _removeChunk(const world::ChunkID & id) noexcept;
 
         bool _addEntity(const world::ChunkID & id, std::string_view name);
-        bool _renameEntity(const world::ChunkID & id, ecs::EntityDefinition & entity_def, std::string_view new_name);
-        bool _removeEntity(DrawContext& ctx, const world::ChunkID & id, const ecs::EntityDefinition & entity_def) noexcept;
+        bool _renameEntity(const world::ChunkID & id, const ecs::EntityDefinition & entity_def, std::string_view new_name);
+        bool _removeEntity(const world::ChunkID & id, const ecs::EntityDefinition & entity_def) noexcept;
 
-        bool _addComponent(DrawContext& ctx, const world::ChunkID & id, ecs::EntityDefinition & entity_def, SelectedComponent component);
-        bool _removeComponent(DrawContext& ctx, const world::ChunkID & id, ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
+        bool _addComponent(const world::ChunkID & id, const ecs::EntityDefinition & entity_def, SelectedComponent component);
+        bool _removeComponent(const world::ChunkID & id, const ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
 
-        void _drawComponent(DrawContext& ctx, bool has, std::string label, const world::ChunkID & chunk_id, ecs::EntityDefinition & entity_def, SelectedComponent kind);
-        void _drawAddComponentCombo(DrawContext& ctx, const world::ChunkID & chunk_id, ecs::EntityDefinition & entity_def);
+        void _drawComponent(bool has, std::string label, const world::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, SelectedComponent component);
+        void _drawAddComponentCombo(const world::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
         bool _visible{true};
 
-        absl::flat_hash_map<world::ChunkID, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>> _chunk_entities_defs;
+        const model::ChunkEntityRegistry & _chunk_entities_registry;
 
         absl::flat_hash_set<world::WorldChunk> _created_chunks;
         absl::flat_hash_set<world::ChunkID> _removed_chunks;
@@ -75,6 +85,8 @@ namespace astre::editor::panel
 
         absl::flat_hash_map<std::string, std::string> _add_component_preview;
         absl::flat_hash_map<std::string, SelectedComponent> _pending_component;
+
+        std::optional<Selection> _pending_selection;
     };
 
 }

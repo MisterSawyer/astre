@@ -18,10 +18,15 @@ namespace astre::editor::panel
         bool visible() const noexcept override { return _visible; }
         void setVisible(bool v) noexcept override { _visible = v; }
 
-        void draw(DrawContext& ctx) noexcept override;
+        void draw(const model::DrawContext& ctx) noexcept override;
+
+        bool updateSelectedEntity(controller::SelectionController & selection_controller);
 
     private:
         bool _visible{true};
+
+        std::optional<ecs::EntityDefinition> pending_entity_def;
+        bool properites_updated = false;
     };
 
 }

@@ -82,7 +82,7 @@ namespace astre::editor::panel
         ImGui::PopStyleVar();
     }
 
-    void ViewportPanel::draw(panel::DrawContext& ctx) noexcept
+    void ViewportPanel::draw(const model::DrawContext& ctx) noexcept
     {
         if (!_visible) return;
 

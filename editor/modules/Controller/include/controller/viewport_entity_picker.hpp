@@ -11,15 +11,24 @@
 #include "ecs/ecs.hpp"
 #include "pipeline/pipeline.hpp"
 
+#include "model/chunk_entities_registry.hpp"
+
+#include "selection_controller.hpp"
+
 namespace astre::editor::controller
 {
     class ViewportEntityPicker
     {
     public:
-        ViewportEntityPicker(render::IRenderer & renderer,
+        ViewportEntityPicker(
+            render::IRenderer & renderer,
+            const input::InputService & input,
             const pipeline::PickingResources & picking_resources,
-            const input::InputService & input)
-        : _renderer(renderer), _picking_resources(picking_resources), _input(input) 
+            const model::ChunkEntityRegistry & chunk_entities_registry)
+        :   _renderer(renderer),
+            _input(input),
+            _picking_resources(picking_resources),
+            _chunk_entities_registry(chunk_entities_registry)
         {}
 
         ~ViewportEntityPicker() = default;
@@ -33,7 +42,7 @@ namespace astre::editor::controller
             _vp_size = size;
         }
 
-        asio::awaitable<std::optional<ecs::Entity>> getSelectedEntity()
+        asio::awaitable<void> updateSelectedEntity(SelectionController & selection_controller)
         {
             if(_vp_hovered && _input.isKeyJustPressed(input::InputCode::MOUSE_LEFT))
             {
@@ -46,16 +55,30 @@ namespace astre::editor::controller
                 int y = (1.0f - relative_mouse_pos.y) * _picking_resources.size.second;
 
                 auto selected_id_res = co_await _renderer.readPixelUint64(_picking_resources.fbo, 0, x, y);
-                co_return selected_id_res;
+                if(selected_id_res == std::nullopt) co_return;
+                
+                // update selected entity in selection controller
+                // we need to map entity id obtained from texture to chunk id and EntityDefinition
+                // to do that we need mapping 
+                for(const auto & [chunk_id, entities] : _chunk_entities_registry.mapping)
+                {
+                    if(entities.contains(*selected_id_res))
+                    {
+                        selection_controller.setSelection(chunk_id, entities.at(*selected_id_res));
+                        co_return;
+                    }
+                }
             }
 
-            co_return std::nullopt;
+            co_return;
         } 
 
         private:
             render::IRenderer & _renderer;
-            const pipeline::PickingResources & _picking_resources;
             const input::InputService & _input;
+
+            const pipeline::PickingResources & _picking_resources;
+            const model::ChunkEntityRegistry & _chunk_entities_registry;
 
             math::Vec2 _vp_pos{0,0};
             math::Vec2 _vp_size{0,0};

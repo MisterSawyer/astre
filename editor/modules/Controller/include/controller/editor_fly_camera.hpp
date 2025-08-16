@@ -31,9 +31,9 @@ namespace astre::editor::controller
             _calculateViewMatrix(); 
         }
 
-        asio::awaitable<void> update(float dt, pipeline::AppState & app_state) noexcept
+        asio::awaitable<void> update(float dt, process::IProcess & process, input::InputService & input) noexcept
         {
-            co_await _handleInput(app_state.process, app_state.input);
+            co_await _handleInput(process, input);
 
             if (_captured == false || _vp_hovered == false)co_return;
             _updatePosition(dt);

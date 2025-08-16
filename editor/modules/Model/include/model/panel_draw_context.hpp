@@ -8,7 +8,9 @@
 #include "ecs/ecs.hpp"
 #include "world/world.hpp"
 
-namespace astre::editor::panel
+#include "controller/selection_controller.hpp"
+
+namespace astre::editor::model
 {
     struct DrawContext
     {
@@ -25,8 +27,7 @@ namespace astre::editor::panel
         astre::render::FrameStats stats;
 
         math::Vec3 camera_position;
-        
-        bool selected_entity_updated;
-        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> selected_entity;
+
+        controller::SelectionController selection_controller;
     };
 }

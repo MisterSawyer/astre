@@ -94,7 +94,7 @@ namespace astre::editor::panel
     }
 
 
-    void AssetsPanel::draw(DrawContext& ctx) noexcept
+    void AssetsPanel::draw(const model::DrawContext& ctx) noexcept
     {
         if (!_visible) return;
 

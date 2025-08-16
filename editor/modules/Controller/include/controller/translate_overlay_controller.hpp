@@ -11,8 +11,9 @@
 #include "generated/ECS/proto/entity_definition.pb.h"
 #include "generated/ECS/proto/components/transform_component.pb.h"
 #include "input/input.hpp"
-#include "world/world.hpp"   // whatever header defines WorldStreamer/ChunkID
-// ^ names as in your tree (adjust include if needed)
+#include "world/world.hpp"
+
+#include "model/panel_draw_context.hpp"
 
 namespace astre::editor::controller
 {
@@ -86,28 +87,29 @@ namespace astre::editor::controller
         }
 
         void update(
+            const model::DrawContext & ctx,
             input::InputService & input,
-            const math::Vec3 & camera_position,
-            const std::optional<std::pair<astre::world::ChunkID, astre::ecs::EntityDefinition>> & active_def_res,
             const render::Frame & render_frame) noexcept
         {
-            if(active_def_res == std::nullopt) 
+            if(!ctx.selection_controller.isAnyEntitySelected()) 
             {
                 _visible = false;
+                _drag.dragging   = false;
                 return;
             }
-            const auto & active_def = *active_def_res;
+            const auto & selected_entity_def = ctx.selection_controller.getEntitySelection();
 
-            if(active_def.second.has_transform() == false) 
+            if(selected_entity_def.has_transform() == false) 
             {
                 _visible = false;
+                _drag.dragging   = false;
                 return;
             }
 
             // Current target world position
-            const math::Vec3 pos = math::deserialize(active_def.second.transform().position());
+            const math::Vec3 pos = math::deserialize(selected_entity_def.transform().position());
 
-            auto distance = math::length(pos - camera_position);
+            auto distance = math::length(pos - ctx.camera_position);
 
             const float len  = glm::clamp(distance * _opt.gizmo_scale, _opt.min_len, _opt.max_len);
             const float shaft_r = len * _opt.shaft_radius;
@@ -144,7 +146,7 @@ namespace astre::editor::controller
 
             // Returns world ray dir from mouse (normalized)
             auto ray_dir_from_mouse = [&](math::Vec2 p/*in-vp*/) noexcept -> math::Vec3 {
-                if (_vp_size.x <= 1e-6f || _vp_size.y <= 1e-6f) return math::normalize(camera_position - pos);
+                if (_vp_size.x <= 1e-6f || _vp_size.y <= 1e-6f) return math::normalize(ctx.camera_position - pos);
                 // NDC
                 const float x = (2.0f * (p.x / _vp_size.x)) - 1.0f;
                 const float y = 1.0f - (2.0f * (p.y / _vp_size.y));
@@ -206,7 +208,7 @@ namespace astre::editor::controller
 
                         const math::Vec3 d1 = ray_dir_from_mouse(pm);
                         const math::Vec3 d2 = glm::normalize(axis_dirs.at(_drag.axis));
-                        const math::Vec3 r  = camera_position - pos;
+                        const math::Vec3 r  = ctx.camera_position - pos;
                         const float a = 1.0f;
                         const float b = glm::dot(d1, d2);
                         const float c = glm::dot(d1, r);
@@ -225,7 +227,7 @@ namespace astre::editor::controller
                 const math::Vec2 pm = m_in_vp;
                 const math::Vec3 d1 = ray_dir_from_mouse(pm);
                 const math::Vec3 d2 = glm::normalize(axis_dirs[_drag.axis]);
-                const math::Vec3 r  = camera_position - _drag.origin;
+                const math::Vec3 r  = ctx.camera_position - _drag.origin;
                 const float b = glm::dot(d1, d2);
                 const float c = glm::dot(d1, r);
                 const float f = glm::dot(d2, r);

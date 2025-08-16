@@ -8,4 +8,6 @@ add_module(NAME "Controller"
     
     DEPENDENCIES
         AstreEngine
+
+        astre_editor::Model
 )

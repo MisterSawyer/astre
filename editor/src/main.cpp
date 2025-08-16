@@ -25,7 +25,7 @@ struct EditorState
 
     layout::DockSpace dock_space;
 
-    panel::DrawContext ctx;
+    model::DrawContext ctx;
 
     panel::MainMenuBar main_menu_bar;
     panel::ScenePanel scene_panel;
@@ -63,6 +63,8 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         paths.resources / "shaders" / "glsl",
         paths.resources / "worlds" / "scripts"
     );
+
+    model::ChunkEntityRegistry chunk_entities_registry;
 
     // Create viewport FBO
     auto display_resources_res = co_await pipeline::buildDisplayResources(app_state.renderer, {1280, 728});
@@ -130,21 +132,25 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             .dock_space = layout::DockSpace(),
 
-            .ctx = panel::DrawContext{
+            .ctx = model::DrawContext{
                 .viewport_texture = viewport_fbo_textures.at(0)
             },
             .main_menu_bar = panel::MainMenuBar(),
-            .scene_panel = panel::ScenePanel(),
+            .scene_panel = panel::ScenePanel(chunk_entities_registry),
             .properties_panel = panel::PropertiesPanel(),
             .assets_panel = panel::AssetsPanel(resource_tracker),
             .viewport_panel = panel::ViewportPanel(),
 
             .selection_overlay_controller = controller::SelectionOverlayController(app_state.renderer),
             .translate_overlay_controller = controller::TranslateOverlayController(app_state.renderer),
-
+            
             .flycam = controller::EditorFlyCamera(),
 
-            .viewport_entity_picker = controller::ViewportEntityPicker(app_state.renderer, picking_resources, app_state.input)
+            .viewport_entity_picker = controller::ViewportEntityPicker( 
+                    app_state.renderer,
+                    app_state.input,
+                    picking_resources,
+                    chunk_entities_registry)
         }
     );
     
@@ -176,13 +182,22 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             co_stop_if(token);
             co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
 
-            editor_state.flycam.setViewportRect(editor_state.viewport_panel.getImgPos(), editor_state.viewport_panel.getImgSize());
+            editor_state.viewport_entity_picker.setViewportRect(
+                editor_state.viewport_panel.getImgPos(),
+                editor_state.viewport_panel.getImgSize());
+            editor_state.viewport_entity_picker.setHovered(editor_state.viewport_panel.isHovered());
+
+            editor_state.flycam.setViewportRect(    
+                editor_state.viewport_panel.getImgPos(),
+                editor_state.viewport_panel.getImgSize());
             editor_state.flycam.setHovered(editor_state.viewport_panel.isHovered());
 
-            editor_state.translate_overlay_controller.setViewportRect(editor_state.viewport_panel.getImgPos(), editor_state.viewport_panel.getImgSize());
+            editor_state.translate_overlay_controller.setViewportRect(
+                    editor_state.viewport_panel.getImgPos(),
+                    editor_state.viewport_panel.getImgSize());
             editor_state.translate_overlay_controller.setHovered(editor_state.viewport_panel.isHovered());
 
-            co_await editor_state.flycam.update(dt, editor_state.app_state);
+            co_await editor_state.flycam.update(dt, editor_state.app_state.process, editor_state.app_state.input);
 
             editor_state.ctx.camera_position = editor_state.flycam.getPosition();
 
@@ -208,7 +223,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     // Logic 4.
     bool should_reload_scene = true;
     orchestrator.setLogicStage<4>(
-        [&should_reload_scene, &picking_resources]
+        [&should_reload_scene, &chunk_entities_registry, &picking_resources]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -216,7 +231,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             if(should_reload_scene)
             {
                 should_reload_scene = false;
-                editor_state.scene_panel.loadEntitesDefs(editor_state.world_streamer);
+                chunk_entities_registry.update(editor_state.world_streamer);
             }
 
             // handle removed chunks
@@ -262,42 +277,47 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             editor_state.scene_panel.resetEvents();
 
-            editor_state.selection_overlay_controller.update(
-                editor_state.ctx.selected_entity,
-                editor_frame.render_frame);
+            editor_state.scene_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
+            if(editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller))
+            {
+                should_reload_scene = true;
+            }
 
-            editor_state.translate_overlay_controller.update(
-                editor_state.app_state.input,
-                editor_state.ctx.camera_position,
-                editor_state.ctx.selected_entity, editor_frame.render_frame);
+            editor_state.selection_overlay_controller.update(editor_state.ctx, editor_frame.render_frame);
+            editor_state.translate_overlay_controller.update(editor_state.ctx, editor_state.app_state.input, editor_frame.render_frame);
 
             if(!editor_state.translate_overlay_controller.isDragging()){
-                // picking
+                co_await editor_state.viewport_entity_picker.updateSelectedEntity(editor_state.ctx.selection_controller);
             }
-
-            if(editor_state.translate_overlay_controller.isDragging())
+            else
             {
                 auto p = editor_state.translate_overlay_controller.takeDraggedPosition();
-                if(p)
+                if(p && editor_state.ctx.selection_controller.isAnyEntitySelected())
                 {
-                    const auto pos = math::serialize(*p);
-                    spdlog::debug("[editor] Dragged position: {} {} {} ", pos.x(), pos.y(), pos.z());
-                    editor_state.ctx.selected_entity->second.mutable_transform()->mutable_position()->CopyFrom(pos);
-                    editor_state.ctx.selected_entity_updated = true;
+                    const auto serialized_pos = math::serialize(*p);
+
+                    ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
+
+                    pending_def.mutable_transform()->mutable_position()->CopyFrom(serialized_pos);
+
+                    editor_state.ctx.selection_controller.updateSelectedEntity(pending_def);
                 }
             }
 
-            if(editor_state.ctx.selected_entity_updated)
+            if(
+                editor_state.ctx.selection_controller.isAnyChunkSelected() &&
+                editor_state.ctx.selection_controller.isAnyEntitySelected() &&
+                editor_state.ctx.selection_controller.selectedEntityUpdated())
             {
-                editor_state.ctx.selected_entity_updated = false;
+                editor_state.ctx.selection_controller.clearSelectedEntityUpdate();
 
                 // save to world
-                if( editor_state.ctx.selected_entity)
-                {
-                    auto [chunk_id, entity_def] = * editor_state.ctx.selected_entity;
-                    editor_state.world_streamer.updateEntity(chunk_id, entity_def);
-                    should_reload_scene = true;
-                }
+                editor_state.world_streamer.updateEntity(   
+                    editor_state.ctx.selection_controller.getChunkSelection(),
+                    editor_state.ctx.selection_controller.getEntitySelection()
+                );
+                
+                should_reload_scene = true;
             }
 
             // add selection overlay to frame
@@ -365,11 +385,11 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             editor_state.ctx.assets_dock_id = editor_state.dock_space.getBottomDockId();
             editor_state.ctx.viewport_dock_id = editor_state.dock_space.getCenterDockId();
 
-            co_await editor_state.app_state.gui.draw(&panel::MainMenuBar::draw, &editor_state.main_menu_bar, std::ref(editor_state.ctx));
-            co_await editor_state.app_state.gui.draw(&panel::ScenePanel::draw, &editor_state.scene_panel, std::ref(editor_state.ctx));
-            co_await editor_state.app_state.gui.draw(&panel::PropertiesPanel::draw, &editor_state.properties_panel, std::ref(editor_state.ctx));
-            co_await editor_state.app_state.gui.draw(&panel::AssetsPanel::draw, &editor_state.assets_panel, std::ref(editor_state.ctx));
-            co_await editor_state.app_state.gui.draw(&panel::ViewportPanel::draw, &editor_state.viewport_panel, std::ref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::MainMenuBar::draw, &editor_state.main_menu_bar, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::ScenePanel::draw, &editor_state.scene_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::PropertiesPanel::draw, &editor_state.properties_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::AssetsPanel::draw, &editor_state.assets_panel, std::cref(editor_state.ctx));
+            co_await editor_state.app_state.gui.draw(&panel::ViewportPanel::draw, &editor_state.viewport_panel, std::cref(editor_state.ctx));
 
             co_await editor_state.app_state.gui.render();
         }

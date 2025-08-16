@@ -375,7 +375,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    void PropertiesPanel::draw(DrawContext& ctx) noexcept 
+    void PropertiesPanel::draw(const model::DrawContext& ctx) noexcept 
     {
         if (!_visible) return;
 
@@ -395,66 +395,89 @@ namespace astre::editor::panel
             ImGui::TextUnformatted("Inspector");
             ImGui::Separator();
 
-            if(ctx.selected_entity)
+            if(ctx.selection_controller.isAnyEntitySelected())
             {
-                auto & [chunk_id, entity] = *ctx.selected_entity;
-                ImGui::TextUnformatted(entity.name().c_str());
+                const auto & selected_entity_def = ctx.selection_controller.getEntitySelection();
+
+                ImGui::TextUnformatted(selected_entity_def.name().c_str());
                 ImGui::SameLine();
                 ImGui::Dummy(ImVec2(0.0f, 32.0f));
                 ImGui::SameLine();
-                ImGui::TextUnformatted(std::format("id:{}", std::to_string(entity.id())).c_str());
+                ImGui::TextUnformatted(std::format("id:{}", std::to_string(selected_entity_def.id())).c_str());
                 ImGui::Separator();
 
-                if(entity.has_transform())
+                // make entity definition copy for properties changes 
+                if(!pending_entity_def)
                 {
-                    ctx.selected_entity_updated |= _drawTransformComponent(*(entity.mutable_transform()));
+                    properites_updated = false;
+                    pending_entity_def = selected_entity_def;
+                }
+
+                if(pending_entity_def->has_transform())
+                {
+                    properites_updated |= _drawTransformComponent(*(pending_entity_def->mutable_transform()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_visual())
+                if(pending_entity_def->has_visual())
                 {
-                    ctx.selected_entity_updated |= _drawVisualComponent(*(entity.mutable_visual()));
+                    properites_updated |= _drawVisualComponent(*(pending_entity_def->mutable_visual()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_light())
+                if(pending_entity_def->has_light())
                 {
-                    ctx.selected_entity_updated |= _drawLightComponent(*(entity.mutable_light()));
+                    properites_updated |= _drawLightComponent(*(pending_entity_def->mutable_light()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_camera())
+                if(pending_entity_def->has_camera())
                 {
-                    ctx.selected_entity_updated |= _drawCameraComponent(*(entity.mutable_camera()));
+                    properites_updated |= _drawCameraComponent(*(pending_entity_def->mutable_camera()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_script())
+                if(pending_entity_def->has_script())
                 {
-                    ctx.selected_entity_updated |= _drawScriptComponent(*(entity.mutable_script()));
+                    properites_updated |= _drawScriptComponent(*(pending_entity_def->mutable_script()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_input())
+                if(pending_entity_def->has_input())
                 {
-                    ctx.selected_entity_updated |= _drawInputComponent(*(entity.mutable_input()));
+                    properites_updated |= _drawInputComponent(*(pending_entity_def->mutable_input()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_health())
+                if(pending_entity_def->has_health())
                 {
-                    ctx.selected_entity_updated |= _drawHealthComponent(*(entity.mutable_health()));
+                    properites_updated |= _drawHealthComponent(*(pending_entity_def->mutable_health()));
                     ImGui::Separator();
                 }
 
-                if(entity.has_terrain())
+                if(pending_entity_def->has_terrain())
                 {
-                    ctx.selected_entity_updated |= _drawTerrainComponent(*(entity.mutable_terrain()));
+                    properites_updated |= _drawTerrainComponent(*(pending_entity_def->mutable_terrain()));
                     ImGui::Separator();
                 }
-
             }
         }
         ImGui::End();
     }
+
+    bool PropertiesPanel::updateSelectedEntity(controller::SelectionController & selection_controller)
+    {
+        // if properties were updated then update selected entity
+        if(properites_updated && pending_entity_def)
+        {
+            selection_controller.updateSelectedEntity(*pending_entity_def);
+            properites_updated = false;
+            pending_entity_def = std::nullopt;
+
+            return true;
+        }
+
+        return false;
+    }
+
 }

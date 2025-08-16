@@ -1,6 +1,6 @@
 include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
 
-add_module(NAME "Panel"
+add_module(NAME "Model"
     INCLUDE_DIRS
         "include"
     SOURCE_DIRS
@@ -8,7 +8,4 @@ add_module(NAME "Panel"
     
     DEPENDENCIES
         AstreEngine
-
-        astre_editor::Model
-        astre_editor::Controller
 )
