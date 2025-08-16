@@ -19,8 +19,9 @@ namespace astre::pipeline
     asio::awaitable<std::optional<PickingResources>>
         buildPickingResources(render::IRenderer& renderer, std::pair<unsigned,unsigned> size);
 
-    asio::awaitable<render::FrameStats>
-        renderPickingIds(render::IRenderer& renderer, const render::Frame& frame,
-                 const PickingResources& res);
+    asio::awaitable<render::FrameStats> renderPickingIds(
+        render::IRenderer& renderer,
+        const PickingResources& res,
+        const render::Frame& frame);
 
 }

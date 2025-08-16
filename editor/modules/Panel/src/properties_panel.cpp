@@ -375,13 +375,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    void PropertiesPanel::setSelectedEntityDef(std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> def)
-    { 
-        _selected_entity_def = std::move(def);
-        if(_selected_entity_def)spdlog::debug("[editor] Selected entity def: {}", _selected_entity_def->second.name());
-    }
-
-    void PropertiesPanel::draw(const DrawContext& ctx) noexcept 
+    void PropertiesPanel::draw(DrawContext& ctx) noexcept 
     {
         if (!_visible) return;
 
@@ -401,10 +395,9 @@ namespace astre::editor::panel
             ImGui::TextUnformatted("Inspector");
             ImGui::Separator();
 
-            if(_selected_entity_def)
+            if(ctx.selected_entity)
             {
-
-                auto & [chunk_id, entity] = *_selected_entity_def;
+                auto & [chunk_id, entity] = *ctx.selected_entity;
                 ImGui::TextUnformatted(entity.name().c_str());
                 ImGui::SameLine();
                 ImGui::Dummy(ImVec2(0.0f, 32.0f));
@@ -414,49 +407,49 @@ namespace astre::editor::panel
 
                 if(entity.has_transform())
                 {
-                    _properties_changed |= _drawTransformComponent(*(entity.mutable_transform()));
+                    ctx.selected_entity_updated |= _drawTransformComponent(*(entity.mutable_transform()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_visual())
                 {
-                    _properties_changed |= _drawVisualComponent(*(entity.mutable_visual()));
+                    ctx.selected_entity_updated |= _drawVisualComponent(*(entity.mutable_visual()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_light())
                 {
-                    _properties_changed |= _drawLightComponent(*(entity.mutable_light()));
+                    ctx.selected_entity_updated |= _drawLightComponent(*(entity.mutable_light()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_camera())
                 {
-                    _properties_changed |= _drawCameraComponent(*(entity.mutable_camera()));
+                    ctx.selected_entity_updated |= _drawCameraComponent(*(entity.mutable_camera()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_script())
                 {
-                    _properties_changed |= _drawScriptComponent(*(entity.mutable_script()));
+                    ctx.selected_entity_updated |= _drawScriptComponent(*(entity.mutable_script()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_input())
                 {
-                    _properties_changed |= _drawInputComponent(*(entity.mutable_input()));
+                    ctx.selected_entity_updated |= _drawInputComponent(*(entity.mutable_input()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_health())
                 {
-                    _properties_changed |= _drawHealthComponent(*(entity.mutable_health()));
+                    ctx.selected_entity_updated |= _drawHealthComponent(*(entity.mutable_health()));
                     ImGui::Separator();
                 }
 
                 if(entity.has_terrain())
                 {
-                    _properties_changed |= _drawTerrainComponent(*(entity.mutable_terrain()));
+                    ctx.selected_entity_updated |= _drawTerrainComponent(*(entity.mutable_terrain()));
                     ImGui::Separator();
                 }
 

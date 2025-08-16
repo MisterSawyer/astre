@@ -21,6 +21,7 @@
 #include "pipeline/display.hpp"
 #include "pipeline/deferred_shading.hpp"
 #include "pipeline/picking.hpp"
+#include "pipeline/debug_overlay.hpp"
 
 #include "pipeline/logic_frame_timer.hpp"
 #include "pipeline/logic_pipelines.hpp"

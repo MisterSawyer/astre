@@ -4,7 +4,7 @@
 
 namespace astre::editor::panel
 {
-    void MainMenuBar::draw(const DrawContext& ctx) noexcept 
+    void MainMenuBar::draw(DrawContext& ctx) noexcept 
     {
         if (!_visible) return;
 

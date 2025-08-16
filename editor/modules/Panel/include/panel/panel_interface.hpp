@@ -27,7 +27,7 @@ namespace astre::editor::panel
 
         // Called every frame to draw the panel content (ImGui, etc.).
         // Must not throw.
-        virtual void draw(const DrawContext& ctx) noexcept = 0;
+        virtual void draw(DrawContext& ctx) noexcept = 0;
 
         // Optional async hooks for background work (icon cache, scans, etc.).
         // Default no‑ops to keep implementations minimal.

@@ -32,9 +32,10 @@ namespace astre::pipeline
         co_return out;
     }
 
-    asio::awaitable<render::FrameStats>
-        renderPickingIds(render::IRenderer& renderer, const render::Frame& frame,
-                               const PickingResources& res)
+    asio::awaitable<render::FrameStats> renderPickingIds(
+        render::IRenderer& renderer, 
+        const PickingResources& res,
+        const render::Frame& frame)
     {
         render::FrameStats stats;
         if (res.fbo == 0 || res.shader == 0) co_return stats;

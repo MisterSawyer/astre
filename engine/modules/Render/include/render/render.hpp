@@ -56,6 +56,8 @@ namespace astre::render
         math::Vec3 scale;
 
         ShaderInputs inputs;
+
+        render::RenderOptions options;
     };
 
     #pragma pack(push, 1)

@@ -15,7 +15,7 @@ namespace astre::editor::panel
         bool visible() const noexcept override { return _visible; }
         void setVisible(bool v) noexcept override { _visible = v; }
 
-        void draw(const DrawContext& ctx) noexcept override;
+        void draw(DrawContext& ctx) noexcept override;
 
         const math::Vec2& getImgPos() const noexcept { return _img_pos; }
         const math::Vec2& getImgSize() const noexcept { return _img_size; }

@@ -102,13 +102,6 @@ namespace astre::pipeline
         }
         resources.screen_quad_shader = *screen_quad_shader_res;
 
-        auto debug_shader_res = renderer.getShader("debug_overlay");
-        if (!debug_shader_res) {
-            spdlog::warn("No 'debug_overlay' shader; debug phase will skip.");
-        } else {
-            resources.debug_overlay_shader = *debug_shader_res;
-        }
-
         co_return resources;
     }
 
@@ -186,46 +179,6 @@ namespace astre::pipeline
         co_return stats;
     }
     
-    static asio::awaitable<render::FrameStats> _renderDebugOverlays(
-        render::IRenderer& renderer,
-        const render::Frame& frame,
-        const DeferredShadingResources& resources,
-        std::optional<std::size_t> target_fbo                // same 'fbo' used by lighting pass
-    )
-    {
-        render::FrameStats stats;
-
-        // Early out if no shader or no debug proxies
-        if (!resources.debug_overlay_shader) co_return stats;
-       
-        render::ShaderInputs inputs;
-
-        for (const auto& [_, proxy] : frame.render_proxies)
-        {
-            if (!proxy.visible) continue;
-
-            // only draw those that are in debug phase
-            if (!render::hasFlags(proxy.phases & render::RenderPhase::Debug)) continue;
-
-            inputs = proxy.inputs;
-            inputs.in_mat4["uView"] = frame.view_matrix;
-            inputs.in_mat4["uProjection"] = frame.proj_matrix;
-
-            stats += co_await renderer.render(
-                proxy.vertex_buffer,
-                resources.debug_overlay_shader,
-                inputs,
-                render::RenderOptions{
-                    .mode = render::RenderMode::Wireframe,
-                    .write_depth = false,
-                },
-                target_fbo
-            );
-        }
-
-        co_return stats;
-    }
-
     static asio::awaitable<render::FrameStats> _renderGBuffer(    
         render::IRenderer & renderer,
         const render::Frame & frame,
@@ -271,31 +224,25 @@ namespace astre::pipeline
     asio::awaitable<render::FrameStats> deferredShadingStage(
             render::IRenderer & renderer,
             const DeferredShadingResources & render_resources,
-            float alpha, const render::Frame & prev, const render::Frame & curr,
+            const render::Frame & frame,
             std::optional<std::size_t> fbo)
     {
-        // Render interpolated frame using prev <-> curr, using alpha
-        auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
-
         render::FrameStats stats;
 
-        stats += co_await _renderFrameToGBuffer(renderer, interpolated_frame, render_resources);
+        stats += co_await _renderFrameToGBuffer(renderer, frame, render_resources);
         // here we should render selection :/ 
-        stats += co_await _renderFrameToShadowMaps(renderer, interpolated_frame, render_resources);
+        stats += co_await _renderFrameToShadowMaps(renderer, frame, render_resources);
         
         // update light SSBO
         std::vector<render::GPULight> lights_buffer;
-        lights_buffer.reserve(interpolated_frame.gpu_lights.size());
-        for (auto& [e, light] : interpolated_frame.gpu_lights) {
+        lights_buffer.reserve(frame.gpu_lights.size());
+        for (auto& [e, light] : frame.gpu_lights) {
             lights_buffer.push_back(std::move(light));
         }
          co_await renderer.updateShaderStorageBuffer(
               render_resources.light_ssbo, sizeof(render::GPULight) * lights_buffer.size(), lights_buffer.data());
 
-        stats += co_await _renderGBuffer(renderer, interpolated_frame, render_resources, fbo);
-
-        // Debug overlays on top of lit image
-        stats += co_await _renderDebugOverlays(renderer, interpolated_frame, render_resources, fbo);
+        stats += co_await _renderGBuffer(renderer, frame, render_resources, fbo);
 
         co_return stats;
     }

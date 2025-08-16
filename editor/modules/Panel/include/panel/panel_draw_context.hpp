@@ -1,9 +1,12 @@
 #pragma once
 
 #include <utility>
+#include <optional>
 
 #include "math/math.hpp"
 #include "render/render.hpp"
+#include "ecs/ecs.hpp"
+#include "world/world.hpp"
 
 namespace astre::editor::panel
 {
@@ -22,5 +25,8 @@ namespace astre::editor::panel
         astre::render::FrameStats stats;
 
         math::Vec3 camera_position;
+        
+        bool selected_entity_updated;
+        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> selected_entity;
     };
 }

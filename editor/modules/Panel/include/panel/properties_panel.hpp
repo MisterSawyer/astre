@@ -18,22 +18,10 @@ namespace astre::editor::panel
         bool visible() const noexcept override { return _visible; }
         void setVisible(bool v) noexcept override { _visible = v; }
 
-        void draw(const DrawContext& ctx) noexcept override;
-
-        void setSelectedEntityDef(std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> def);
-
-        bool propertiesChanged() const noexcept { return _properties_changed; }
-
-        void resetPropertiesChanged() noexcept { _properties_changed = false; }
-
-        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> getSelectedEntityDef() const noexcept { return _selected_entity_def; }
+        void draw(DrawContext& ctx) noexcept override;
 
     private:
         bool _visible{true};
-
-        bool _properties_changed = false;
-
-        std::optional<std::pair<world::ChunkID, ecs::EntityDefinition>> _selected_entity_def;
     };
 
 }
