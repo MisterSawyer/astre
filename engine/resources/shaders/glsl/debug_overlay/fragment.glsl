@@ -4,7 +4,7 @@ in vec3 WorldPos;
 
 layout(location=0) out vec4 FragColor;
 
-uniform vec4 uColor = vec4(1.0, 0.8, 0.2, 1.0);
+uniform vec4 uColor;
 
 void main()
 {

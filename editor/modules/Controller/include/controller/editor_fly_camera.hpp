@@ -31,11 +31,9 @@ namespace astre::editor::controller
             _calculateViewMatrix(); 
         }
 
-        asio::awaitable<void> update(float dt, pipeline::AppState & app_state,
-            const pipeline::PickingResources & picking_resources, std::function<void(ecs::Entity)> onSelected) noexcept
+        asio::awaitable<void> update(float dt, process::IProcess & process, input::InputService & input) noexcept
         {
-            co_await _handleInput(app_state.process, app_state.input);
-            co_await _updateSelectedEntity(app_state.renderer, picking_resources, app_state.input, std::move(onSelected));
+            co_await _handleInput(process, input);
 
             if (_captured == false || _vp_hovered == false)co_return;
             _updatePosition(dt);
@@ -215,32 +213,6 @@ namespace astre::editor::controller
             _delta_yaw = 0.0f;
             _delta_pitch = 0.0f;
         }
-
-        asio::awaitable<void> _updateSelectedEntity(
-            render::IRenderer & renderer,
-            const pipeline::PickingResources & picking_resources,
-            const input::InputService & input,
-            std::function<void(ecs::Entity)> onSelected)
-        {
-            if(isHovered() && !isCaptured() &&
-                input.isKeyJustPressed(input::InputCode::MOUSE_LEFT)
-            )
-            {
-                auto relative_mouse_pos = input.getMousePosition() - getViewportPosition();
-
-                relative_mouse_pos.x = std::clamp(relative_mouse_pos.x / getViewportSize().x, 0.0f, 0.99f); // [0,1)
-                relative_mouse_pos.y = std::clamp(relative_mouse_pos.y / getViewportSize().y, 0.0f, 0.99f); // [0,1)
-
-                int x = relative_mouse_pos.x * picking_resources.size.first;
-                int y = (1.0f - relative_mouse_pos.y) * picking_resources.size.second;
-
-                auto selected_id_res = co_await renderer.readPixelUint64(picking_resources.fbo, 0, x, y);
-                if(selected_id_res)
-                {
-                    onSelected(*selected_id_res);
-                }
-            }
-        } 
 
         void _calculateForward() noexcept
         {

@@ -25,7 +25,7 @@ struct EditorState
 
     layout::DockSpace dock_space;
 
-    panel::DrawContext ctx;
+    model::DrawContext ctx;
 
     panel::MainMenuBar main_menu_bar;
     panel::ScenePanel scene_panel;
@@ -34,8 +34,10 @@ struct EditorState
     panel::ViewportPanel viewport_panel;
 
     controller::SelectionOverlayController selection_overlay_controller;
+    controller::TranslateOverlayController translate_overlay_controller;
 
     controller::EditorFlyCamera flycam;
+    controller::ViewportEntityPicker viewport_entity_picker;
 };
 
 asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
@@ -61,6 +63,8 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         paths.resources / "shaders" / "glsl",
         paths.resources / "worlds" / "scripts"
     );
+
+    model::ChunkEntityRegistry chunk_entities_registry;
 
     // Create viewport FBO
     auto display_resources_res = co_await pipeline::buildDisplayResources(app_state.renderer, {1280, 728});
@@ -92,6 +96,15 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     }
     const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
 
+    // Create debug overlay resources
+    auto debug_overlay_resources_res = co_await pipeline::buildDebugOverlayResources(app_state.renderer, render_resources);
+    if(!debug_overlay_resources_res)
+    {
+        spdlog::error("Failed to build debug overlay resources");
+        co_return;
+    }
+    const pipeline::DebugOverlayResources & debug_overlay_resources = *debug_overlay_resources_res;
+
     // Create orchestrator
     pipeline::PipelineOrchestrator<EditorFrame, EditorState, 5, 3> orchestrator(app_state.process,
         EditorState
@@ -119,18 +132,25 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             .dock_space = layout::DockSpace(),
 
-            .ctx = panel::DrawContext{
+            .ctx = model::DrawContext{
                 .viewport_texture = viewport_fbo_textures.at(0)
             },
             .main_menu_bar = panel::MainMenuBar(),
-            .scene_panel = panel::ScenePanel(),
+            .scene_panel = panel::ScenePanel(chunk_entities_registry),
             .properties_panel = panel::PropertiesPanel(),
             .assets_panel = panel::AssetsPanel(resource_tracker),
             .viewport_panel = panel::ViewportPanel(),
 
             .selection_overlay_controller = controller::SelectionOverlayController(app_state.renderer),
+            .translate_overlay_controller = controller::TranslateOverlayController(app_state.renderer),
+            
+            .flycam = controller::EditorFlyCamera(),
 
-            .flycam = controller::EditorFlyCamera()
+            .viewport_entity_picker = controller::ViewportEntityPicker( 
+                    app_state.renderer,
+                    app_state.input,
+                    picking_resources,
+                    chunk_entities_registry)
         }
     );
     
@@ -156,17 +176,28 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Logic 2. ECS stage
     orchestrator.setLogicStage<2>(
-        [&display_resources, &picking_resources]
+        [&display_resources]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
             co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
 
-            editor_state.flycam.setViewportRect(editor_state.viewport_panel.getImgPos(), editor_state.viewport_panel.getImgSize());
+            editor_state.viewport_entity_picker.setViewportRect(
+                editor_state.viewport_panel.getImgPos(),
+                editor_state.viewport_panel.getImgSize());
+            editor_state.viewport_entity_picker.setHovered(editor_state.viewport_panel.isHovered());
+
+            editor_state.flycam.setViewportRect(    
+                editor_state.viewport_panel.getImgPos(),
+                editor_state.viewport_panel.getImgSize());
             editor_state.flycam.setHovered(editor_state.viewport_panel.isHovered());
 
-            co_await editor_state.flycam.update(dt, editor_state.app_state, picking_resources,  
-                [&](ecs::Entity entity) { editor_state.scene_panel.selectEntity(entity); });
+            editor_state.translate_overlay_controller.setViewportRect(
+                    editor_state.viewport_panel.getImgPos(),
+                    editor_state.viewport_panel.getImgSize());
+            editor_state.translate_overlay_controller.setHovered(editor_state.viewport_panel.isHovered());
+
+            co_await editor_state.flycam.update(dt, editor_state.app_state.process, editor_state.app_state.input);
 
             editor_state.ctx.camera_position = editor_state.flycam.getPosition();
 
@@ -192,7 +223,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     // Logic 4.
     bool should_reload_scene = true;
     orchestrator.setLogicStage<4>(
-        [&should_reload_scene]
+        [&should_reload_scene, &chunk_entities_registry, &picking_resources]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -200,7 +231,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             if(should_reload_scene)
             {
                 should_reload_scene = false;
-                editor_state.scene_panel.loadEntitesDefs(editor_state.world_streamer);
+                chunk_entities_registry.update(editor_state.world_streamer);
             }
 
             // handle removed chunks
@@ -246,37 +277,54 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             editor_state.scene_panel.resetEvents();
 
-            // handle selected entity
-            const auto scene_selected_entity_def = editor_state.scene_panel.getSelectedEntityDef();
-
-            if(editor_state.scene_panel.selectedEntityChanged())
+            editor_state.scene_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
+            if(editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller))
             {
-                editor_state.scene_panel.resetSelectedEntityChanged();
-                editor_state.properties_panel.setSelectedEntityDef(scene_selected_entity_def);
-
-                editor_state.selection_overlay_controller.update(scene_selected_entity_def, editor_frame.render_frame);
+                should_reload_scene = true;
             }
 
-            const auto properties_selected_entity_def = editor_state.properties_panel.getSelectedEntityDef();
+            editor_state.selection_overlay_controller.update(editor_state.ctx, editor_frame.render_frame);
+            editor_state.translate_overlay_controller.update(editor_state.ctx, editor_state.app_state.input, editor_frame.render_frame);
 
-            if(editor_state.properties_panel.propertiesChanged())
+            if(!editor_state.translate_overlay_controller.isDragging()){
+                co_await editor_state.viewport_entity_picker.updateSelectedEntity(editor_state.ctx.selection_controller);
+            }
+            else
             {
-                editor_state.properties_panel.resetPropertiesChanged();
-
-                editor_state.selection_overlay_controller.update(properties_selected_entity_def, editor_frame.render_frame);
-
-                // save to world
-                if(properties_selected_entity_def)
+                auto p = editor_state.translate_overlay_controller.takeDraggedPosition();
+                if(p && editor_state.ctx.selection_controller.isAnyEntitySelected())
                 {
-                    auto [chunk_id, entity_def] = *properties_selected_entity_def;
+                    const auto serialized_pos = math::serialize(*p);
 
-                    editor_state.world_streamer.updateEntity(chunk_id, entity_def);
-                    should_reload_scene = true;
+                    ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
+
+                    pending_def.mutable_transform()->mutable_position()->CopyFrom(serialized_pos);
+
+                    editor_state.ctx.selection_controller.updateSelectedEntity(pending_def);
                 }
             }
 
-            // add overlay to frame
+            if(
+                editor_state.ctx.selection_controller.isAnyChunkSelected() &&
+                editor_state.ctx.selection_controller.isAnyEntitySelected() &&
+                editor_state.ctx.selection_controller.selectedEntityUpdated())
+            {
+                editor_state.ctx.selection_controller.clearSelectedEntityUpdate();
+
+                // save to world
+                editor_state.world_streamer.updateEntity(   
+                    editor_state.ctx.selection_controller.getChunkSelection(),
+                    editor_state.ctx.selection_controller.getEntitySelection()
+                );
+                
+                should_reload_scene = true;
+            }
+
+            // add selection overlay to frame
             editor_state.selection_overlay_controller.draw(editor_frame.render_frame);
+
+            // add translate overlay to frame
+            editor_state.translate_overlay_controller.draw(editor_frame.render_frame);
         }
     );
 
@@ -292,21 +340,31 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Render 1.
     orchestrator.setRenderStage<1>(
-        [&render_resources, &picking_resources, &display_resources]
+        [&render_resources, &picking_resources, &debug_overlay_resources, &display_resources]
         (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
 
+            // Render interpolated frame using prev <-> curr, using alpha
+            auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
+
             editor_state.ctx.stats = co_await pipeline::deferredShadingStage(
                 editor_state.app_state.renderer,
                 render_resources,
-                alpha, prev, curr,
+                interpolated_frame,
                 display_resources.viewport_fbo);
+
+            co_await pipeline::renderDebugOverlay(
+                editor_state.app_state.renderer,
+                debug_overlay_resources,
+                interpolated_frame,
+                display_resources.viewport_fbo
+            );
 
             co_await pipeline::renderPickingIds(
                 editor_state.app_state.renderer,
-                curr,
-                picking_resources
+                picking_resources,
+                interpolated_frame
             ); 
         }
     );

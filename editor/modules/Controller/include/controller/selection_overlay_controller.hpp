@@ -2,6 +2,8 @@
 
 #include "render/render.hpp"
 
+#include "model/panel_draw_context.hpp"
+
 namespace astre::editor::controller
 {
     class SelectionOverlayController
@@ -20,37 +22,42 @@ namespace astre::editor::controller
                     .vertex_buffer = _cube_prefab,
                     // no shader will use debug_overlay by default
                 };
+                _selection_render_proxy.inputs.in_vec4["uColor"] = math::Vec4(1.0, 0.8, 0.2, 1.0);
+
+                _selection_render_proxy.options = render::RenderOptions
+                {
+                    .mode = render::RenderMode::Wireframe,
+                    .write_depth = false,
+                };
             }
 
-            void update(const std::optional<std::pair<astre::world::ChunkID, astre::ecs::EntityDefinition>> & selected_entity_def_res, const render::Frame & render_frame)
+            void update(const model::DrawContext & ctx, const render::Frame & render_frame)
             {
-                if(selected_entity_def_res == std::nullopt)
+                if(!ctx.selection_controller.isAnyEntitySelected())
                 {
                     _visible = false;
                     return;
                 }
 
-                const auto & selected_entity_def = *selected_entity_def_res;
+                const auto & selected_entity_def = ctx.selection_controller.getEntitySelection();
 
-                if(selected_entity_def.second.has_transform() == false)
+                if(selected_entity_def.has_transform() == false)
                 {
                     _visible = false;
                     return;
                 }
 
-                _selection_render_proxy.position = math::deserialize(selected_entity_def.second.transform().position());
-                _selection_render_proxy.rotation = math::deserialize(selected_entity_def.second.transform().rotation());
-                _selection_render_proxy.scale = math::deserialize(selected_entity_def.second.transform().scale()) * 1.1f;
+                _selection_render_proxy.position = math::deserialize(selected_entity_def.transform().position());
+                _selection_render_proxy.rotation = math::deserialize(selected_entity_def.transform().rotation());
+                _selection_render_proxy.scale = math::deserialize(selected_entity_def.transform().scale()) * 1.1f;
                      
-                _selection_render_proxy.inputs = render::ShaderInputs{
-                    .in_mat4 = {
-                        {"uView", render_frame.view_matrix},
-                        {"uProjection", render_frame.proj_matrix},
-                        {"uModel", 
-                            math::translate(glm::mat4(1.0f), _selection_render_proxy.position) *
-                            math::toMat4(_selection_render_proxy.rotation) *
-                            math::scale(glm::mat4(1.0f), _selection_render_proxy.scale)
-                        }
+                _selection_render_proxy.inputs.in_mat4 = {
+                    {"uView", render_frame.view_matrix},
+                    {"uProjection", render_frame.proj_matrix},
+                    {"uModel", 
+                        math::translate(glm::mat4(1.0f), _selection_render_proxy.position) *
+                        math::toMat4(_selection_render_proxy.rotation) *
+                        math::scale(glm::mat4(1.0f), _selection_render_proxy.scale)
                     }
                 };
 
@@ -69,6 +76,5 @@ namespace astre::editor::controller
             bool _visible;
             std::size_t _cube_prefab;
             render::RenderProxy _selection_render_proxy;
-
     };
 }

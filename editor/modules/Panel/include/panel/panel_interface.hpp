@@ -9,7 +9,7 @@
 
 #include <asio.hpp>
 
-#include "panel/panel_draw_context.hpp"
+#include "model/panel_draw_context.hpp"
 
 namespace astre::editor::panel
 {
@@ -27,7 +27,7 @@ namespace astre::editor::panel
 
         // Called every frame to draw the panel content (ImGui, etc.).
         // Must not throw.
-        virtual void draw(const DrawContext& ctx) noexcept = 0;
+        virtual void draw(const model::DrawContext& ctx) noexcept = 0;
 
         // Optional async hooks for background work (icon cache, scans, etc.).
         // Default no‑ops to keep implementations minimal.

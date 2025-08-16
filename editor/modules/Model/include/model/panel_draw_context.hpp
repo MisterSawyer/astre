@@ -1,11 +1,16 @@
 #pragma once
 
 #include <utility>
+#include <optional>
 
 #include "math/math.hpp"
 #include "render/render.hpp"
+#include "ecs/ecs.hpp"
+#include "world/world.hpp"
 
-namespace astre::editor::panel
+#include "controller/selection_controller.hpp"
+
+namespace astre::editor::model
 {
     struct DrawContext
     {
@@ -22,5 +27,7 @@ namespace astre::editor::panel
         astre::render::FrameStats stats;
 
         math::Vec3 camera_position;
+
+        controller::SelectionController selection_controller;
     };
 }

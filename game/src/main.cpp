@@ -150,11 +150,12 @@ namespace astre::entry
             (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, GameState & game_state) -> asio::awaitable<void>
             {
                 co_stop_if(token);
+                auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
 
                 render_stats = co_await pipeline::deferredShadingStage(
                         game_state.app_state.renderer,
                         render_resources,
-                        alpha, prev, curr);
+                        interpolated_frame);
             }
         );
         
