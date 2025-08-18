@@ -1,0 +1,30 @@
+#pragma once
+
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
+
+#include "file/file.hpp"
+
+namespace astre::editor::model
+{
+    // Minimal, serialization-friendly view of a chunk.
+    struct WorldSnapshot
+    {
+        void load(file::WorldStreamer & world_streamer)
+        {
+        }
+        
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>> mapping;
+    };
+
+    // Deltas are what the editor changes track.
+    struct WorldDelta 
+    {
+        absl::flat_hash_set<file::WorldChunk> created_chunks;
+        absl::flat_hash_set<file::ChunkID> removed_chunks;
+
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> created_entities;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> updated_entities;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> removed_entities;
+    };
+}

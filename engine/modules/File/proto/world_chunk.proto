@@ -1,6 +1,6 @@
 syntax="proto3";
 
-package astre.world;
+package astre.file;
 
 import "ECS/proto/entity_definition.proto";
 

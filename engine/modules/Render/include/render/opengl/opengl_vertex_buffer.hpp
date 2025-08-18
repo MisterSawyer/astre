@@ -14,7 +14,7 @@ namespace astre::render::opengl
     class OpenGLVertexBuffer
     {
         public:
-            OpenGLVertexBuffer(std::vector<unsigned int> indices, std::vector<Vertex> vertices);
+            OpenGLVertexBuffer(std::vector<unsigned int> indices, std::vector<GPUVertex> vertices);
             
             ~OpenGLVertexBuffer();
 
@@ -42,6 +42,6 @@ namespace astre::render::opengl
             GLuint _EBO;
 
             std::vector<GLuint> _indices;
-            std::vector<Vertex> _vertices;
+            std::vector<GPUVertex> _vertices;
     };
 }

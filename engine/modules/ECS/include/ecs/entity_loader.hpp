@@ -8,30 +8,30 @@
 #include <asio.hpp>
 #include <absl/container/flat_hash_map.h>
 
-#include "ecs/ecs.hpp"
+#include "ecs/entity.hpp"
+#include "ecs/registry.hpp"
 
-namespace astre::asset
+namespace astre::ecs
 {
     /**
-     * Load component, for entity in registry, from entity definition
+     * Load component, from entity definition into the entity in registry, 
     */
-    using ComponentLoader = std::function<asio::awaitable<void>(const ecs::EntityDefinition &, ecs::Entity, ecs::Registry &)>;
+    using ComponentLoader = std::function<asio::awaitable<void>(const EntityDefinition &, Entity, Registry &)>;
     
     class EntityLoader 
     {
     public:
-        EntityLoader(ecs::Registry & registry);
+        EntityLoader();
         inline EntityLoader(EntityLoader && other) = default;
         inline EntityLoader& operator=(EntityLoader && other) = default;
         EntityLoader(const EntityLoader &) = delete;
         EntityLoader& operator=(const EntityLoader &) = delete;
 
-        asio::awaitable<void> loadEntity(const ecs::EntityDefinition & entity_def, ecs::Entity entity) const;
+        asio::awaitable<void> loadEntity(const EntityDefinition & entity_def, Entity entity, Registry & registry) const;
 
     private:
-        void registerComponentLoader(const std::string& name, ComponentLoader loader);
+        void _registerComponentLoader(const std::string& name, ComponentLoader loader);
         
-        ecs::Registry & _registry;
         absl::flat_hash_map<std::string, ComponentLoader> _loaders;
     };
 }

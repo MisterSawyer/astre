@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <fstream>
-#include "world/world.hpp"
+#include "file/file.hpp"
 
 class SaveArchiveTest : public ::testing::Test {
 protected:
@@ -15,8 +15,8 @@ protected:
         std::filesystem::remove_all(temp_dir);
     }
 
-    astre::world::WorldChunk createTestChunk(int x, int y, int z, const std::string& name = "test_entity") {
-        astre::world::WorldChunk chunk;
+    astre::file::WorldChunk createTestChunk(int x, int y, int z, const std::string& name = "test_entity") {
+        astre::file::WorldChunk chunk;
         auto* id = chunk.mutable_id();
         id->set_x(x);
         id->set_y(y);
@@ -35,12 +35,12 @@ TEST_F(SaveArchiveTest, WriteAndReadChunk_BinaryFormat) {
 
     std::filesystem::path file = temp_dir / "test_chunk.bin";
     {
-        astre::world::SaveArchive<astre::asset::use_binary_t> writer(file);
+        astre::file::SaveArchive<astre::file::use_binary_t> writer(file);
         ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::world::SaveArchive<astre::asset::use_binary_t> reader(file);
+        astre::file::SaveArchive<astre::file::use_binary_t> reader(file);
         auto result = reader.readChunk(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());
@@ -55,12 +55,12 @@ TEST_F(SaveArchiveTest, WriteAndReadChunk_JsonFormat) {
 
     std::filesystem::path file = temp_dir / "test_chunk.json";
     {
-        astre::world::SaveArchive<astre::asset::use_json_t> writer(file);
+        astre::file::SaveArchive<astre::file::use_json_t> writer(file);
         ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::world::SaveArchive<astre::asset::use_json_t> reader(file);
+        astre::file::SaveArchive<astre::file::use_json_t> reader(file);
         auto result = reader.readChunk(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());

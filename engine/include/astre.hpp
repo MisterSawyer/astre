@@ -14,7 +14,7 @@
 #include "asset/asset.hpp"
 #include "input/input.hpp"
 #include "pipeline/pipeline.hpp"
-#include "world/world.hpp"
+#include "file/file.hpp"
 #include "script/script.hpp"
 #include "gui/gui.hpp"
 

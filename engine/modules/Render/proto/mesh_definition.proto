@@ -1,0 +1,18 @@
+syntax="proto3";
+
+import "Math/proto/math.proto";
+
+package astre.render;
+
+message VertexDefinition
+{
+    astre.math.Vec3Serialized position = 1;
+    astre.math.Vec3Serialized normal = 2;
+    astre.math.Vec2Serialized uv = 3;
+}
+
+message MeshDefinition
+{
+    repeated uint32 indices = 1;
+    repeated VertexDefinition vertices = 2;
+}

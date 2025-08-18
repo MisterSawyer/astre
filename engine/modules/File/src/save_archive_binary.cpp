@@ -1,10 +1,10 @@
-#include "world/save_archive.hpp"
+#include "file/save_archive.hpp"
 
 #include <google/protobuf/util/delimited_message_util.h>
 #include <google/protobuf/util/json_util.h>
 #include <spdlog/spdlog.h>
 
-namespace astre::world 
+namespace astre::file 
 {
     static constexpr std::int32_t MAGIC = 0xABCD1234;
 
@@ -12,7 +12,7 @@ namespace astre::world
     //<varint_size><chunk_0_bytes>
     //<varint_size><chunk_1_bytes>
     //...
-    SaveArchive<asset::use_binary_t>::SaveArchive(std::filesystem::path file_path)
+    SaveArchive<use_binary_t>::SaveArchive(std::filesystem::path file_path)
         : _file_path(std::move(file_path))
     {
         _openStream(std::ios::in | std::ios::binary);
@@ -59,7 +59,7 @@ namespace astre::world
         _stream.close();
     }
 
-    bool SaveArchive<asset::use_binary_t>::_openStream(std::ios::openmode mode) {
+    bool SaveArchive<use_binary_t>::_openStream(std::ios::openmode mode) {
         if (_stream.is_open()) {
             _stream.close();  // Ensure no existing stream is active
         }
@@ -83,13 +83,13 @@ namespace astre::world
     }
 
 
-    bool SaveArchive<asset::use_binary_t>::_closeStream()
+    bool SaveArchive<use_binary_t>::_closeStream()
     {
         _stream.close();
         return !_stream.is_open();
     }
 
-    const absl::flat_hash_set<ChunkID> & SaveArchive<asset::use_binary_t>::getAllChunks() const
+    const absl::flat_hash_set<ChunkID> & SaveArchive<use_binary_t>::getAllChunks() const
     {
         return _all_chunks;
     }
@@ -111,7 +111,7 @@ namespace astre::world
         return coded_output.ByteCount();
     }
 
-    bool SaveArchive<asset::use_binary_t>::writeChunk(const WorldChunk & chunk)
+    bool SaveArchive<use_binary_t>::writeChunk(const WorldChunk & chunk)
     {
         if (!_openStream(std::ios::in | std::ios::out | std::ios::binary))
         {
@@ -188,50 +188,7 @@ namespace astre::world
         return true;
     }
 
-    bool SaveArchive<asset::use_binary_t>::updateEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def)
-    {
-        // Load existing chunk (binary)
-        WorldChunk chunk;
-        if (auto existing = readChunk(chunk_id))
-        {
-            chunk = std::move(*existing);
-        }
-        else
-        {
-            spdlog::error("Failed to find chunk to update");
-            return false;
-        }
-
-        // Replace or append entity by id()
-        auto* entities = chunk.mutable_entities();
-        const std::size_t & entity_id = entity_def.id();
-
-        auto it = std::find_if(entities->begin(), entities->end(),
-            [&](const ecs::EntityDefinition& e) {
-                return e.id() == entity_id;
-            }
-        );
-
-        if (it != entities->end())
-        {
-            it->CopyFrom(entity_def);
-        }
-        else
-        {
-            entities->Add()->CopyFrom(entity_def);
-        }
-
-        // Persist updated chunk via existing logic (handles in-place/append & index)
-        return writeChunk(chunk);
-    }
-
-    bool SaveArchive<asset::use_binary_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
-    {
-        return false;
-    }
-
-    std::optional<WorldChunk> SaveArchive<asset::use_binary_t>::readChunk(const ChunkID & id)
+    std::optional<WorldChunk> SaveArchive<use_binary_t>::readChunk(const ChunkID & id)
     {
         if (!_chunk_index.contains(id)) 
         {
@@ -280,8 +237,7 @@ namespace astre::world
         return result;
     }
 
-
-    bool SaveArchive<asset::use_binary_t>::removeChunk(const ChunkID& id)
+    bool SaveArchive<use_binary_t>::removeChunk(const ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -301,4 +257,46 @@ namespace astre::world
         
     }
 
+    bool SaveArchive<use_binary_t>::writeEntity(const ChunkID& chunk_id,
+                                  const ecs::EntityDefinition& entity_def)
+    {
+        // Load existing chunk (binary)
+        WorldChunk chunk;
+        if (auto existing = readChunk(chunk_id))
+        {
+            chunk = std::move(*existing);
+        }
+        else
+        {
+            spdlog::error("Failed to find chunk to update");
+            return false;
+        }
+
+        // Replace or append entity by id()
+        auto* entities = chunk.mutable_entities();
+        const std::size_t & entity_id = entity_def.id();
+
+        auto it = std::find_if(entities->begin(), entities->end(),
+            [&](const ecs::EntityDefinition& e) {
+                return e.id() == entity_id;
+            }
+        );
+
+        if (it != entities->end())
+        {
+            it->CopyFrom(entity_def);
+        }
+        else
+        {
+            entities->Add()->CopyFrom(entity_def);
+        }
+
+        // Persist updated chunk via existing logic (handles in-place/append & index)
+        return writeChunk(chunk);
+    }
+
+    bool SaveArchive<use_binary_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    {
+        return false;
+    }
 }
