@@ -1,17 +1,17 @@
-#include "world/save_archive.hpp"
+#include "file/save_archive.hpp"
 
 #include <google/protobuf/util/delimited_message_util.h>
 #include <google/protobuf/util/json_util.h>
 #include <spdlog/spdlog.h>
 
-namespace astre::world 
+namespace astre::file 
 {
 
     // layout of json file
     //chunks: [
     //    {chunk0}, {chunk1}, ...
     //]
-    SaveArchive<asset::use_json_t>::SaveArchive(std::filesystem::path file_path)
+    SaveArchive<use_json_t>::SaveArchive(std::filesystem::path file_path)
         : _file_path(std::move(file_path))
     {
         if(!_openStream(std::ios::in))return;
@@ -43,7 +43,7 @@ namespace astre::world
     }
 
 
-    bool SaveArchive<asset::use_json_t>::_openStream(std::ios::openmode mode) {
+    bool SaveArchive<use_json_t>::_openStream(std::ios::openmode mode) {
         if (_stream.is_open()) {
             _stream.close();  // Ensure no existing stream is active
         }
@@ -66,25 +66,25 @@ namespace astre::world
         return _stream.is_open() && _stream.good();
     }
 
-    bool SaveArchive<asset::use_json_t>::_closeStream()
+    bool SaveArchive<use_json_t>::_closeStream()
     {
         _stream.close();
         return !_stream.is_open();
     }
 
-    std::stringstream SaveArchive<asset::use_json_t>::_readStream() const
+    std::stringstream SaveArchive<use_json_t>::_readStream() const
     {
         std::stringstream buffer;
         buffer << _stream.rdbuf();
         return buffer;
     }
 
-    const absl::flat_hash_set<ChunkID> & SaveArchive<asset::use_json_t>::getAllChunks() const
+    const absl::flat_hash_set<ChunkID> & SaveArchive<use_json_t>::getAllChunks() const
     {
         return _all_chunks;
     }
 
-    bool SaveArchive<asset::use_json_t>::writeChunk(const WorldChunk & chunk) 
+    bool SaveArchive<use_json_t>::writeChunk(const WorldChunk & chunk) 
     {
         // Load existing
         SaveArchiveData archive;
@@ -156,140 +156,7 @@ namespace astre::world
         return true;
     }
 
-    bool SaveArchive<asset::use_json_t>::updateEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def)
-    {
-        WorldChunk chunk;
-
-        if (auto existing = readChunk(chunk_id))
-        {
-            chunk = std::move(*existing);
-        }
-        else
-        {
-            spdlog::error("Failed to find chunk to update");
-            return false;
-        }
-
-        // Replace or append entity by id()
-        auto* entities = chunk.mutable_entities();
-        const std::size_t & entity_id = entity_def.id();
-
-        if(entity_id == ecs::INVALID_ENTITY)
-        {
-            spdlog::error("Failed to create entity");
-            return false;
-        }
-
-        auto it = std::find_if(entities->begin(), entities->end(),
-            [&](const ecs::EntityDefinition& e) {
-                return e.id() == entity_id;
-            }
-        );
-
-        if (it != entities->end())
-        {
-            it->CopyFrom(entity_def);
-        }
-        else
-        {
-            entities->Add()->CopyFrom(entity_def);
-        }
-
-        // Persist updated chunk via existing logic (handles in-place/append & index)
-        return writeChunk(chunk);
-    }
-
-    bool SaveArchive<asset::use_json_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
-    {
-        // open & read
-        if (!_openStream(std::ios::in)) {
-            spdlog::error("[save-archive] Failed to open stream for reading");
-            return false;
-        }
-        std::stringstream buffer = _readStream();
-        _closeStream();
-
-
-        // parse
-        SaveArchiveData archive;
-        google::protobuf::util::JsonParseOptions in_opts;
-        in_opts.ignore_unknown_fields = true;
-        auto st = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, in_opts);
-        if (!st.ok()) {
-            spdlog::error("[save-archive] parse error: {}", st.ToString());
-            return false;
-        }
-
-        // locate chunk
-        int chunk_idx = -1;
-        for (int i = 0; i < archive.chunks_size(); ++i) {
-            if (archive.chunks(i).id() == chunk_id) {
-                chunk_idx = i;
-                break;
-            }
-        }
-        if (chunk_idx < 0) {
-            spdlog::warn("[save-archive] removeEntity: chunk not found");
-            return false;
-        }
-
-        // remove entity by id
-        auto* entities = archive.mutable_chunks(chunk_idx)->mutable_entities();
-        const std::size_t & entity_id = entity_def.id();
-        int entity_idx = -1;
-        for (int i = 0; i < entities->size(); ++i) 
-        {
-            if (entities->Get(i).id() == entity_id)
-            {
-                entity_idx = i;
-                break;
-            }
-        }
-        if (entity_idx < 0)
-        {
-            spdlog::warn("[save-archive] removeEntity: entity '{}' not found in chunk", entity_id);
-            return false;
-        }
-        entities->DeleteSubrange(entity_idx, 1);
-
-        // serialize
-        std::string out_json;
-        google::protobuf::util::JsonPrintOptions out_opts;
-        out_opts.preserve_proto_field_names = true;
-        out_opts.always_print_fields_with_no_presence = true; // keep zeros (matches your code path)
-        out_opts.add_whitespace = true;
-
-        st = google::protobuf::util::MessageToJsonString(archive, &out_json, out_opts);
-        if (!st.ok())
-        {
-            spdlog::error("[save-archive] serialize error: {}", st.ToString());
-            return false;
-        }
-
-        // write
-        if (!_openStream(std::ios::out | std::ios::trunc))
-        {
-            spdlog::error("[save-archive] Failed to open stream for writing");
-            return false;
-        }
-        _stream << out_json;
-        const bool ok = _stream.good();
-        _closeStream();
-
-        if (!ok)
-        {
-            spdlog::error("[save-archive] write error");
-            return false;
-        }
-
-        // Note: _chunk_index / _all_chunks unchanged (we only modified entities within a chunk)
-        spdlog::debug("[save-archive] entity '{}' removed from chunk ({},{},{})",
-                      entity_id, chunk_id.x(), chunk_id.y(), chunk_id.z());
-        return true;
-    }
-
-    std::optional<WorldChunk> SaveArchive<asset::use_json_t>::readChunk(const ChunkID & id)
+    std::optional<WorldChunk> SaveArchive<use_json_t>::readChunk(const ChunkID & id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -330,7 +197,7 @@ namespace astre::world
     }
 
 
-    bool SaveArchive<asset::use_json_t>::removeChunk(const ChunkID& id)
+    bool SaveArchive<use_json_t>::removeChunk(const ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -429,5 +296,138 @@ namespace astre::world
         }
 
         return false;
+    }
+
+    bool SaveArchive<use_json_t>::writeEntity(const ChunkID& chunk_id,
+                                  const ecs::EntityDefinition& entity_def)
+    {
+        WorldChunk chunk;
+
+        if (auto existing = readChunk(chunk_id))
+        {
+            chunk = std::move(*existing);
+        }
+        else
+        {
+            spdlog::error("Failed to find chunk to update");
+            return false;
+        }
+
+        // Replace or append entity by id()
+        auto* entities = chunk.mutable_entities();
+        const std::size_t & entity_id = entity_def.id();
+
+        if(entity_id == 0)
+        {
+            spdlog::error("Failed to create entity");
+            return false;
+        }
+
+        auto it = std::find_if(entities->begin(), entities->end(),
+            [&](const ecs::EntityDefinition& e) {
+                return e.id() == entity_id;
+            }
+        );
+
+        if (it != entities->end())
+        {
+            it->CopyFrom(entity_def);
+        }
+        else
+        {
+            entities->Add()->CopyFrom(entity_def);
+        }
+
+        // Persist updated chunk via existing logic (handles in-place/append & index)
+        return writeChunk(chunk);
+    }
+
+    bool SaveArchive<use_json_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    {
+        // open & read
+        if (!_openStream(std::ios::in)) {
+            spdlog::error("[save-archive] Failed to open stream for reading");
+            return false;
+        }
+        std::stringstream buffer = _readStream();
+        _closeStream();
+
+
+        // parse
+        SaveArchiveData archive;
+        google::protobuf::util::JsonParseOptions in_opts;
+        in_opts.ignore_unknown_fields = true;
+        auto st = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, in_opts);
+        if (!st.ok()) {
+            spdlog::error("[save-archive] parse error: {}", st.ToString());
+            return false;
+        }
+
+        // locate chunk
+        int chunk_idx = -1;
+        for (int i = 0; i < archive.chunks_size(); ++i) {
+            if (archive.chunks(i).id() == chunk_id) {
+                chunk_idx = i;
+                break;
+            }
+        }
+        if (chunk_idx < 0) {
+            spdlog::warn("[save-archive] removeEntity: chunk not found");
+            return false;
+        }
+
+        // remove entity by id
+        auto* entities = archive.mutable_chunks(chunk_idx)->mutable_entities();
+        const std::size_t & entity_id = entity_def.id();
+        int entity_idx = -1;
+        for (int i = 0; i < entities->size(); ++i) 
+        {
+            if (entities->Get(i).id() == entity_id)
+            {
+                entity_idx = i;
+                break;
+            }
+        }
+        if (entity_idx < 0)
+        {
+            spdlog::warn("[save-archive] removeEntity: entity '{}' not found in chunk", entity_id);
+            return false;
+        }
+        entities->DeleteSubrange(entity_idx, 1);
+
+        // serialize
+        std::string out_json;
+        google::protobuf::util::JsonPrintOptions out_opts;
+        out_opts.preserve_proto_field_names = true;
+        out_opts.always_print_fields_with_no_presence = true; // keep zeros (matches your code path)
+        out_opts.add_whitespace = true;
+
+        st = google::protobuf::util::MessageToJsonString(archive, &out_json, out_opts);
+        if (!st.ok())
+        {
+            spdlog::error("[save-archive] serialize error: {}", st.ToString());
+            return false;
+        }
+
+        // write
+        if (!_openStream(std::ios::out | std::ios::trunc))
+        {
+            spdlog::error("[save-archive] Failed to open stream for writing");
+            return false;
+        }
+        _stream << out_json;
+        const bool ok = _stream.good();
+        _closeStream();
+
+        if (!ok)
+        {
+            spdlog::error("[save-archive] write error");
+            return false;
+        }
+
+        // Note: _chunk_index / _all_chunks unchanged (we only modified entities within a chunk)
+        spdlog::debug("[save-archive] entity '{}' removed from chunk ({},{},{})",
+                      entity_id, chunk_id.x(), chunk_id.y(), chunk_id.z());
+        return true;
     }
 }

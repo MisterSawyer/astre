@@ -19,7 +19,7 @@ struct EditorState
     ecs::Registry & registry;
     ecs::Systems systems;
 
-    world::WorldStreamer world_streamer;
+    file::WorldStreamer world_streamer;
     
     pipeline::LogicFrameTimer logic_timer;
 
@@ -64,7 +64,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         paths.resources / "worlds" / "scripts"
     );
 
-    model::ChunkEntityRegistry chunk_entities_registry;
+    model::WorldSnapshot world_snapshot;
 
     // Create viewport FBO
     auto display_resources_res = co_await pipeline::buildDisplayResources(app_state.renderer, {1280, 728});
@@ -119,12 +119,10 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .script = ecs::system::ScriptSystem(app_state.script, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
-            .world_streamer = world::WorldStreamer(  
+            .world_streamer = file::WorldStreamer(  
                 app_state.process.getExecutionContext(),
-                asset::use_json,
+                file::use_json,
                 paths.resources / "worlds/levels/level_0.json",
-                registry,
-                resource_tracker,
                 32.0f, 32
             ),
 
@@ -136,7 +134,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .viewport_texture = viewport_fbo_textures.at(0)
             },
             .main_menu_bar = panel::MainMenuBar(),
-            .scene_panel = panel::ScenePanel(chunk_entities_registry),
+            .scene_panel = panel::ScenePanel(world_snapshot),
             .properties_panel = panel::PropertiesPanel(),
             .assets_panel = panel::AssetsPanel(resource_tracker),
             .viewport_panel = panel::ViewportPanel(),
@@ -150,7 +148,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                     app_state.renderer,
                     app_state.input,
                     picking_resources,
-                    chunk_entities_registry)
+                    world_snapshot)
         }
     );
     
@@ -221,67 +219,64 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     // Logic 4.
-    bool should_reload_scene = true;
+    bool should_reload_world = true;
     orchestrator.setLogicStage<4>(
-        [&should_reload_scene, &chunk_entities_registry, &picking_resources]
+        [&should_reload_world, &world_snapshot, &picking_resources]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
 
-            if(should_reload_scene)
+            if(should_reload_world)
             {
-                should_reload_scene = false;
-                chunk_entities_registry.update(editor_state.world_streamer);
+                should_reload_world = false;
+                world_snapshot.load(editor_state.world_streamer);
             }
 
             // handle removed chunks
-            for(const auto & removed_chunk : editor_state.scene_panel.getRemovedChunks())
-            {
-                editor_state.world_streamer.removeChunk(removed_chunk);
-                should_reload_scene = true;
-            }
+            // for(const auto & removed_chunk : editor_state.scene_panel.getRemovedChunks())
+            // {
+            //     editor_state.world_streamer.removeChunk(removed_chunk);
+            //     should_reload_scene = true;
+            // }
             // handle created chunks
-            for(const auto & new_chunk : editor_state.scene_panel.getCreatedChunks())
-            {
-                editor_state.world_streamer.writeChunk(new_chunk);
-                should_reload_scene = true;
-            }
+            // for(const auto & new_chunk : editor_state.scene_panel.getCreatedChunks())
+            // {
+            //     editor_state.world_streamer.writeChunk(new_chunk);
+            //     should_reload_scene = true;
+            // }
             
             // handle added entities
-            for(auto & [chunk_id, new_entities] : editor_state.scene_panel.getCreatedEntities())
-            {
-                for(auto & new_entity : new_entities)
-                {
-                    editor_state.world_streamer.createEntity(chunk_id, new_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(auto & [chunk_id, new_entities] : editor_state.scene_panel.getCreatedEntities())
+            // {
+            //     for(auto & new_entity : new_entities)
+            //     {
+            //         //editor_state.world_streamer.createEntity(chunk_id, new_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
             // handle updated entities
-            for(auto & [chunk_id, updated_entities] : editor_state.scene_panel.getUpdatedEntities())
-            {
-                for(auto & updated_entity : updated_entities)
-                {
-                    editor_state.world_streamer.updateEntity(chunk_id, updated_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(auto & [chunk_id, updated_entities] : editor_state.scene_panel.getUpdatedEntities())
+            // {
+            //     for(auto & updated_entity : updated_entities)
+            //     {
+            //         //editor_state.world_streamer.updateEntity(chunk_id, updated_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
             // handle removed entities
-            for(const auto & [chunk_id, removed_entities] : editor_state.scene_panel.getRemovedEntities())
-            {
-                for(const auto & removed_entity : removed_entities)
-                {
-                    editor_state.world_streamer.removeEntity(chunk_id, removed_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(const auto & [chunk_id, removed_entities] : editor_state.scene_panel.getRemovedEntities())
+            // {
+            //     for(const auto & removed_entity : removed_entities)
+            //     {
+            //         editor_state.world_streamer.removeEntity(chunk_id, removed_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
 
-            editor_state.scene_panel.resetEvents();
+            //editor_state.scene_panel.resetEvents();
 
             editor_state.scene_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
-            if(editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller))
-            {
-                should_reload_scene = true;
-            }
+            editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
 
             editor_state.selection_overlay_controller.update(editor_state.ctx, editor_frame.render_frame);
             editor_state.translate_overlay_controller.update(editor_state.ctx, editor_state.app_state.input, editor_frame.render_frame);
@@ -312,12 +307,10 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 editor_state.ctx.selection_controller.clearSelectedEntityUpdate();
 
                 // save to world
-                editor_state.world_streamer.updateEntity(   
-                    editor_state.ctx.selection_controller.getChunkSelection(),
-                    editor_state.ctx.selection_controller.getEntitySelection()
-                );
-                
-                should_reload_scene = true;
+                // editor_state.world_streamer.updateEntity(   
+                //     editor_state.ctx.selection_controller.getChunkSelection(),
+                //     editor_state.ctx.selection_controller.getEntitySelection()
+                // );
             }
 
             // add selection overlay to frame

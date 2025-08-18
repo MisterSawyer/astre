@@ -5,14 +5,17 @@
 #include <optional>
 
 #include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 
-#include "ecs/ecs.hpp"
-#include "asset/asset.hpp"
+#include "type/type.hpp"
 
-#include "generated/World/proto/world_chunk.pb.h"
-#include "generated/World/proto/save_archive_data.pb.h"
+#include "file/data_type.hpp"
 
-namespace astre::world
+#include "generated/ECS/proto/entity_definition.pb.h"
+#include "generated/File/proto/world_chunk.pb.h"
+#include "generated/File/proto/save_archive_data.pb.h"
+
+namespace astre::file
 {
     inline bool operator==(const ChunkID& lhs, const ChunkID& rhs)
     { return lhs.x() == rhs.x() && lhs.y() == rhs.y() && lhs.z() == rhs.z(); }
@@ -38,40 +41,41 @@ namespace astre::world
         std::size_t size;
     };
     
-    class ISaveArchive
+    class ISaveArchive : type::InterfaceBase
     {
         public:
             virtual ~ISaveArchive() = default;
 
             virtual bool writeChunk(const WorldChunk & chunk) = 0;
 
-            virtual bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
-
-            virtual bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
-
             virtual std::optional<WorldChunk> readChunk(const ChunkID& id) = 0;
 
             virtual bool removeChunk(const ChunkID& id) = 0;
 
             virtual const absl::flat_hash_set<ChunkID> & getAllChunks() const = 0;
+
+
+            virtual bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
+
+            virtual bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
     };
 
     template<class Mode>
     class SaveArchive;
 
     template<>
-    class SaveArchive<asset::use_binary_t> : public ISaveArchive
+    class SaveArchive<use_binary_t> : public ISaveArchive
     {
         public:
             SaveArchive(std::filesystem::path file_path);
 
             bool writeChunk(const WorldChunk & chunk) override;
-            bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-
             std::optional<WorldChunk> readChunk(const ChunkID& id) override;
             bool removeChunk(const ChunkID& id) override;
             const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
+
+            bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
 
     private:
         bool _openStream(std::ios::openmode mode);
@@ -85,18 +89,18 @@ namespace astre::world
 
 
     template<>
-    class SaveArchive<asset::use_json_t> : public ISaveArchive
+    class SaveArchive<use_json_t> : public ISaveArchive
     {
         public:
             SaveArchive(std::filesystem::path file_path);
 
             bool writeChunk(const WorldChunk & chunk) override;
-            bool updateEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-
             std::optional<WorldChunk> readChunk(const ChunkID& id) override;
             bool removeChunk(const ChunkID& id) override;
             const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
+
+            bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
             
     private:
         bool _openStream(std::ios::openmode mode);

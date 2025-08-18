@@ -17,7 +17,7 @@ namespace astre::entry
         ecs::Registry & registry;
         ecs::Systems systems;
 
-        world::WorldStreamer world;
+        file::WorldStreamer world_streamer;
     };
 
     asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
@@ -51,12 +51,10 @@ namespace astre::entry
                     .script = ecs::system::ScriptSystem(app_state.script, registry),
                     .input = ecs::system::InputSystem(app_state.input, registry)
                 },
-                .world = world::WorldStreamer(  
+                .world_streamer = file::WorldStreamer(  
                     app_state.process.getExecutionContext(),
-                    asset::use_json,
+                    file::use_json,
                     paths.resources / "worlds/levels/level_0.json",
-                    registry,
-                    resource_tracker,
                     32.0f, 32)
             }
         );
@@ -90,7 +88,7 @@ namespace astre::entry
                 {
                     auto g = asio::experimental::make_parallel_group(
                         asio::co_spawn(ex, game_state.app_state.input.update(),                    asio::deferred),
-                        asio::co_spawn(ex, game_state.world.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
+                        asio::co_spawn(ex, game_state.world_streamer.updateLoadPosition({0.0f, 0.0f, 0.0f}),    asio::deferred)
                     );
 
                     auto [ord, e1, e2] =

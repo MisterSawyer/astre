@@ -42,6 +42,7 @@ target_link_libraries("${PROJECT_NAME}"
     PRIVATE
         astre_editor::Layout
         astre_editor::Model
+        astre_editor::Action
         astre_editor::Widget
         astre_editor::Controller
         astre_editor::Panel

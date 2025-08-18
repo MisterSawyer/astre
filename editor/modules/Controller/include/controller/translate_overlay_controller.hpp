@@ -11,7 +11,6 @@
 #include "generated/ECS/proto/entity_definition.pb.h"
 #include "generated/ECS/proto/components/transform_component.pb.h"
 #include "input/input.hpp"
-#include "world/world.hpp"
 
 #include "model/panel_draw_context.hpp"
 

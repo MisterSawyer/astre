@@ -18,5 +18,5 @@ add_module(NAME "Pipeline"
         astre::Asset
         astre::Input
         astre::GUI
-        astre::World
+        astre::File
 )

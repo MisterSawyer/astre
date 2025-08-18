@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ecs/ecs.hpp"
-#include "world/world.hpp"
+#include "file/file.hpp"
 
 namespace astre::editor::controller
 {
@@ -19,14 +19,14 @@ namespace astre::editor::controller
         }
 
         bool isAnyChunkSelected() const noexcept { return _chunk_selection.has_value(); }
-        bool isChunkSelected(const world::ChunkID & chunk_id) const noexcept 
+        bool isChunkSelected(const file::ChunkID & chunk_id) const noexcept 
         {
             if(_chunk_selection.has_value() && _chunk_selection.value() == chunk_id) return true;
             return false;
         }
 
         const ecs::EntityDefinition & getEntitySelection() const noexcept { return *_entity_selection; }
-        const world::ChunkID & getChunkSelection() const noexcept { return *_chunk_selection; }
+        const file::ChunkID & getChunkSelection() const noexcept { return *_chunk_selection; }
 
         void updateSelectedEntity(ecs::EntityDefinition entity_def) noexcept { _entity_selection = entity_def; _entity_updated = true; }
         bool selectedEntityUpdated()
@@ -35,13 +35,13 @@ namespace astre::editor::controller
         }
         void clearSelectedEntityUpdate() noexcept { _entity_updated = false; }
 
-        void setSelection(world::ChunkID chunk_id) noexcept
+        void setSelection(file::ChunkID chunk_id) noexcept
         {
             _chunk_selection = chunk_id;
             _entity_selection = std::nullopt;
         }
 
-        void setSelection(world::ChunkID chunk_id, ecs::EntityDefinition entity_def) noexcept
+        void setSelection(file::ChunkID chunk_id, ecs::EntityDefinition entity_def) noexcept
         {
             _chunk_selection = chunk_id;
             _entity_selection = entity_def;
@@ -55,7 +55,7 @@ namespace astre::editor::controller
 
 
     private:
-        std::optional<world::ChunkID> _chunk_selection;
+        std::optional<file::ChunkID> _chunk_selection;
         std::optional<ecs::EntityDefinition> _entity_selection;
         bool _entity_updated = false;
 

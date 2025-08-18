@@ -6,30 +6,30 @@
 #include <asio.hpp>
 #include <absl/container/flat_hash_map.h>
 
-#include "ecs/ecs.hpp"
+#include "ecs/entity.hpp"
+#include "ecs/registry.hpp"
 
-namespace astre::asset
+namespace astre::ecs
 {
     /**
      * Serialize component, from entity in registry, into entity definition
     */
-    using ComponentSerializer = std::function<asio::awaitable<void>(const ecs::Entity, const ecs::Registry &, ecs::EntityDefinition &)>;
+    using ComponentSerializer = std::function<asio::awaitable<void>(const Entity, const Registry &, EntityDefinition &)>;
 
     class EntitySerializer
     {
     public:
-        EntitySerializer(const ecs::Registry & registry);
+        EntitySerializer();
         inline EntitySerializer(EntitySerializer && other) = default;
         inline EntitySerializer& operator=(EntitySerializer && other) = default;
         EntitySerializer(const EntitySerializer &) = delete;
         EntitySerializer& operator=(const EntitySerializer &) = delete;
 
-        asio::awaitable<ecs::EntityDefinition> serializeEntity(ecs::Entity entity) const;
+        asio::awaitable<EntityDefinition> serializeEntity(const Entity entity, const Registry & registry) const;
 
     private:
-        void registerComponentSerializer(const std::string& name, ComponentSerializer serializer);
+        void _registerComponentSerializer(const std::string& name, ComponentSerializer serializer);
 
-        const ecs::Registry & _registry;
         absl::flat_hash_map<std::string, ComponentSerializer> _serializers;
     };
 }

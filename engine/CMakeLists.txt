@@ -46,14 +46,15 @@ target_link_libraries("${PROJECT_NAME}"
         astre::Process
         astre::Window
         astre::Render
+        Render_proto
         astre::Input
         Input_proto
         astre::ECS
         ECS_proto
         astre::Asset
         astre::Pipeline
-        astre::World
-        World_proto
+        astre::File
+        File_proto
         astre::Script
         astre::GUI
 

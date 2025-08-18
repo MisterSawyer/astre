@@ -24,7 +24,7 @@ add_executable(${PROJECT_NAME}Tests
     "modules/Render/opengl_texture_tests.cpp"
     "modules/Render/opengl_shader_tests.cpp"
 
-    "modules/World/save_archive_tests.cpp"
+    "modules/File/save_archive_tests.cpp"
     
 )
 

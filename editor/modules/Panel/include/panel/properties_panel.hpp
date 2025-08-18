@@ -1,7 +1,6 @@
 #pragma once
 #include <string_view>
 
-#include "world/world.hpp"
 #include "ecs/ecs.hpp"
 
 #include "panel/panel_interface.hpp"

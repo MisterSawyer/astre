@@ -11,7 +11,7 @@
 #include "ecs/ecs.hpp"
 #include "pipeline/pipeline.hpp"
 
-#include "model/chunk_entities_registry.hpp"
+#include "model/world_snapshot.hpp"
 
 #include "selection_controller.hpp"
 
@@ -24,11 +24,11 @@ namespace astre::editor::controller
             render::IRenderer & renderer,
             const input::InputService & input,
             const pipeline::PickingResources & picking_resources,
-            const model::ChunkEntityRegistry & chunk_entities_registry)
+            const model::WorldSnapshot  & world_snapshot)
         :   _renderer(renderer),
             _input(input),
             _picking_resources(picking_resources),
-            _chunk_entities_registry(chunk_entities_registry)
+            _world_snapshot(world_snapshot)
         {}
 
         ~ViewportEntityPicker() = default;
@@ -60,7 +60,7 @@ namespace astre::editor::controller
                 // update selected entity in selection controller
                 // we need to map entity id obtained from texture to chunk id and EntityDefinition
                 // to do that we need mapping 
-                for(const auto & [chunk_id, entities] : _chunk_entities_registry.mapping)
+                for(const auto & [chunk_id, entities] : _world_snapshot.mapping)
                 {
                     if(entities.contains(*selected_id_res))
                     {
@@ -78,7 +78,7 @@ namespace astre::editor::controller
             const input::InputService & _input;
 
             const pipeline::PickingResources & _picking_resources;
-            const model::ChunkEntityRegistry & _chunk_entities_registry;
+            const model::WorldSnapshot & _world_snapshot;
 
             math::Vec2 _vp_pos{0,0};
             math::Vec2 _vp_size{0,0};
