@@ -2,7 +2,7 @@
 
 namespace astre::render::opengl
 {
-    OpenGLVertexBuffer::OpenGLVertexBuffer(std::vector<unsigned int> indices, std::vector<Vertex> vertices)
+    OpenGLVertexBuffer::OpenGLVertexBuffer(std::vector<unsigned int> indices, std::vector<GPUVertex> vertices)
     :   _indices(std::move(indices)),
         _vertices(std::move(vertices)),
         _VAO(0),
@@ -252,15 +252,15 @@ namespace astre::render::opengl
     bool OpenGLVertexBuffer::setGPUAttributes()
     {
         spdlog::debug("Setting vertex attribute [{}] to be {} x float",0, 3);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, position));
         glEnableVertexAttribArray(0);
 
         spdlog::debug("Setting vertex attribute [{}] to be {} x float", 1, 3);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, normal));
         glEnableVertexAttribArray(1);
 
         spdlog::debug("Setting vertex attribute [{}] to be {} x float", 2, 2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, uv));
         glEnableVertexAttribArray(2);
 
         return true;
@@ -281,8 +281,8 @@ namespace astre::render::opengl
         
         // copy our vertices array
         spdlog::debug(std::format("Sending {} bytes, from {} address to GPU GL_ARRAY_BUFFER", 
-            sizeof(Vertex) *_vertices.size(), (void*)_vertices.data()));
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) *_vertices.size(), _vertices.data(), GL_STATIC_DRAW);
+            sizeof(GPUVertex) *_vertices.size(), (void*)_vertices.data()));
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GPUVertex) *_vertices.size(), _vertices.data(), GL_STATIC_DRAW);
         
         const auto check = checkOpenGLState();
         if(!check)

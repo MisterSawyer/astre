@@ -8,6 +8,15 @@ config:
   layout: elk
 ---
 flowchart TD
+ subgraph data["Data"]
+      id1[("Filesystem")]
+      Math_proto["Math_proto"]
+      Render_proto["Render_proto"]
+      ECS_proto["ECS_proto"]
+      File_proto["File_proto"]
+      Input_proto["Input_proto"]
+  end
+
  subgraph subGraph0["LAYER 0"]
         Math["Math"]
         Native["Native"]
@@ -42,9 +51,9 @@ flowchart TD
         Pipeline["Pipeline"]
   end
     id1[("Filesystem")] --> File
-    Math_proto["Math_proto"] --> Math & Render_proto["Render_proto"] & ECS_proto["ECS_proto"]
-    ECS_proto --> File_proto["File_proto"] & ECS & File
-    Input_proto["Input_proto"] --> Input
+    Math_proto --> Math & Render_proto & ECS_proto
+    ECS_proto --> File_proto & ECS & File
+    Input_proto --> Input
     Render_proto --> Render & File
     File_proto --> File
     Native --> Async & Type & Formatter
@@ -62,6 +71,24 @@ flowchart TD
     File --> Asset & Pipeline
     Asset --> Pipeline
     GUI --> Pipeline
+```
 
+## Resource model
 
+```mermaid
+
+architecture-beta
+      service file(disk)[Filesystem]
+      service resource_streamer(database)[Resource Streamer]
+      service resource_tracker(server)[Resource Tracker]
+      service resource_loader(server)[Resource Loader]
+      service module(server)[Module]
+
+      junction junctionCenter
+
+      file:R -- L:resource_streamer
+      resource_streamer:R -- L:junctionCenter
+      resource_tracker:T -- B:junctionCenter
+      resource_loader:L -- R:junctionCenter
+      module:L -- R:resource_loader
 ```

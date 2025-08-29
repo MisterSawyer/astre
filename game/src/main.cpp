@@ -53,8 +53,8 @@ namespace astre::entry
                 },
                 .world_streamer = file::WorldStreamer(  
                     app_state.process.getExecutionContext(),
-                    file::use_json,
                     paths.resources / "worlds/levels/level_0.json",
+                    file::use_json,
                     32.0f, 32)
             }
         );

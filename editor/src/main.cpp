@@ -19,6 +19,8 @@ struct EditorState
     ecs::Registry & registry;
     ecs::Systems systems;
 
+    file::MeshStreamer mesh_streamer;
+    file::ShaderStreamer shader_streamer;
     file::WorldStreamer world_streamer;
     
     pipeline::LogicFrameTimer logic_timer;
@@ -119,10 +121,21 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .script = ecs::system::ScriptSystem(app_state.script, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
+
+            .mesh_streamer = file::MeshStreamer(
+                app_state.process.getExecutionContext(),
+                paths.resources / "meshes"
+            ),
+
+            .shader_streamer = file::ShaderStreamer(
+                app_state.process.getExecutionContext(),
+                paths.resources / "shaders" / "glsl"
+            ),
+
             .world_streamer = file::WorldStreamer(  
                 app_state.process.getExecutionContext(),
+                paths.resources / "worlds" / "levels" / "level_0.json",
                 file::use_json,
-                paths.resources / "worlds/levels/level_0.json",
                 32.0f, 32
             ),
 
