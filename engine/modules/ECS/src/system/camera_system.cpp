@@ -16,8 +16,8 @@ namespace astre::ecs::system
         frame.view_matrix = math::Mat4(1.0f);
         frame.proj_matrix = math::Mat4(1.0f);
 
-        getRegistry().runOnSingleWithComponents<TransformComponent, CameraComponent>(active_camera_entity,
-            [&](const Entity e, const TransformComponent & transform_component, const CameraComponent & camera_component)
+        getRegistry().runOnSingleWithComponents<proto::ecs::TransformComponent, proto::ecs::CameraComponent>(active_camera_entity,
+            [&](const Entity e, const proto::ecs::TransformComponent & transform_component, const proto::ecs::CameraComponent & camera_component)
             {
                 frame.camera_position = math::deserialize(transform_component.position());
                 frame.view_matrix = math::deserialize(transform_component.transform_matrix());

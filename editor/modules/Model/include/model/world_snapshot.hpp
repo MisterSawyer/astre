@@ -16,12 +16,12 @@ namespace astre::editor::model
         
             for(const auto & chunk_id : world_streamer.getAllChunks())
             {
-                mapping.emplace(chunk_id, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>());
+                mapping.emplace(chunk_id, absl::flat_hash_map<ecs::Entity, proto::ecs::EntityDefinition>());
 
             // then for every node we obtain chunk definition
-            auto chunk_res = world_streamer.readChunk(chunk_id);
+            auto chunk_res = world_streamer.read(chunk_id);
                         
-                if (chunk_res.has_value())
+                if (chunk_res != nullptr)
                 {
                     const auto & chunk = *chunk_res;
 
@@ -34,7 +34,7 @@ namespace astre::editor::model
             }
         }
         
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_map<ecs::Entity, ecs::EntityDefinition>> mapping;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_map<ecs::Entity, proto::ecs::EntityDefinition>> mapping;
     };
 
     // Deltas are what the editor changes track.
@@ -43,8 +43,8 @@ namespace astre::editor::model
         absl::flat_hash_set<file::WorldChunk> created_chunks;
         absl::flat_hash_set<file::ChunkID> removed_chunks;
 
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> created_entities;
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> updated_entities;
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<ecs::EntityDefinition>> removed_entities;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> created_entities;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> updated_entities;
+        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> removed_entities;
     };
 }

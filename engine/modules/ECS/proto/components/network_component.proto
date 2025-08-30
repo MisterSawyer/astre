@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package astre.ecs;
-
-message NetworkIdentityComponent 
-{
-  int32 network_id = 1;
-  bool is_owned_locally = 2;
-}

@@ -16,6 +16,7 @@
 #include "pipeline/pipeline.hpp"
 #include "file/file.hpp"
 #include "script/script.hpp"
+#include "loader/loader.hpp"
 #include "gui/gui.hpp"
 
 namespace astre

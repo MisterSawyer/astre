@@ -2,26 +2,26 @@
 
 namespace astre::math
 {
-    Vec2Serialized serialize(const Vec2& v)
+    proto::math::Vec2Serialized serialize(const Vec2& v)
     {
-        Vec2Serialized vSerialized;
+        proto::math::Vec2Serialized vSerialized;
         vSerialized.set_x(v.x);
         vSerialized.set_y(v.y);
         return vSerialized;
     }
 
-    Vec3Serialized serialize(const Vec3& v)
+    proto::math::Vec3Serialized serialize(const Vec3& v)
     {
-        Vec3Serialized vSerialized;
+        proto::math::Vec3Serialized vSerialized;
         vSerialized.set_x(v.x);
         vSerialized.set_y(v.y);
         vSerialized.set_z(v.z);
         return vSerialized;
     }
 
-    Vec4Serialized serialize(const Vec4& v)
+    proto::math::Vec4Serialized serialize(const Vec4& v)
     {
-        Vec4Serialized vSerialized;
+        proto::math::Vec4Serialized vSerialized;
         vSerialized.set_x(v.x);
         vSerialized.set_y(v.y);
         vSerialized.set_z(v.z);
@@ -29,9 +29,9 @@ namespace astre::math
         return vSerialized;
     }
 
-    QuatSerialized serialize(const Quat& v)
+    proto::math::QuatSerialized serialize(const Quat& v)
     {
-        QuatSerialized qSerialized;
+        proto::math::QuatSerialized qSerialized;
         qSerialized.set_x(v.x);
         qSerialized.set_y(v.y);
         qSerialized.set_z(v.z);
@@ -39,9 +39,9 @@ namespace astre::math
         return qSerialized;
     }
 
-    Mat2Serialized serialize(const Mat2& mat2)
+    proto::math::Mat2Serialized serialize(const Mat2& mat2)
     {
-        Mat2Serialized mat2Serialized;
+        proto::math::Mat2Serialized mat2Serialized;
         mat2Serialized.add_data(mat2[0][0]);
         mat2Serialized.add_data(mat2[0][1]);
 
@@ -50,9 +50,9 @@ namespace astre::math
         return mat2Serialized;
     }
 
-    Mat3Serialized serialize(const Mat3& mat3)
+    proto::math::Mat3Serialized serialize(const Mat3& mat3)
     {
-        Mat3Serialized mat3Serialized;
+        proto::math::Mat3Serialized mat3Serialized;
         mat3Serialized.add_data(mat3[0][0]);
         mat3Serialized.add_data(mat3[0][1]);
         mat3Serialized.add_data(mat3[0][2]);
@@ -67,9 +67,9 @@ namespace astre::math
         return mat3Serialized;
     }
 
-    Mat4Serialized serialize(const Mat4& mat4)
+    proto::math::Mat4Serialized serialize(const Mat4& mat4)
     {
-        Mat4Serialized mat4Serialized;
+        proto::math::Mat4Serialized mat4Serialized;
         mat4Serialized.add_data(mat4[0][0]);
         mat4Serialized.add_data(mat4[0][1]);
         mat4Serialized.add_data(mat4[0][2]);
@@ -94,7 +94,7 @@ namespace astre::math
     }
 
 
-    Vec2 deserialize(const Vec2Serialized& v)
+    Vec2 deserialize(const proto::math::Vec2Serialized& v)
     {
         Vec2 v2;
         v2.x = v.x();
@@ -102,7 +102,7 @@ namespace astre::math
         return v2;
     }
 
-    Vec3 deserialize(const Vec3Serialized& v)
+    Vec3 deserialize(const proto::math::Vec3Serialized& v)
     {
         Vec3 v3;
         v3.x = v.x();
@@ -111,7 +111,7 @@ namespace astre::math
         return v3;
     }
 
-    Vec4 deserialize(const Vec4Serialized& v)
+    Vec4 deserialize(const proto::math::Vec4Serialized& v)
     {
         Vec4 v4;
         v4.x = v.x();
@@ -121,7 +121,7 @@ namespace astre::math
         return v4;
     }
 
-    Quat deserialize(const QuatSerialized& v)
+    Quat deserialize(const proto::math::QuatSerialized& v)
     {
         Quat q;
         q.x = v.x();
@@ -131,7 +131,7 @@ namespace astre::math
         return q;
     }
 
-    Mat2 deserialize(const Mat2Serialized& mat2Serialized)
+    Mat2 deserialize(const proto::math::Mat2Serialized& mat2Serialized)
     {
         Mat2 mat2;
         mat2[0][0] = mat2Serialized.data(0);
@@ -142,7 +142,7 @@ namespace astre::math
         return mat2;
     }
 
-    Mat3 deserialize(const Mat3Serialized& mat3Serialized)
+    Mat3 deserialize(const proto::math::Mat3Serialized& mat3Serialized)
     {
         Mat3 mat3;
         mat3[0][0] = mat3Serialized.data(0);
@@ -159,7 +159,7 @@ namespace astre::math
         return mat3;
     }
 
-    Mat4 deserialize(const Mat4Serialized& mat4Serialized)
+    Mat4 deserialize(const proto::math::Mat4Serialized& mat4Serialized)
     {
         Mat4 mat4;
         mat4[0][0] = mat4Serialized.data(0);

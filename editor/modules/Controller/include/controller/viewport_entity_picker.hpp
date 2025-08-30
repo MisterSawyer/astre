@@ -44,7 +44,7 @@ namespace astre::editor::controller
 
         asio::awaitable<void> updateSelectedEntity(SelectionController & selection_controller)
         {
-            if(_vp_hovered && _input.isKeyJustPressed(input::InputCode::MOUSE_LEFT))
+            if(_vp_hovered && _input.isKeyJustPressed(proto::input::InputCode::MOUSE_LEFT))
             {
                 auto relative_mouse_pos = _input.getMousePosition() - _vp_pos;
 

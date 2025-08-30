@@ -304,7 +304,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 {
                     const auto serialized_pos = math::serialize(*p);
 
-                    ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
+                    proto::ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
 
                     pending_def.mutable_transform()->mutable_position()->CopyFrom(serialized_pos);
 

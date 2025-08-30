@@ -3,15 +3,15 @@
 #include "script/script.hpp"
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/script_component.pb.h"
+#include "proto/ECS/components/script_component.pb.h"
 
 namespace astre::ecs::system
 {
-    class ScriptSystem : public System<ScriptComponent>
+    class ScriptSystem : public System<proto::ecs::ScriptComponent>
     {
     public:
-        using Reads = std::tuple<TransformComponent, InputComponent, CameraComponent>;
-        using Writes = std::tuple<TransformComponent, CameraComponent>;
+        using Reads = std::tuple<proto::ecs::TransformComponent, proto::ecs::InputComponent, proto::ecs::CameraComponent>;
+        using Writes = std::tuple<proto::ecs::TransformComponent, proto::ecs::CameraComponent>;
 
         ScriptSystem(script::ScriptRuntime & runtime, Registry & registry);
         ~ScriptSystem() = default;

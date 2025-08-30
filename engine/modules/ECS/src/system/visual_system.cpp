@@ -17,8 +17,8 @@ namespace astre::ecs::system
         
         std::optional<std::size_t> vb_id;
         std::optional<std::size_t> sh_id;
-        getRegistry().runOnAllWithComponents<TransformComponent, VisualComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const VisualComponent &visual_component)
+        getRegistry().runOnAllWithComponents<proto::ecs::TransformComponent, proto::ecs::VisualComponent>(
+            [&](const Entity e, const proto::ecs::TransformComponent & transform_component, const proto::ecs::VisualComponent &visual_component)
             {
                 vb_id = _renderer.getVertexBuffer(visual_component.vertex_buffer_name());
                 sh_id = _renderer.getShader(visual_component.shader_name());

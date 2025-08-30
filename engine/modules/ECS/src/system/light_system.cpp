@@ -6,12 +6,12 @@
 
 namespace astre::ecs::system
 {
-    static LightType _getLightType(const render::GPULight & light)
+    static proto::ecs::LightType _getLightType(const render::GPULight & light)
     {
-        if(light.direction.w == static_cast<float>(LightType::DIRECTIONAL)) return LightType::DIRECTIONAL;
-        if(light.direction.w == static_cast<float>(LightType::POINT)) return LightType::POINT;
-        if(light.direction.w == static_cast<float>(LightType::SPOT)) return LightType::SPOT;
-        return LightType::UNKNOWN_LightType;
+        if(light.direction.w == static_cast<float>(proto::ecs::LightType::DIRECTIONAL)) return proto::ecs::LightType::DIRECTIONAL;
+        if(light.direction.w == static_cast<float>(proto::ecs::LightType::POINT)) return proto::ecs::LightType::POINT;
+        if(light.direction.w == static_cast<float>(proto::ecs::LightType::SPOT)) return proto::ecs::LightType::SPOT;
+        return proto::ecs::LightType::UNKNOWN_LightType;
     }
 
 
@@ -32,8 +32,8 @@ namespace astre::ecs::system
         render::GPULight gpu_light{};
 
         // collect lights
-        getRegistry().runOnAllWithComponents<TransformComponent, LightComponent>(
-            [&](const Entity e, const TransformComponent & transform_component, const LightComponent & light_component)
+        getRegistry().runOnAllWithComponents<proto::ecs::TransformComponent, proto::ecs::LightComponent>(
+            [&](const Entity e, const proto::ecs::TransformComponent & transform_component, const proto::ecs::LightComponent & light_component)
             {
                 if(frame.gpu_lights.size() >= MAX_LIGHTS) return;
 
@@ -103,12 +103,12 @@ namespace astre::ecs::system
 
                 switch(_getLightType(shadow_caster))
                 {
-                    case LightType::DIRECTIONAL :
+                    case proto::ecs::LightType::DIRECTIONAL :
                     {
                         projection_matrix = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, 0.1f, 100.0f);
                         break;
                     }
-                    case LightType::SPOT :
+                    case proto::ecs::LightType::SPOT :
                     {
                         // TODO
                         float aspect = 1.7f;
@@ -121,7 +121,7 @@ namespace astre::ecs::system
                         projection_matrix = glm::perspective(glm::radians(fov), aspect, projection_near, projection_far);
                         break;
                     }
-                    case LightType::POINT :
+                    case proto::ecs::LightType::POINT :
                     {
                         projection_matrix = math::perspective(math::radians(90.0f), 1.0f, 0.1f, 100.0f);
                         break;

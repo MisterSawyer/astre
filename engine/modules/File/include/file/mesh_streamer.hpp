@@ -10,11 +10,11 @@
 
 #include "file/resource_streamer.hpp"
 
-#include "generated/Render/proto/mesh_definition.pb.h"
+#include "proto/Render/mesh_definition.pb.h"
 
 namespace astre::file
 {
-    class MeshStreamer : public IResourceStreamer<std::string, render::MeshDefinition>
+    class MeshStreamer : public IResourceStreamer<std::string, proto::render::MeshDefinition>
     {
         public:
             MeshStreamer(
@@ -25,12 +25,12 @@ namespace astre::file
                 _directory(directory) 
             {}
 
-            render::MeshDefinition * read(std::string name) override
+            proto::render::MeshDefinition * read(std::string name) override
             {
                 return nullptr;
             }
             
-            bool write(const render::MeshDefinition & data) override
+            bool write(const proto::render::MeshDefinition & data) override
             {
                 return false;
             }
@@ -45,6 +45,6 @@ namespace astre::file
 
             std::filesystem::path _directory;
 
-            absl::flat_hash_map<std::string, render::MeshDefinition> _loaded_meshes;
+            absl::flat_hash_map<std::string, proto::render::MeshDefinition> _loaded_meshes;
     };
 }

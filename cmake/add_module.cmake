@@ -21,7 +21,7 @@ function(add_module)
     # === Gather all source files ===
     set(SOURCES)
     foreach(SRC_DIR IN LISTS add_module_SOURCE_DIRS)
-        file(++++ FOUND_SRC_FILES
+        file(GLOB FOUND_SRC_FILES
             "${CMAKE_CURRENT_SOURCE_DIR}/${SRC_DIR}/*.c"
             "${CMAKE_CURRENT_SOURCE_DIR}/${SRC_DIR}/*.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/${SRC_DIR}/*.cc"

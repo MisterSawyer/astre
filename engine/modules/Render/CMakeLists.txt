@@ -23,17 +23,7 @@ add_module(NAME "Render"
         astre::Type
         astre::Process
         astre::Window
+
+        astre::Math_proto
+        astre::Render_proto
 )
-
-protobuf_generate(NAME "Render_proto"
-    PROTO_ROOT
-        ${PROJECT_SOURCE_DIR}/modules
-    PROTO_SRC_DIRS   
-        ${CMAKE_CURRENT_SOURCE_DIR}/proto
-    PROTO_DST_DIR
-        ${CMAKE_BINARY_DIR}/generated
-)
-
-target_link_libraries("Render_proto" PUBLIC "Math_proto")
-
-target_link_libraries("Render" PUBLIC "Render_proto")

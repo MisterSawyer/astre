@@ -10,11 +10,11 @@
 
 #include "file/resource_streamer.hpp"
 
-#include "generated/Render/proto/shader_definition.pb.h"
+#include "proto/Render/shader_definition.pb.h"
 
 namespace astre::file
 {
-    class ShaderStreamer : public IResourceStreamer<std::string, render::ShaderDefinition>
+    class ShaderStreamer : public IResourceStreamer<std::string, proto::render::ShaderDefinition>
     {
         public:
             ShaderStreamer(
@@ -25,14 +25,14 @@ namespace astre::file
                 _directory(directory) 
             {}
 
-            render::ShaderDefinition * read(std::string name) override
+            proto::render::ShaderDefinition * read(std::string name) override
             {
                 if(_loaded_shaders.contains(name)) return &_loaded_shaders.at(name);
                 
                 return nullptr;
             }
 
-            bool write(const render::ShaderDefinition & data) override
+            bool write(const proto::render::ShaderDefinition & data) override
             {
                 return false;
             }
@@ -61,8 +61,9 @@ namespace astre::file
 
                 std::ifstream shader_file;
                 std::string line;
-                std::vector<std::string> vs_lines;
-                std::vector<std::string> frag_lines;
+
+                proto::render::ShaderDefinition shader_def;
+                shader_def.set_name(shader_name);
 
                 // load vertex shader stage
                 std::filesystem::path vs_path = shader_dir / "vertex.glsl";
@@ -84,7 +85,7 @@ namespace astre::file
 
                     while (std::getline(shader_file, line))
                     {
-                        vs_lines.push_back(line + "\n");
+                        shader_def.add_vertex_code(line + "\n");
                     }
             
                     shader_file.close();
@@ -104,12 +105,12 @@ namespace astre::file
                     if (!shader_file.is_open()) 
                     {
                         spdlog::error("Failed to open shader file: {}", fs_path.string());
-                        co_return std::nullopt;
+                        co_return false;
                     }
 
                     while (std::getline(shader_file, line))
                     {
-                        frag_lines.push_back(line + "\n");
+                        shader_def.add_fragment_code(line + "\n");
                     }
             
                     shader_file.close();
@@ -119,15 +120,7 @@ namespace astre::file
 
                 // create shader definition
                 co_await _async_context.ensureOnStrand();
-                _loaded_shaders[shader_name] = render::ShaderDefinition{};
-
-                _loaded_shaders.at(shader_name).set_name(shader_name);
-                _loaded_shaders.at(shader_name).set_vertex_source(vs_lines);
-                
-                if(frag_lines.empty() == false)
-                {
-                    _loaded_shaders.at(shader_name).set_fragment_source(frag_lines);
-                }
+                _loaded_shaders.emplace(shader_name, std::move(shader_def));
 
                 co_return true;
             }
@@ -136,7 +129,7 @@ namespace astre::file
 
             std::filesystem::path _directory;
 
-            absl::flat_hash_map<std::string, render::ShaderDefinition> _loaded_shaders;
+            absl::flat_hash_map<std::string, proto::render::ShaderDefinition> _loaded_shaders;
 
     };
 }

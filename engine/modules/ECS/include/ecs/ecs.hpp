@@ -2,7 +2,7 @@
 
 #include "ecs/registry.hpp"
 
-#include "generated/ECS/proto/entity_definition.pb.h"
+#include "proto/ECS/entity_definition.pb.h"
 
 #include "ecs/system/transform_system.hpp"
 #include "ecs/system/camera_system.hpp"

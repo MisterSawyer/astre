@@ -15,8 +15,8 @@
 #include "file/resource_streamer.hpp"
 #include "file/save_archive.hpp"
 
-#include "generated/ECS/proto/entity_definition.pb.h"
-#include "generated/File/proto/world_chunk.pb.h"
+#include "proto/ECS/entity_definition.pb.h"
+#include "proto/File/world_chunk.pb.h"
 
 namespace astre::file
 {
@@ -47,11 +47,6 @@ namespace astre::file
             WorldChunk * read(ChunkID id) override;
             bool write(const WorldChunk & chunk) override;
             bool remove(ChunkID id) override;
-
-
-            //bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
-
-            //bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
 
         private:
             asio::awaitable<void> _loadChunk(const ChunkID& id);

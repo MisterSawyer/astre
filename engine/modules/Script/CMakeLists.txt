@@ -14,7 +14,7 @@ add_module(NAME "Script"
         lua_static
         sol2::sol2
         
-        ECS_proto
+        astre::ECS_proto
 
         # astre::Async
         # astre::Native

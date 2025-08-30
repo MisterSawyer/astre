@@ -16,10 +16,9 @@ namespace astre::file
 
     asio::awaitable<void> WorldStreamer::_loadChunk(const ChunkID& id) 
     {
-        co_await _unloadChunk(id);
         co_await _async_context.ensureOnStrand();
         
-        const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
+        if (_loaded_chunks.contains(id)) co_return;
 
         spdlog::debug("Loading chunk  ({};{};{})", id.x(), id.y(), id.z());
 
@@ -47,14 +46,6 @@ namespace astre::file
         co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk unloaded  ({};{};{})", id.x(), id.y(), id.z());
         _loaded_chunks.erase(id);
-    }
-
-    asio::awaitable<void> WorldStreamer::saveAll()
-    {
-        co_await _async_context.ensureOnStrand();
-        for (const auto& [_, chunk] : _loaded_chunks) {
-            _archive->writeChunk(chunk);
-        }
     }
 
     const absl::flat_hash_set<ChunkID> & WorldStreamer::getAllChunks() const
@@ -110,17 +101,23 @@ namespace astre::file
         co_return;
     }
 
-    std::optional<WorldChunk> WorldStreamer::readChunk(const ChunkID& id)
+    WorldChunk * WorldStreamer::read(ChunkID id)
     {
-        return _archive->readChunk(id);
+        if(!_loaded_chunks.contains(id)) return nullptr;
+        return &_loaded_chunks.at(id);
     }
 
-    bool WorldStreamer::writeChunk(const WorldChunk & chunk)
+    bool WorldStreamer::write(const WorldChunk & chunk)
     {
+        if(_loaded_chunks.contains(chunk.id()))
+        {
+            // if loaded we need also to update it
+            _to_reload.emplace(chunk.id());
+        }
         return _archive->writeChunk(chunk);
     }
 
-    bool WorldStreamer::removeChunk(const ChunkID& id)
+    bool WorldStreamer::remove(ChunkID id)
     {
         // schedule unloading of chunk
         // it really does not matter when the chunk is unloaded
@@ -131,20 +128,20 @@ namespace astre::file
         return _archive->removeChunk(id);
     }
 
-    bool WorldStreamer::writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
-    {
-        if(entity_def.id() == 0)
-        {
-            spdlog::error("[world] Invalid entity id");
-            return false;
-        }
-        _to_reload.emplace(chunk_id);
-        return _archive->writeEntity(chunk_id, entity_def);
-    }
+    // bool WorldStreamer::writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    // {
+    //     if(entity_def.id() == 0)
+    //     {
+    //         spdlog::error("[world] Invalid entity id");
+    //         return false;
+    //     }
+    //     _to_reload.emplace(chunk_id);
+    //     return _archive->writeEntity(chunk_id, entity_def);
+    // }
 
-    bool WorldStreamer::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
-    {
-        _to_reload.emplace(chunk_id);
-        return _archive->removeEntity(chunk_id, entity_def);
-    }
+    // bool WorldStreamer::removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    // {
+    //     _to_reload.emplace(chunk_id);
+    //     return _archive->removeEntity(chunk_id, entity_def);
+    // }
 } // namespace astre::world

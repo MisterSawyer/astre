@@ -1,0 +1,6 @@
+add_subdirectory(Math)
+add_subdirectory(Input)
+add_subdirectory(Render)
+add_subdirectory(Script)
+add_subdirectory(ECS)
+add_subdirectory(File)

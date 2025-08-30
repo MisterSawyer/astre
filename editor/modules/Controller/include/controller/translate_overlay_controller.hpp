@@ -8,8 +8,8 @@
 #include "math/math.hpp"
 #include "render/render.hpp"
 #include "ecs/registry.hpp"
-#include "generated/ECS/proto/entity_definition.pb.h"
-#include "generated/ECS/proto/components/transform_component.pb.h"
+#include "proto/ECS/entity_definition.pb.h"
+#include "proto/ECS/components/transform_component.pb.h"
 #include "input/input.hpp"
 
 #include "model/panel_draw_context.hpp"
@@ -131,9 +131,9 @@ namespace astre::editor::controller
 
             // ---- Picking / drag state machine ---------------------------------
             const bool can_interact = _vp_hovered;
-            const bool lmb_down     = input.isKeyHeld(input::InputCode::MOUSE_LEFT);
-            const bool lmb_pressed  = input.isKeyJustPressed(input::InputCode::MOUSE_LEFT);
-            const bool lmb_released = input.isKeyJustReleased(input::InputCode::MOUSE_LEFT);
+            const bool lmb_down     = input.isKeyHeld(proto::input::InputCode::MOUSE_LEFT);
+            const bool lmb_pressed  = input.isKeyJustPressed(proto::input::InputCode::MOUSE_LEFT);
+            const bool lmb_released = input.isKeyJustReleased(proto::input::InputCode::MOUSE_LEFT);
             const math::Vec2 mouse  = input.getMousePosition(); // window-space
             const math::Vec2 m_in_vp{ mouse.x - _vp_pos.x, mouse.y - _vp_pos.y };
 

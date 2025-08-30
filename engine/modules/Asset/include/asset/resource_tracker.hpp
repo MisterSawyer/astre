@@ -37,7 +37,7 @@ namespace astre::asset
         {}
 
         // Convenience wrappers
-        asio::awaitable<void> ensureFor(const ecs::EntityDefinition& def) {
+        asio::awaitable<void> ensureFor(const proto::ecs::EntityDefinition& def) {
             co_await _ensureLoaded(_collectFrom(def));
         }
         asio::awaitable<void> ensureFor(const ecs::Registry& reg, ecs::Entity e) {
@@ -50,7 +50,7 @@ namespace astre::asset
 
     private:
         // Fast collectors (pure, no I/O)
-        static RequiredResources _collectFrom(const ecs::EntityDefinition& def) noexcept;
+        static RequiredResources _collectFrom(const proto::ecs::EntityDefinition& def) noexcept;
         static RequiredResources _collectFrom(const ecs::Registry& reg, ecs::Entity e) noexcept;
 
         // Ensure everything in 'req' is present in renderer/runtime

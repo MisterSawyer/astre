@@ -3,7 +3,7 @@
 #include <utility>
 #include <cstdint>
 
-#include "generated/ECS/proto/entity_definition.pb.h"
+#include "proto/ECS/entity_definition.pb.h"
 
 namespace astre::ecs
 {
@@ -11,12 +11,15 @@ namespace astre::ecs
 
     constexpr Entity INVALID_ENTITY = 0;
     constexpr std::size_t MAX_COMPONENT_TYPES = 256;
+}
 
-    inline bool operator==(const EntityDefinition& lhs, const EntityDefinition& rhs) 
+namespace astre::proto::ecs
+{
+    inline bool operator==(const proto::ecs::EntityDefinition& lhs, const proto::ecs::EntityDefinition& rhs) 
     { return lhs.id() == rhs.id(); }
 
     template <typename H>
-    inline H AbslHashValue(H h, const EntityDefinition & entity_definition) {
+    inline H AbslHashValue(H h, const proto::ecs::EntityDefinition & entity_definition) {
         return H::combine(std::move(h), entity_definition.id());
     }
 }

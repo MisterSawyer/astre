@@ -1,6 +1,4 @@
 include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
-include("${CMAKE_SOURCE_DIR}/cmake/protobuf_generate.cmake")
-
 
 set(INCLUDE_DIRS "include/input")
 if(WIN32)
@@ -35,15 +33,6 @@ add_module(NAME "Input"
         astre::Math
         astre::Async
         astre::Process
-)
 
-protobuf_generate(NAME "Input_proto"
-    PROTO_ROOT
-        ${PROJECT_SOURCE_DIR}/modules
-    PROTO_SRC_DIRS   
-        ${CMAKE_CURRENT_SOURCE_DIR}/proto
-    PROTO_DST_DIR
-        ${CMAKE_BINARY_DIR}/generated
+        astre::Input_proto
 )
-
-target_link_libraries(Input PUBLIC "Input_proto")

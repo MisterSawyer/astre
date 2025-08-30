@@ -24,7 +24,7 @@ namespace astre::editor::panel
     private:
         bool _visible{true};
 
-        std::optional<ecs::EntityDefinition> pending_entity_def;
+        std::optional<proto::ecs::EntityDefinition> pending_entity_def;
         bool properites_updated = false;
     };
 

@@ -1,0 +1,13 @@
+syntax="proto3";
+
+import "Math/math.proto";
+
+package astre.proto.ecs;
+
+message VisualComponent 
+{
+    bool visible = 1;
+    string vertex_buffer_name = 2;
+    string shader_name = 3;
+    astre.proto.math.Vec4Serialized color = 4;
+}

@@ -7,7 +7,7 @@
 namespace astre::asset
 {
     // ---------- Collectors ----------
-    RequiredResources ResourceTracker::_collectFrom(const ecs::EntityDefinition& def) noexcept
+    RequiredResources ResourceTracker::_collectFrom(const proto::ecs::EntityDefinition& def) noexcept
     {
         RequiredResources out{};
         if (def.has_visual())
@@ -27,12 +27,12 @@ RequiredResources ResourceTracker::_collectFrom(const ecs::Registry& reg, ecs::E
 {
     RequiredResources out{};
     // Visual
-    reg.runOnSingleWithComponents<ecs::VisualComponent>(e, [&](ecs::Entity, const ecs::VisualComponent& v){
+    reg.runOnSingleWithComponents<proto::ecs::VisualComponent>(e, [&](ecs::Entity, const proto::ecs::VisualComponent& v){
         _maybeInsert(out.shaders,       v.shader_name());
         _maybeInsert(out.vertexBuffers, v.vertex_buffer_name());
     });
     // Script
-    reg.runOnSingleWithComponents<ecs::ScriptComponent>(e, [&](ecs::Entity, const ecs::ScriptComponent& s){
+    reg.runOnSingleWithComponents<proto::ecs::ScriptComponent>(e, [&](ecs::Entity, const proto::ecs::ScriptComponent& s){
         _maybeInsert(out.scripts, s.name());
     });
     return out;

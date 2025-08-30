@@ -10,7 +10,7 @@
 namespace astre::editor::panel 
 {
     
-    static bool _drawTransformComponent(ecs::TransformComponent & transform)
+    static bool _drawTransformComponent(proto::ecs::TransformComponent & transform)
     {
         bool changed = false;
 
@@ -56,7 +56,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawVisualComponent(ecs::VisualComponent& visual) noexcept
+    static bool _drawVisualComponent(proto::ecs::VisualComponent& visual) noexcept
     {
         bool changed = false;
 
@@ -124,7 +124,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawLightComponent(ecs::LightComponent & light) noexcept
+    static bool _drawLightComponent(proto::ecs::LightComponent & light) noexcept
     {
         bool changed = false;
 
@@ -137,7 +137,7 @@ namespace astre::editor::panel
                 ImGui::TextUnformatted("Light Type");
                 ImGui::PushItemWidth(-FLT_MIN); // full width
                 if (ImGui::Combo("##light_type", &type_idx, items, IM_ARRAYSIZE(items))) {
-                    light.set_type(static_cast<astre::ecs::LightType>(type_idx + 1));
+                    light.set_type(static_cast<proto::ecs::LightType>(type_idx + 1));
                     changed = true;
                 }
                 ImGui::PopItemWidth();
@@ -179,8 +179,8 @@ namespace astre::editor::panel
                 ImGui::PopItemWidth();
 
             // Attenuation (Point/Spot only)
-            const bool show_atten = (light.type() == astre::ecs::LightType::POINT ||
-                                     light.type() == astre::ecs::LightType::SPOT);
+            const bool show_atten = (light.type() == proto::ecs::LightType::POINT ||
+                                     light.type() == proto::ecs::LightType::SPOT);
             if (show_atten)             
             {
                 ImGui::SeparatorText("Attenuation");
@@ -218,7 +218,7 @@ namespace astre::editor::panel
             }
 
             // Spot-only controls (inner/outer cutoffs in DEGREES UI, stored as COSINE)
-            const bool show_spot = (light.type() == astre::ecs::LightType::SPOT);
+            const bool show_spot = (light.type() == proto::ecs::LightType::SPOT);
             if (show_spot)
             {
                 ImGui::SeparatorText("Spot Angles");
@@ -269,7 +269,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawCameraComponent(ecs::CameraComponent &cam) noexcept
+    static bool _drawCameraComponent(proto::ecs::CameraComponent &cam) noexcept
     {
         bool changed = false;
 
@@ -316,7 +316,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawScriptComponent(ecs::ScriptComponent &script) noexcept
+    static bool _drawScriptComponent(proto::ecs::ScriptComponent &script) noexcept
     {
         bool changed = false;
 
@@ -342,7 +342,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawInputComponent(ecs::InputComponent &input) noexcept
+    static bool _drawInputComponent(proto::ecs::InputComponent &input) noexcept
     {
         bool changed = false;
 
@@ -353,7 +353,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawHealthComponent(ecs::HealthComponent & health) noexcept
+    static bool _drawHealthComponent(proto::ecs::HealthComponent & health) noexcept
     {
         bool changed = false;
 
@@ -364,7 +364,7 @@ namespace astre::editor::panel
         return changed;
     }
 
-    static bool _drawTerrainComponent(ecs::TerrainComponent & terrain) noexcept
+    static bool _drawTerrainComponent(proto::ecs::TerrainComponent & terrain) noexcept
     {
         bool changed = false;
 

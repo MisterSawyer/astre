@@ -5,15 +5,15 @@
 
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/light_component.pb.h"
+#include "proto/ECS/components/light_component.pb.h"
 
 namespace astre::ecs::system
 {
-    class LightSystem : public System<LightComponent>
+    class LightSystem : public System<proto::ecs::LightComponent>
     {
     public:
-        using Reads = std::tuple<TransformComponent>;
-        using Writes = std::tuple<CameraComponent>;
+        using Reads = std::tuple<proto::ecs::TransformComponent>;
+        using Writes = std::tuple<proto::ecs::CameraComponent>;
 
         static constexpr uint16_t MAX_LIGHTS = 256;
         static constexpr uint16_t MAX_SHADOW_CASTERS = 16;

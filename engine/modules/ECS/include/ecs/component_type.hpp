@@ -3,15 +3,15 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "generated/ECS/proto/components/transform_component.pb.h"
-#include "generated/ECS/proto/components/visual_component.pb.h"
-#include "generated/ECS/proto/components/camera_component.pb.h"
-#include "generated/ECS/proto/components/health_component.pb.h"
-#include "generated/ECS/proto/components/input_component.pb.h"
-#include "generated/ECS/proto/components/light_component.pb.h"
-#include "generated/ECS/proto/components/network_component.pb.h"
-#include "generated/ECS/proto/components/script_component.pb.h"
-#include "generated/ECS/proto/components/terrain_component.pb.h"
+#include "proto/ECS/components/transform_component.pb.h"
+#include "proto/ECS/components/visual_component.pb.h"
+#include "proto/ECS/components/camera_component.pb.h"
+#include "proto/ECS/components/health_component.pb.h"
+#include "proto/ECS/components/input_component.pb.h"
+#include "proto/ECS/components/light_component.pb.h"
+#include "proto/ECS/components/network_component.pb.h"
+#include "proto/ECS/components/script_component.pb.h"
+#include "proto/ECS/components/terrain_component.pb.h"
 
 namespace astre::ecs {
 
@@ -46,14 +46,14 @@ namespace astre::ecs {
     };
 
     using ComponentTypesList = ComponentTypes<
-        TransformComponent,
-        VisualComponent,
-        CameraComponent,
-        HealthComponent,
-        InputComponent,
-        LightComponent,
-        ScriptComponent,
-        TerrainComponent
+        proto::ecs::TransformComponent,
+        proto::ecs::VisualComponent,
+        proto::ecs::CameraComponent,
+        proto::ecs::HealthComponent,
+        proto::ecs::InputComponent,
+        proto::ecs::LightComponent,
+        proto::ecs::ScriptComponent,
+        proto::ecs::TerrainComponent
     >;
 
 } // namespace ecs

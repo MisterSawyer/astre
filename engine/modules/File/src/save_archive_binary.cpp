@@ -258,7 +258,7 @@ namespace astre::file
     }
 
     bool SaveArchive<use_binary_t>::writeEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def)
+                                  const proto::ecs::EntityDefinition& entity_def)
     {
         // Load existing chunk (binary)
         WorldChunk chunk;
@@ -277,7 +277,7 @@ namespace astre::file
         const std::size_t & entity_id = entity_def.id();
 
         auto it = std::find_if(entities->begin(), entities->end(),
-            [&](const ecs::EntityDefinition& e) {
+            [&](const proto::ecs::EntityDefinition& e) {
                 return e.id() == entity_id;
             }
         );
@@ -295,7 +295,7 @@ namespace astre::file
         return writeChunk(chunk);
     }
 
-    bool SaveArchive<use_binary_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    bool SaveArchive<use_binary_t>::removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         return false;
     }

@@ -11,9 +11,9 @@
 
 #include "file/data_type.hpp"
 
-#include "generated/ECS/proto/entity_definition.pb.h"
-#include "generated/File/proto/world_chunk.pb.h"
-#include "generated/File/proto/save_archive_data.pb.h"
+#include "proto/ECS/entity_definition.pb.h"
+#include "proto/File/world_chunk.pb.h"
+#include "proto/File/save_archive_data.pb.h"
 
 namespace astre::file
 {
@@ -55,9 +55,9 @@ namespace astre::file
             virtual const absl::flat_hash_set<ChunkID> & getAllChunks() const = 0;
 
 
-            virtual bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
+            virtual bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
 
-            virtual bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) = 0;
+            virtual bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
     };
 
     template<class Mode>
@@ -74,8 +74,8 @@ namespace astre::file
             bool removeChunk(const ChunkID& id) override;
             const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
 
-            bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
+            bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
 
     private:
         bool _openStream(std::ios::openmode mode);
@@ -99,8 +99,8 @@ namespace astre::file
             bool removeChunk(const ChunkID& id) override;
             const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
 
-            bool writeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def) override;
+            bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
             
     private:
         bool _openStream(std::ios::openmode mode);

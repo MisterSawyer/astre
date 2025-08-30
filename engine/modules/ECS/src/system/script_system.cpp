@@ -1,6 +1,6 @@
 #include "ecs/system/script_system.hpp"
 
-#include "generated/ECS/proto/components/transform_component.pb.h"
+#include "proto/ECS/components/transform_component.pb.h"
 
 #include <spdlog/spdlog.h>
 
@@ -14,8 +14,8 @@ namespace astre::ecs::system
 
     void ScriptSystem::run(float dt)
     {
-        getRegistry().runOnAllWithComponents<ScriptComponent>(
-            [&](const Entity e, const ScriptComponent & script_component)
+        getRegistry().runOnAllWithComponents<proto::ecs::ScriptComponent>(
+            [&](const Entity e, const proto::ecs::ScriptComponent & script_component)
             {
                 if(_runtime.scriptLoaded(script_component.name()) == false)
                 {
@@ -28,16 +28,16 @@ namespace astre::ecs::system
                 sandbox["entity"] = e;
                 sandbox["dt"] = dt;
 
-                getRegistry().runOnSingleWithComponents<ecs::TransformComponent>(e,
-                [&](const Entity e, ecs::TransformComponent & transform_component)
+                getRegistry().runOnSingleWithComponents<proto::ecs::TransformComponent>(e,
+                [&](const Entity e, proto::ecs::TransformComponent & transform_component)
                 {
-                    sandbox.set("transform_component", script::LuaBinding<ecs::TransformComponent>(transform_component));
+                    sandbox.set("transform_component", script::LuaBinding<proto::ecs::TransformComponent>(transform_component));
                 });
 
-                getRegistry().runOnSingleWithComponents<ecs::InputComponent>(e,
-                [&](const Entity e, ecs::InputComponent & input_component)
+                getRegistry().runOnSingleWithComponents<proto::ecs::InputComponent>(e,
+                [&](const Entity e, proto::ecs::InputComponent & input_component)
                 {
-                    sandbox.set("input_component", script::LuaBinding<ecs::InputComponent>(input_component));
+                    sandbox.set("input_component", script::LuaBinding<proto::ecs::InputComponent>(input_component));
                 });
 
                 auto script = _runtime.getScript(script_component.name());

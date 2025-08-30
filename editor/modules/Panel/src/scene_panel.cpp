@@ -37,7 +37,7 @@ namespace astre::editor::panel
         // use a compact, stable textual key (no allocations beyond small-string)
         ImGui::PushID(std::format("chunk:{}:{}:{}", c.x(), c.y(), c.z()).c_str());
     }
-    inline void _pushID(const file::ChunkID& c, const ecs::EntityDefinition & entity_def) noexcept {
+    inline void _pushID(const file::ChunkID& c, const proto::ecs::EntityDefinition & entity_def) noexcept {
         ImGui::PushID(std::format("ent:{}:{}:{}:{}", c.x(), c.y(), c.z(), entity_def.id()).c_str());
     }
     inline void _pushID(ScenePanel::SelectedComponent kind) noexcept {
@@ -88,62 +88,62 @@ namespace astre::editor::panel
     {
         if(_world_snapshot.mapping.contains(id) == false)return false;
 
-        ecs::EntityDefinition new_entity{};
+        proto::ecs::EntityDefinition new_entity{};
         new_entity.set_name(name);
         
         //_created_entities[id].emplace(new_entity);        
         return true;
     }
 
-    bool ScenePanel::_renameEntity(const file::ChunkID & id, const ecs::EntityDefinition & entity_def, std::string_view new_name)
+    bool ScenePanel::_renameEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name)
     {
         return false;
     }
 
-    bool ScenePanel::_removeEntity(const file::ChunkID & id, const ecs::EntityDefinition & entity_def) noexcept
+    bool ScenePanel::_removeEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept
     {
         //_removed_entities[id].emplace(entity_def);
         return true;
     }
 
-    bool ScenePanel::_addComponent(const file::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, SelectedComponent component)
+    bool ScenePanel::_addComponent(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component)
     {
         if (component == SelectedComponent::None) return false;
         
-        ecs::EntityDefinition pending_entity_def = entity_def;
+        proto::ecs::EntityDefinition pending_entity_def = entity_def;
 
         switch(component)
         {
             case SelectedComponent::Transform:
-                pending_entity_def.mutable_transform()->CopyFrom(ecs::TransformComponent{});
+                pending_entity_def.mutable_transform()->CopyFrom(proto::ecs::TransformComponent{});
                 break;
 
             case SelectedComponent::Health:
-                pending_entity_def.mutable_health()->CopyFrom(ecs::HealthComponent{});
+                pending_entity_def.mutable_health()->CopyFrom(proto::ecs::HealthComponent{});
                 break;
 
             case SelectedComponent::Visual:
-                pending_entity_def.mutable_visual()->CopyFrom(ecs::VisualComponent{});
+                pending_entity_def.mutable_visual()->CopyFrom(proto::ecs::VisualComponent{});
                 break;
 
             case SelectedComponent::Input:
-                pending_entity_def.mutable_input()->CopyFrom(ecs::InputComponent{});
+                pending_entity_def.mutable_input()->CopyFrom(proto::ecs::InputComponent{});
                 break;
 
             case SelectedComponent::Camera:
-                pending_entity_def.mutable_camera()->CopyFrom(ecs::CameraComponent{});
+                pending_entity_def.mutable_camera()->CopyFrom(proto::ecs::CameraComponent{});
                 break;
             
             case SelectedComponent::Terrain:
-                pending_entity_def.mutable_terrain()->CopyFrom(ecs::TerrainComponent{});
+                pending_entity_def.mutable_terrain()->CopyFrom(proto::ecs::TerrainComponent{});
                 pending_entity_def;
             
             case SelectedComponent::Light:
-                pending_entity_def.mutable_light()->CopyFrom(ecs::LightComponent{});
+                pending_entity_def.mutable_light()->CopyFrom(proto::ecs::LightComponent{});
                 break;
             
             case SelectedComponent::Script:
-                pending_entity_def.mutable_script()->CopyFrom(ecs::ScriptComponent{});
+                pending_entity_def.mutable_script()->CopyFrom(proto::ecs::ScriptComponent{});
                 break;
 
             default:
@@ -156,11 +156,11 @@ namespace astre::editor::panel
         return true;
     }
 
-    bool ScenePanel::_removeComponent(const file::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept
+    bool ScenePanel::_removeComponent(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept
     {
         if (component == SelectedComponent::None) return false;
 
-        ecs::EntityDefinition pending_entity_def = entity_def;
+        proto::ecs::EntityDefinition pending_entity_def = entity_def;
 
         switch(component)
         {
@@ -206,7 +206,7 @@ namespace astre::editor::panel
         return true;
     }
 
-    void ScenePanel::_drawAddComponentCombo(const file::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    void ScenePanel::_drawAddComponentCombo(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         const std::string key      = std::format("addcmp:{}:{}:{}:{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), entity_def.id());
         const std::string combo_id = std::format("##{}", key);
@@ -269,7 +269,7 @@ namespace astre::editor::panel
         bool has,
         std::string label,
         const file::ChunkID & chunk_id,
-        const ecs::EntityDefinition & entity_def,
+        const proto::ecs::EntityDefinition & entity_def,
         SelectedComponent component)
     {
         if (!has) return;
@@ -626,7 +626,7 @@ namespace astre::editor::panel
             ));
             if (ImGui::SmallButton("x")) { // Entity remove symbol
                 const file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
-                const ecs::EntityDefinition entity_def = ctx.selection_controller.getEntitySelection();
+                const proto::ecs::EntityDefinition entity_def = ctx.selection_controller.getEntitySelection();
 
                 _confirm = {};
                 _confirm.open = true;

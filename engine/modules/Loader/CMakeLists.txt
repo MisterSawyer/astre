@@ -1,6 +1,6 @@
 include("${CMAKE_SOURCE_DIR}/cmake/add_module.cmake")
 
-add_module(NAME "Asset"
+add_module(NAME "Loader"
     INCLUDE_DIRS
         "include"
     SOURCE_DIRS
@@ -17,4 +17,7 @@ add_module(NAME "Asset"
         astre::ECS
         astre::Script
         astre::File
+
+        astre::ECS_proto
+        astre::Render_proto
 )

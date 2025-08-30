@@ -38,7 +38,7 @@ namespace astre::editor::panel
         struct Selection
         {
             std::optional<file::ChunkID>           chunk_id;
-            std::optional<ecs::EntityDefinition>    entity_def;
+            std::optional<proto::ecs::EntityDefinition>    entity_def;
             std::optional<SelectedComponent>        component;
         };
 
@@ -46,14 +46,14 @@ namespace astre::editor::panel
         bool _removeChunk(const file::ChunkID & id) noexcept;
 
         bool _addEntity(const file::ChunkID & id, std::string_view name);
-        bool _renameEntity(const file::ChunkID & id, const ecs::EntityDefinition & entity_def, std::string_view new_name);
-        bool _removeEntity(const file::ChunkID & id, const ecs::EntityDefinition & entity_def) noexcept;
+        bool _renameEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name);
+        bool _removeEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept;
 
-        bool _addComponent(const file::ChunkID & id, const ecs::EntityDefinition & entity_def, SelectedComponent component);
-        bool _removeComponent(const file::ChunkID & id, const ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
+        bool _addComponent(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
+        bool _removeComponent(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
 
-        void _drawComponent(bool has, std::string label, const file::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def, SelectedComponent component);
-        void _drawAddComponentCombo(const file::ChunkID & chunk_id, const ecs::EntityDefinition & entity_def);
+        void _drawComponent(bool has, std::string label, const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
+        void _drawAddComponentCombo(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def);
 
         bool _visible{true};
 

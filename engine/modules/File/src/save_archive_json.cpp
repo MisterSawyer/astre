@@ -299,7 +299,7 @@ namespace astre::file
     }
 
     bool SaveArchive<use_json_t>::writeEntity(const ChunkID& chunk_id,
-                                  const ecs::EntityDefinition& entity_def)
+                                  const proto::ecs::EntityDefinition& entity_def)
     {
         WorldChunk chunk;
 
@@ -324,7 +324,7 @@ namespace astre::file
         }
 
         auto it = std::find_if(entities->begin(), entities->end(),
-            [&](const ecs::EntityDefinition& e) {
+            [&](const proto::ecs::EntityDefinition& e) {
                 return e.id() == entity_id;
             }
         );
@@ -342,7 +342,7 @@ namespace astre::file
         return writeChunk(chunk);
     }
 
-    bool SaveArchive<use_json_t>::removeEntity(const ChunkID & chunk_id, const ecs::EntityDefinition & entity_def)
+    bool SaveArchive<use_json_t>::removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         // open & read
         if (!_openStream(std::ios::in)) {

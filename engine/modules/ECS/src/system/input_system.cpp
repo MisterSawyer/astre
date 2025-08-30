@@ -29,8 +29,8 @@ namespace astre::ecs::system
             serialized_just_released.Add(released);
         }
 
-        getRegistry().runOnAllWithComponents<InputComponent>(
-            [&](const Entity e, InputComponent & input_component)
+        getRegistry().runOnAllWithComponents<proto::ecs::InputComponent>(
+            [&](const Entity e, proto::ecs::InputComponent & input_component)
             { 
                 input_component.mutable_pressed()->Clear();
                 input_component.mutable_just_pressed()->Clear();

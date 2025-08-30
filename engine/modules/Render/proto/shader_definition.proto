@@ -1,9 +1,0 @@
-syntax="proto3";
-
-package astre.render;
-
-message ShaderDefinition
-{
-    string vertex_code = 1;
-    optional string fragment_code = 2;
-}
