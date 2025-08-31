@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional>
+#include <expected>
 
 #include "native/native.h"
 #include <asio.hpp>
@@ -29,7 +29,7 @@ namespace astre::pipeline
         render::RenderOptions shadow_map_render_options;
     };
 
-    asio::awaitable<std::optional<DeferredShadingResources>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size);
+    asio::awaitable<std::expected<DeferredShadingResources, bool>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size);
 
     asio::awaitable<render::FrameStats> deferredShadingStage(
         render::IRenderer & renderer,

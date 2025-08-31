@@ -14,11 +14,9 @@ namespace astre::pipeline
     struct DebugOverlayResources
     {
         std::size_t debug_overlay_shader;
-
-        const DeferredShadingResources & deferred_resources;
     };
 
-    asio::awaitable<std::optional<DebugOverlayResources>> buildDebugOverlayResources(render::IRenderer & renderer, const DeferredShadingResources & deferred_resources);
+    asio::awaitable<std::optional<DebugOverlayResources>> buildDebugOverlayResources(render::IRenderer & renderer);
 
     asio::awaitable<render::FrameStats> renderDebugOverlay(
         render::IRenderer & renderer,

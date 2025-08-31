@@ -12,7 +12,7 @@ namespace astre::file
         virtual ~IResourceStreamer() = default;
         
         // Read data
-        virtual ResourceData * read(Key key) = 0;
+        virtual ResourceData * read(Key key) const = 0;
         
         // Write data
         virtual bool write(const ResourceData & data) = 0;

@@ -25,7 +25,7 @@ namespace astre::file
                 _directory(directory) 
             {}
 
-            proto::render::MeshDefinition * read(std::string name) override
+            proto::render::MeshDefinition * read(std::string name) const override
             {
                 return nullptr;
             }

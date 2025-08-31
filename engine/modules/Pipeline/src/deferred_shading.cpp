@@ -4,7 +4,7 @@
 
 namespace astre::pipeline
 {
-    asio::awaitable<std::optional<DeferredShadingResources>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size)
+    asio::awaitable<std::expected<DeferredShadingResources, bool>> buildDeferredShadingResources(render::IRenderer & renderer, std::pair<unsigned,unsigned> size)
     {
         DeferredShadingResources resources;
 
@@ -31,8 +31,7 @@ namespace astre::pipeline
         );
         if (!deferred_fbo_res) {
             spdlog::error("Failed to create deferred FBO");
-            // TODO throw?
-            co_return DeferredShadingResources{};  // return empty
+            co_return std::unexpected(false);
         }
         resources.deferred_fbo = *deferred_fbo_res;
         // obtain deferred fbo textures
@@ -44,8 +43,7 @@ namespace astre::pipeline
         light_ssbo_res = co_await renderer.createShaderStorageBuffer("ssbo::light", 2, 0, nullptr);
         if (!light_ssbo_res) {
             spdlog::error("Failed to create light SSBO");
-            // TODO throw?
-            co_return DeferredShadingResources{};
+            co_return std::unexpected(false);
         }
 
         resources.light_ssbo = *light_ssbo_res;
@@ -60,8 +58,7 @@ namespace astre::pipeline
 
             if (!fbo) {
                 spdlog::error("Failed to create shadow map FBO {}", i);
-                // TODO throw?
-                co_return DeferredShadingResources{};
+                co_return std::unexpected(false);
             }
 
             resources.shadow_map_fbos.emplace_back(*fbo);
@@ -79,8 +76,7 @@ namespace astre::pipeline
         if(!shadow_shader_res)
         {
             spdlog::error("Failed to get shadow pass shader");
-            // TODO throw?
-            co_return DeferredShadingResources{};
+            co_return std::unexpected(false);
         }
         resources.shadow_map_shader = *shadow_shader_res;
 
@@ -89,7 +85,7 @@ namespace astre::pipeline
         if(!screen_quad_vb_res)
         {
             spdlog::error("Failed to get screen quad vertex buffer");
-            co_return DeferredShadingResources{};
+            co_return std::unexpected(false);
         }
         resources.screen_quad_vb = *screen_quad_vb_res;
 
@@ -98,7 +94,7 @@ namespace astre::pipeline
         if(!screen_quad_shader_res)
         {
             spdlog::error("Failed to get screen quad shader");
-            co_return DeferredShadingResources{};
+            co_return std::unexpected(false);
         }
         resources.screen_quad_shader = *screen_quad_shader_res;
 

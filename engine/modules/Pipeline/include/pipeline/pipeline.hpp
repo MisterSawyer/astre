@@ -15,6 +15,7 @@
 #include "input/input.hpp"
 
 #include "pipeline/app_state.hpp"
+#include "pipeline/renderer_state.hpp"
 #include "pipeline/frame_buffer.hpp"
 
 #include "pipeline/display.hpp"
@@ -142,21 +143,24 @@ namespace astre::pipeline
             unsigned int _height;
     };
 
-    template<typename FrameState, typename StageState, std::size_t LogicStagesCount = 1, std::size_t RenderStagesCount = 1>
+    template<typename FrameState, typename LogicState, typename RenderState, std::size_t LogicStagesCount = 1, std::size_t RenderStagesCount = 1>
     class PipelineOrchestrator
     {
     public:
         using LogicStage = std::function<
-            asio::awaitable<void>(async::LifecycleToken &, float, FrameState&, StageState&)>;
-        using RenderStage = std::function<
-            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &, StageState &)>;
-        using SyncStage = std::function<
-            asio::awaitable<void>(async::LifecycleToken &, StageState&)>;
+            asio::awaitable<void>(async::LifecycleToken &, float, FrameState&, LogicState&)>;
 
-        PipelineOrchestrator(process::IProcess & process, StageState && init_state)
+        using RenderStage = std::function<
+            asio::awaitable<void>(async::LifecycleToken &, float, const render::Frame &, const render::Frame &, LogicState &, RenderState &)>;
+
+        using SyncStage = std::function<
+            asio::awaitable<void>(async::LifecycleToken &, LogicState&)>;
+
+        PipelineOrchestrator(process::IProcess & process, LogicState && logic_init_state, RenderState && render_init_state)
             :   _process(process),
                 _buffer(),
-                _stage_state(std::move(init_state)),
+                _logic_state(std::move(logic_init_state)),
+                _render_state(std::move(render_init_state)),
                 _accumulator(0.0f),
                 _fixed_logic_step(1.0f / 10.0f)
         {}
@@ -218,7 +222,7 @@ namespace astre::pipeline
                 }
 
                 // sync
-                if (_sync_stage) co_await _sync_stage(token, _stage_state);
+                if (_sync_stage) co_await _sync_stage(token, _logic_state);
             }
             
             co_return;
@@ -230,6 +234,12 @@ namespace astre::pipeline
         {
             co_stop_if(token, false);
 
+            auto ex = co_await asio::this_coro::executor;
+
+            // we want to post those jobs asynchronously so we need to create suspension point
+            // for the thread_pool to be able to pick up other jobs from the queue
+            co_await asio::post(ex, asio::use_awaitable);
+
             bool should_rotate = false;
 
             while (_accumulator >= _fixed_logic_step)
@@ -237,7 +247,7 @@ namespace astre::pipeline
                 should_rotate = true;
                 for (std::size_t logic_idx = 0; logic_idx < LogicStagesCount; ++logic_idx)
                 {
-                    co_await _logic_stages.at(logic_idx)(token, _fixed_logic_step, _buffer.current(), _stage_state);
+                    co_await _logic_stages.at(logic_idx)(token, _fixed_logic_step, _buffer.current(), _logic_state);
                 }
                 _accumulator -= _fixed_logic_step;
             }
@@ -249,6 +259,12 @@ namespace astre::pipeline
         {
             co_stop_if(token);
 
+            auto ex = co_await asio::this_coro::executor;
+
+            // we want to post those jobs asynchronously so we need to create suspension point
+            // for the thread_pool to be able to pick up other jobs from the queue
+            co_await asio::post(ex, asio::use_awaitable);
+
             for (std::size_t render_idx = 0; render_idx < RenderStagesCount; ++render_idx)
             {
                 co_await _render_stages.at(render_idx)(
@@ -256,7 +272,8 @@ namespace astre::pipeline
                     alpha, 
                     _buffer.beforePrevious().render_frame,
                     _buffer.previous().render_frame,
-                    _stage_state);
+                    _logic_state,
+                    _render_state);
             }
         }
 
@@ -271,6 +288,8 @@ namespace astre::pipeline
 
         SyncStage _sync_stage;
 
-        StageState _stage_state;
+        LogicState _logic_state;
+
+        RenderState _render_state;
     };
 }

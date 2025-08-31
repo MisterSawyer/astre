@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <vector>
 
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
@@ -25,7 +26,7 @@ namespace astre::file
                 _directory(directory) 
             {}
 
-            proto::render::ShaderDefinition * read(std::string name) override
+            proto::render::ShaderDefinition * read(std::string name) const override
             {
                 if(_loaded_shaders.contains(name)) return _loaded_shaders.at(name).get();
                 
@@ -42,8 +43,31 @@ namespace astre::file
                 return false;
             }
         
-            asio::awaitable<bool> load(std::string shader_name)
+            asio::awaitable<bool> load(std::vector<std::string> shader_names)
             {
+                using op_type = decltype(asio::co_spawn(_async_context.executor(), _load(""), asio::deferred));
+                std::vector<op_type> ops;
+                ops.reserve(shader_names.size());
+
+                for(const auto & shader_name : shader_names)
+                {
+                    ops.emplace_back(asio::co_spawn(_async_context.executor(), _load(shader_name), asio::deferred));
+                }
+
+                auto g = asio::experimental::make_parallel_group(std::move(ops));
+                
+                const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
+
+                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+            }
+
+            private:
+            asio::awaitable<bool> _load(std::string shader_name)
+            {   
+                // we want to post those jobs asynchronously so we need to create suspension point
+                // for the thread_pool to be able to pick up other jobs from the queue
+                co_await asio::post(_async_context.executor(), asio::use_awaitable);   
+
                 spdlog::debug("[shader-streamer] Loading shader: {}", shader_name);
 
                 if(!std::filesystem::exists(_directory))
@@ -119,8 +143,9 @@ namespace astre::file
                 
                 assert(shader_file.is_open() == false && "Shader file is still open after closing it.");
 
+
                 // create shader definition
-                co_await _async_context.ensureOnStrand();
+                co_await _async_context.ensureOnStrand(); // suspends
                 _loaded_shaders.emplace(shader_name, std::make_unique<proto::render::ShaderDefinition>(std::move(shader_def)));
 
                 co_return true;

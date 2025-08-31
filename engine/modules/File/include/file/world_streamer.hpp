@@ -44,7 +44,7 @@ namespace astre::file
 
             asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
             
-            proto::file::WorldChunk * read(proto::file::ChunkID id) override;
+            proto::file::WorldChunk * read(proto::file::ChunkID id) const override;
             bool write(const proto::file::WorldChunk & chunk) override;
             bool remove(proto::file::ChunkID id) override;
 

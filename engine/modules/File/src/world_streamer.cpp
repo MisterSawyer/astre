@@ -101,7 +101,7 @@ namespace astre::file
         co_return;
     }
 
-    proto::file::WorldChunk * WorldStreamer::read(proto::file::ChunkID id)
+    proto::file::WorldChunk * WorldStreamer::read(proto::file::ChunkID id) const
     {
         if(!_loaded_chunks.contains(id)) return nullptr;
         return _loaded_chunks.at(id).get();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <vector>
 
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
@@ -26,7 +27,7 @@ namespace astre::file
                 _directory(directory) 
             {}
 
-            proto::script::ScriptDefinition * read(std::string name) override
+            proto::script::ScriptDefinition * read(std::string name) const override
             {
                 if(_loaded_scripts.contains(name)) return _loaded_scripts.at(name).get();
                 
@@ -43,8 +44,31 @@ namespace astre::file
                 return false;
             }
         
-            asio::awaitable<bool> load(std::filesystem::path script_file)
+            asio::awaitable<bool> load(std::vector<std::filesystem::path> script_files)
             {
+                using op_type = decltype(asio::co_spawn(_async_context.executor(), _load(""), asio::deferred));
+                std::vector<op_type> ops;
+                ops.reserve(script_files.size());
+
+                for(const auto & script_file : script_files)
+                {
+                    ops.emplace_back(asio::co_spawn(_async_context.executor(), _load(script_file), asio::deferred));
+                }
+
+                auto g = asio::experimental::make_parallel_group(std::move(ops));
+                
+                const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
+
+                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+            }
+            private:
+
+            asio::awaitable<bool> _load(std::filesystem::path script_file)
+            {
+                // we want to post those jobs asynchronously so we need to create suspension point
+                // for the thread_pool to be able to pick up other jobs from the queue
+                co_await asio::post(_async_context.executor(), asio::use_awaitable);
+
                 spdlog::debug("[script-streamer] Loading script from file {}", script_file.string());
                 
                 std::filesystem::path script_path = _directory / script_file;
