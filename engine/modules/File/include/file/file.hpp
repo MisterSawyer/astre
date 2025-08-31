@@ -5,6 +5,7 @@
 #include "file/mesh_streamer.hpp"
 #include "file/shader_streamer.hpp"
 #include "file/world_streamer.hpp"
+#include "file/script_streamer.hpp"
 
 namespace astre::file
 {

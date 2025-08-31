@@ -38,6 +38,7 @@ if (MSVC)
         /external:W0 # suppress warnings from external headers
         /external:anglebrackets # treat <> includes as external
         /experimental:external # enable experimental external header support
+        /bigobj # increase object file size to 2GB
 
         # Debug config
         "$<$<CONFIG:Debug>:/WX>"    # treat warnings as errors

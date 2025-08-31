@@ -51,7 +51,6 @@ target_link_libraries("${PROJECT_NAME}"
         astre::Input_proto
         astre::ECS
         astre::ECS_proto
-        astre::Asset
         astre::Pipeline
         astre::File
         astre::File_proto

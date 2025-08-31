@@ -22,7 +22,7 @@ namespace astre::file
         std::stringstream buffer = _readStream();
         _closeStream();
 
-        SaveArchiveData data;
+        proto::file::SaveArchiveData data;
         google::protobuf::util::JsonParseOptions options;
         options.ignore_unknown_fields = true;
 
@@ -79,15 +79,15 @@ namespace astre::file
         return buffer;
     }
 
-    const absl::flat_hash_set<ChunkID> & SaveArchive<use_json_t>::getAllChunks() const
+    const absl::flat_hash_set<proto::file::ChunkID> & SaveArchive<use_json_t>::getAllChunks() const
     {
         return _all_chunks;
     }
 
-    bool SaveArchive<use_json_t>::writeChunk(const WorldChunk & chunk) 
+    bool SaveArchive<use_json_t>::writeChunk(const proto::file::WorldChunk & chunk) 
     {
         // Load existing
-        SaveArchiveData archive;
+        proto::file::SaveArchiveData archive;
 
         if (_openStream(std::ios::in))
         {
@@ -156,7 +156,7 @@ namespace astre::file
         return true;
     }
 
-    std::optional<WorldChunk> SaveArchive<use_json_t>::readChunk(const ChunkID & id)
+    std::optional<proto::file::WorldChunk> SaveArchive<use_json_t>::readChunk(const proto::file::ChunkID & id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -173,7 +173,7 @@ namespace astre::file
         std::stringstream buffer = _readStream();
         _closeStream();
 
-        SaveArchiveData archive;
+        proto::file::SaveArchiveData archive;
         google::protobuf::util::JsonParseOptions options;
         options.ignore_unknown_fields = true;
 
@@ -197,7 +197,7 @@ namespace astre::file
     }
 
 
-    bool SaveArchive<use_json_t>::removeChunk(const ChunkID& id)
+    bool SaveArchive<use_json_t>::removeChunk(const proto::file::ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -214,7 +214,7 @@ namespace astre::file
         std::stringstream buffer = _readStream();
         _closeStream();
 
-        SaveArchiveData archive;
+        proto::file::SaveArchiveData archive;
         google::protobuf::util::JsonParseOptions in_options;
         in_options.ignore_unknown_fields = true;
 
@@ -298,10 +298,10 @@ namespace astre::file
         return false;
     }
 
-    bool SaveArchive<use_json_t>::writeEntity(const ChunkID& chunk_id,
+    bool SaveArchive<use_json_t>::writeEntity(const proto::file::ChunkID& chunk_id,
                                   const proto::ecs::EntityDefinition& entity_def)
     {
-        WorldChunk chunk;
+        proto::file::WorldChunk chunk;
 
         if (auto existing = readChunk(chunk_id))
         {
@@ -342,7 +342,7 @@ namespace astre::file
         return writeChunk(chunk);
     }
 
-    bool SaveArchive<use_json_t>::removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    bool SaveArchive<use_json_t>::removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         // open & read
         if (!_openStream(std::ios::in)) {
@@ -354,7 +354,7 @@ namespace astre::file
 
 
         // parse
-        SaveArchiveData archive;
+        proto::file::SaveArchiveData archive;
         google::protobuf::util::JsonParseOptions in_opts;
         in_opts.ignore_unknown_fields = true;
         auto st = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, in_opts);

@@ -20,4 +20,5 @@ add_module(NAME "File"
         astre::File_proto
         astre::Render_proto
         astre::ECS_proto
+        astre::Script_proto
 )

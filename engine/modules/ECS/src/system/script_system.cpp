@@ -19,7 +19,7 @@ namespace astre::ecs::system
             {
                 if(_runtime.scriptLoaded(script_component.name()) == false)
                 {
-                    //spdlog::error("Script {} not loaded", script_component.name());
+                    spdlog::error("[script-system] Script {} not loaded in runtime", script_component.name());
                     return;
                 }
 

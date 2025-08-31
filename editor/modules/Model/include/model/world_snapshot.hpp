@@ -34,17 +34,17 @@ namespace astre::editor::model
             }
         }
         
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_map<ecs::Entity, proto::ecs::EntityDefinition>> mapping;
+        absl::flat_hash_map<proto::file::ChunkID, absl::flat_hash_map<ecs::Entity, proto::ecs::EntityDefinition>> mapping;
     };
 
     // Deltas are what the editor changes track.
     struct WorldDelta 
     {
-        absl::flat_hash_set<file::WorldChunk> created_chunks;
-        absl::flat_hash_set<file::ChunkID> removed_chunks;
+        absl::flat_hash_set<proto::file::WorldChunk> created_chunks;
+        absl::flat_hash_set<proto::file::ChunkID> removed_chunks;
 
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> created_entities;
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> updated_entities;
-        absl::flat_hash_map<file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> removed_entities;
+        absl::flat_hash_map<proto::file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> created_entities;
+        absl::flat_hash_map<proto::file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> updated_entities;
+        absl::flat_hash_map<proto::file::ChunkID, absl::flat_hash_set<proto::ecs::EntityDefinition>> removed_entities;
     };
 }

@@ -17,9 +17,12 @@ namespace astre::loader
 
         virtual ~ScriptLoader() = default;
 
-        asio::awaitable<void> loadScript(const proto::script::ScriptDefinition & script_def) const
+        asio::awaitable<void> load(const proto::script::ScriptDefinition & script_def)
         {
+            std::ostringstream ss;
+            for (const auto & code : script_def.code()) ss << code << std::endl;
 
+            _script_runtime.loadScript(script_def.name(), ss.str());
             co_return;
         }
 

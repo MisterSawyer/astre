@@ -37,7 +37,7 @@ namespace astre::file
             // Limit reading to current message size
             auto limit = coded_input.PushLimit(message_size);
 
-            WorldChunk chunk;
+            proto::file::WorldChunk chunk;
             if (!chunk.ParseFromCodedStream(&coded_input))
             {
                 spdlog::warn("Failed to parse chunk at offset {}", offset);
@@ -89,12 +89,12 @@ namespace astre::file
         return !_stream.is_open();
     }
 
-    const absl::flat_hash_set<ChunkID> & SaveArchive<use_binary_t>::getAllChunks() const
+    const absl::flat_hash_set<proto::file::ChunkID> & SaveArchive<use_binary_t>::getAllChunks() const
     {
         return _all_chunks;
     }
 
-    static std::optional<std::size_t> _calculateChunkByteSize(const WorldChunk & chunk)
+    static std::optional<std::size_t> _calculateChunkByteSize(const proto::file::WorldChunk & chunk)
     {
         std::ostringstream buffer_stream(std::ios::binary);
 
@@ -111,7 +111,7 @@ namespace astre::file
         return coded_output.ByteCount();
     }
 
-    bool SaveArchive<use_binary_t>::writeChunk(const WorldChunk & chunk)
+    bool SaveArchive<use_binary_t>::writeChunk(const proto::file::WorldChunk & chunk)
     {
         if (!_openStream(std::ios::in | std::ios::out | std::ios::binary))
         {
@@ -188,7 +188,7 @@ namespace astre::file
         return true;
     }
 
-    std::optional<WorldChunk> SaveArchive<use_binary_t>::readChunk(const ChunkID & id)
+    std::optional<proto::file::WorldChunk> SaveArchive<use_binary_t>::readChunk(const proto::file::ChunkID & id)
     {
         if (!_chunk_index.contains(id)) 
         {
@@ -223,7 +223,7 @@ namespace astre::file
         google::protobuf::io::CodedInputStream::Limit limit = coded_input.PushLimit(message_size);
 
         // read chunk
-        WorldChunk result;
+        proto::file::WorldChunk result;
         if (!result.ParseFromCodedStream(&coded_input))
         {
             spdlog::error("Failed to parse chunk");
@@ -237,7 +237,7 @@ namespace astre::file
         return result;
     }
 
-    bool SaveArchive<use_binary_t>::removeChunk(const ChunkID& id)
+    bool SaveArchive<use_binary_t>::removeChunk(const proto::file::ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -257,11 +257,11 @@ namespace astre::file
         
     }
 
-    bool SaveArchive<use_binary_t>::writeEntity(const ChunkID& chunk_id,
+    bool SaveArchive<use_binary_t>::writeEntity(const proto::file::ChunkID& chunk_id,
                                   const proto::ecs::EntityDefinition& entity_def)
     {
         // Load existing chunk (binary)
-        WorldChunk chunk;
+        proto::file::WorldChunk chunk;
         if (auto existing = readChunk(chunk_id))
         {
             chunk = std::move(*existing);
@@ -295,7 +295,7 @@ namespace astre::file
         return writeChunk(chunk);
     }
 
-    bool SaveArchive<use_binary_t>::removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    bool SaveArchive<use_binary_t>::removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         return false;
     }

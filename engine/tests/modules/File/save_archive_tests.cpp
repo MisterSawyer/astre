@@ -15,8 +15,8 @@ protected:
         std::filesystem::remove_all(temp_dir);
     }
 
-    astre::file::WorldChunk createTestChunk(int x, int y, int z, const std::string& name = "test_entity") {
-        astre::file::WorldChunk chunk;
+    astre::proto::file::WorldChunk createTestChunk(int x, int y, int z, const std::string& name = "test_entity") {
+        astre::proto::file::WorldChunk chunk;
         auto* id = chunk.mutable_id();
         id->set_x(x);
         id->set_y(y);

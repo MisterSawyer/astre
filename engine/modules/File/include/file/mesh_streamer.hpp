@@ -45,6 +45,6 @@ namespace astre::file
 
             std::filesystem::path _directory;
 
-            absl::flat_hash_map<std::string, proto::render::MeshDefinition> _loaded_meshes;
+            absl::flat_hash_map<std::string, std::unique_ptr<proto::render::MeshDefinition>> _loaded_meshes;
     };
 }

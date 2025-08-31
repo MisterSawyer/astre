@@ -27,7 +27,7 @@ namespace astre::file
 
             proto::render::ShaderDefinition * read(std::string name) override
             {
-                if(_loaded_shaders.contains(name)) return &_loaded_shaders.at(name);
+                if(_loaded_shaders.contains(name)) return _loaded_shaders.at(name).get();
                 
                 return nullptr;
             }
@@ -42,9 +42,10 @@ namespace astre::file
                 return false;
             }
         
-        private:
-            asio::awaitable<bool> _load(std::string shader_name)
+            asio::awaitable<bool> load(std::string shader_name)
             {
+                spdlog::debug("[shader-streamer] Loading shader: {}", shader_name);
+
                 if(!std::filesystem::exists(_directory))
                 {
                     spdlog::error("Shaders base directory does not exist: {}", _directory.string());
@@ -120,16 +121,18 @@ namespace astre::file
 
                 // create shader definition
                 co_await _async_context.ensureOnStrand();
-                _loaded_shaders.emplace(shader_name, std::move(shader_def));
+                _loaded_shaders.emplace(shader_name, std::make_unique<proto::render::ShaderDefinition>(std::move(shader_def)));
 
                 co_return true;
             }
+        
+        private:
 
             async::AsyncContext<process::IProcess::execution_context_type> _async_context;
 
             std::filesystem::path _directory;
 
-            absl::flat_hash_map<std::string, proto::render::ShaderDefinition> _loaded_shaders;
+            absl::flat_hash_map<std::string, std::unique_ptr<proto::render::ShaderDefinition>> _loaded_shaders;
 
     };
 }

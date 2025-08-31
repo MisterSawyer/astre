@@ -21,21 +21,23 @@ namespace astre::loader
 
         virtual ~ShaderLoader() = default;
 
-        asio::awaitable<void> loadShader(const proto::render::ShaderDefinition & shader_def) const
+        asio::awaitable<bool> load(const proto::render::ShaderDefinition & shader_def) const
         {
-            std::vector<std::string> vertex_code; //= shader_def.vertex_code();
-            std::vector<std::string> fragment_code; // = shader_def.fragment_code();
+            std::vector<std::string> vertex_code(shader_def.vertex_code().begin(), shader_def.vertex_code().end());
+            std::vector<std::string> fragment_code(shader_def.fragment_code().begin(), shader_def.fragment_code().end());
 
             if(fragment_code.empty())
             {
                 auto shader = co_await _renderer.createShader(shader_def.name(), std::move(vertex_code));
+                if(shader == std::nullopt) co_return false;
             }
             else
             {
                 auto shader = co_await _renderer.createShader(shader_def.name(), std::move(vertex_code), std::move(fragment_code));
+                if(shader == std::nullopt) co_return false;
             }
 
-            co_return;
+            co_return true;
         }
 
 

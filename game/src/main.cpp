@@ -22,21 +22,21 @@ namespace astre::entry
 
     asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
     {
-        co_await asset::loadVertexBuffersPrefabs(app_state.renderer);
-        co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
-        co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
-        co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
-        co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
-        co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
+        // co_await asset::loadVertexBuffersPrefabs(app_state.renderer);
+        // co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
+        // co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
+        // co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
+        // co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
+        // co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
 
-        co_await asset::loadScript(app_state.script, paths.resources / "worlds" / "scripts" / "player_script.lua");
+        // co_await asset::loadScript(app_state.script, paths.resources / "worlds" / "scripts" / "player_script.lua");
 
         ecs::Registry registry(app_state.process.getExecutionContext());
 
-        asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
-            paths.resources / "shaders",
-            paths.resources / "worlds" / "scripts"
-        );
+        // asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
+        //     paths.resources / "shaders",
+        //     paths.resources / "worlds" / "scripts"
+        // );
 
         pipeline::PipelineOrchestrator<GameFrame, GameState, 4, 1> orchestrator(app_state.process,
             GameState

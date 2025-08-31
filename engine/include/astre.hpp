@@ -11,7 +11,6 @@
 #include "window/window.hpp"
 #include "render/render.hpp"
 #include "ecs/ecs.hpp"
-#include "asset/asset.hpp"
 #include "input/input.hpp"
 #include "pipeline/pipeline.hpp"
 #include "file/file.hpp"

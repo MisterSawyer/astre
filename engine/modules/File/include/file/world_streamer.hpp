@@ -23,7 +23,7 @@ namespace astre::file
     // load 1 chunk in each direction from streaming position
     static constexpr int LOAD_RADIUS = 1;
 
-    class WorldStreamer : public IResourceStreamer<ChunkID, WorldChunk>
+    class WorldStreamer : public IResourceStreamer<proto::file::ChunkID, proto::file::WorldChunk>
     {
         public:
             template<class Mode>
@@ -40,17 +40,17 @@ namespace astre::file
                 _max_loaded_chunks(max_loaded_chunks)
             {}
 
-            const absl::flat_hash_set<ChunkID> & getAllChunks() const;
+            const absl::flat_hash_set<proto::file::ChunkID> & getAllChunks() const;
 
             asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
             
-            WorldChunk * read(ChunkID id) override;
-            bool write(const WorldChunk & chunk) override;
-            bool remove(ChunkID id) override;
+            proto::file::WorldChunk * read(proto::file::ChunkID id) override;
+            bool write(const proto::file::WorldChunk & chunk) override;
+            bool remove(proto::file::ChunkID id) override;
 
         private:
-            asio::awaitable<void> _loadChunk(const ChunkID& id);
-            asio::awaitable<void> _unloadChunk(const ChunkID& id);
+            asio::awaitable<void> _loadChunk(const proto::file::ChunkID& id);
+            asio::awaitable<void> _unloadChunk(const proto::file::ChunkID& id);
 
             async::AsyncContext<process::IProcess::execution_context_type> _async_context;
 
@@ -59,7 +59,7 @@ namespace astre::file
             float _chunk_size;
             unsigned int _max_loaded_chunks;
 
-            absl::flat_hash_map<ChunkID, WorldChunk> _loaded_chunks;
-            absl::flat_hash_set<ChunkID> _to_reload;
+            absl::flat_hash_map<proto::file::ChunkID, std::unique_ptr<proto::file::WorldChunk>> _loaded_chunks;
+            absl::flat_hash_set<proto::file::ChunkID> _to_reload;
     };
 }

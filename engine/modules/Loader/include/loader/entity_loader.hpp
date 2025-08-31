@@ -27,7 +27,7 @@ namespace astre::loader
         EntityLoader(const EntityLoader &) = delete;
         EntityLoader& operator=(const EntityLoader &) = delete;
 
-        asio::awaitable<void> loadEntity(const proto::ecs::EntityDefinition & entity_def) const;
+        asio::awaitable<void> load(const proto::ecs::EntityDefinition & entity_def) const;
 
     private:
         /**

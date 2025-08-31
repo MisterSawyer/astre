@@ -15,13 +15,13 @@ namespace astre::editor::panel
 
     struct NewEntityModal {
         bool open = false;
-        file::ChunkID chunk;
+        proto::file::ChunkID chunk;
         char name[128]{};
     } _new_entity;
 
     struct RenameEntityModal {
         bool                        open = false;
-        file::ChunkID              chunk{};
+        proto::file::ChunkID              chunk{};
         std::string                 old_name{};
         char                        name[128]{};
     } _rename_entity;
@@ -33,11 +33,11 @@ namespace astre::editor::panel
         std::function<void()>       on_confirm{};
     } _confirm;
 
-    inline void _pushID(const file::ChunkID& c) noexcept {
+    inline void _pushID(const proto::file::ChunkID& c) noexcept {
         // use a compact, stable textual key (no allocations beyond small-string)
         ImGui::PushID(std::format("chunk:{}:{}:{}", c.x(), c.y(), c.z()).c_str());
     }
-    inline void _pushID(const file::ChunkID& c, const proto::ecs::EntityDefinition & entity_def) noexcept {
+    inline void _pushID(const proto::file::ChunkID& c, const proto::ecs::EntityDefinition & entity_def) noexcept {
         ImGui::PushID(std::format("ent:{}:{}:{}:{}", c.x(), c.y(), c.z(), entity_def.id()).c_str());
     }
     inline void _pushID(ScenePanel::SelectedComponent kind) noexcept {
@@ -64,12 +64,12 @@ namespace astre::editor::panel
         _pending_selection.reset(); 
     }
 
-    bool ScenePanel::_addChunk(const file::ChunkID & id)
+    bool ScenePanel::_addChunk(const proto::file::ChunkID & id)
     {
         if(_world_snapshot.mapping.contains(id))return false;
 
         // create empty chunk if not exists
-        file::WorldChunk new_chunk{};
+        proto::file::WorldChunk new_chunk{};
         new_chunk.mutable_id()->CopyFrom(id);
         
         //_created_chunks.emplace(new_chunk);
@@ -77,14 +77,14 @@ namespace astre::editor::panel
         return true;
     }
 
-    bool ScenePanel::_removeChunk(const file::ChunkID & id) noexcept
+    bool ScenePanel::_removeChunk(const proto::file::ChunkID & id) noexcept
     {
         if(_world_snapshot.mapping.contains(id) == false)return false;
         //_removed_chunks.emplace(id);
         return true;
     }
 
-    bool ScenePanel::_addEntity(const file::ChunkID & id, std::string_view name)
+    bool ScenePanel::_addEntity(const proto::file::ChunkID & id, std::string_view name)
     {
         if(_world_snapshot.mapping.contains(id) == false)return false;
 
@@ -95,18 +95,18 @@ namespace astre::editor::panel
         return true;
     }
 
-    bool ScenePanel::_renameEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name)
+    bool ScenePanel::_renameEntity(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name)
     {
         return false;
     }
 
-    bool ScenePanel::_removeEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept
+    bool ScenePanel::_removeEntity(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept
     {
         //_removed_entities[id].emplace(entity_def);
         return true;
     }
 
-    bool ScenePanel::_addComponent(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component)
+    bool ScenePanel::_addComponent(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component)
     {
         if (component == SelectedComponent::None) return false;
         
@@ -156,7 +156,7 @@ namespace astre::editor::panel
         return true;
     }
 
-    bool ScenePanel::_removeComponent(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept
+    bool ScenePanel::_removeComponent(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept
     {
         if (component == SelectedComponent::None) return false;
 
@@ -206,7 +206,7 @@ namespace astre::editor::panel
         return true;
     }
 
-    void ScenePanel::_drawAddComponentCombo(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    void ScenePanel::_drawAddComponentCombo(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         const std::string key      = std::format("addcmp:{}:{}:{}:{}", chunk_id.x(), chunk_id.y(), chunk_id.z(), entity_def.id());
         const std::string combo_id = std::format("##{}", key);
@@ -268,7 +268,7 @@ namespace astre::editor::panel
     void ScenePanel::_drawComponent(
         bool has,
         std::string label,
-        const file::ChunkID & chunk_id,
+        const proto::file::ChunkID & chunk_id,
         const proto::ecs::EntityDefinition & entity_def,
         SelectedComponent component)
     {
@@ -485,7 +485,7 @@ namespace astre::editor::panel
             ImGui::InputInt("Z", &_new_chunk.z);
             if (ImGui::Button("Create")) 
             {
-                file::ChunkID id;
+                proto::file::ChunkID id;
                 id.set_x(_new_chunk.x);
                 id.set_y(_new_chunk.y);
                 id.set_z(_new_chunk.z);
@@ -586,7 +586,7 @@ namespace astre::editor::panel
             // Remove Chunk button
             ImGui::BeginDisabled(!(ctx.selection_controller.isAnyChunkSelected()));
             if (ImGui::SmallButton("-")) {
-                const file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
+                const proto::file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
 
                 _confirm = {};
                 _confirm.open = true;
@@ -608,7 +608,7 @@ namespace astre::editor::panel
             // Add Entity button
             ImGui::BeginDisabled(!(ctx.selection_controller.isAnyChunkSelected()));
             if (ImGui::SmallButton("o")) { // Entity symbol
-                const file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
+                const proto::file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
                 
                 _new_entity = {};
                 _new_entity.open = true;
@@ -625,7 +625,7 @@ namespace astre::editor::panel
                 ctx.selection_controller.isAnyEntitySelected()
             ));
             if (ImGui::SmallButton("x")) { // Entity remove symbol
-                const file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
+                const proto::file::ChunkID chunk_id = ctx.selection_controller.getChunkSelection();
                 const proto::ecs::EntityDefinition entity_def = ctx.selection_controller.getEntitySelection();
 
                 _confirm = {};

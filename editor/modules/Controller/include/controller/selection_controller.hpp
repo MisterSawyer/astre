@@ -19,14 +19,14 @@ namespace astre::editor::controller
         }
 
         bool isAnyChunkSelected() const noexcept { return _chunk_selection.has_value(); }
-        bool isChunkSelected(const file::ChunkID & chunk_id) const noexcept 
+        bool isChunkSelected(const proto::file::ChunkID & chunk_id) const noexcept 
         {
             if(_chunk_selection.has_value() && _chunk_selection.value() == chunk_id) return true;
             return false;
         }
 
         const proto::ecs::EntityDefinition & getEntitySelection() const noexcept { return *_entity_selection; }
-        const file::ChunkID & getChunkSelection() const noexcept { return *_chunk_selection; }
+        const proto::file::ChunkID & getChunkSelection() const noexcept { return *_chunk_selection; }
 
         void updateSelectedEntity(proto::ecs::EntityDefinition entity_def) noexcept { _entity_selection = entity_def; _entity_updated = true; }
         bool selectedEntityUpdated()
@@ -35,13 +35,13 @@ namespace astre::editor::controller
         }
         void clearSelectedEntityUpdate() noexcept { _entity_updated = false; }
 
-        void setSelection(file::ChunkID chunk_id) noexcept
+        void setSelection(proto::file::ChunkID chunk_id) noexcept
         {
             _chunk_selection = chunk_id;
             _entity_selection = std::nullopt;
         }
 
-        void setSelection(file::ChunkID chunk_id, proto::ecs::EntityDefinition entity_def) noexcept
+        void setSelection(proto::file::ChunkID chunk_id, proto::ecs::EntityDefinition entity_def) noexcept
         {
             _chunk_selection = chunk_id;
             _entity_selection = entity_def;
@@ -55,7 +55,7 @@ namespace astre::editor::controller
 
 
     private:
-        std::optional<file::ChunkID> _chunk_selection;
+        std::optional<proto::file::ChunkID> _chunk_selection;
         std::optional<proto::ecs::EntityDefinition> _entity_selection;
         bool _entity_updated = false;
 

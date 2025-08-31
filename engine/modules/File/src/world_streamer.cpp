@@ -6,15 +6,15 @@
 
 namespace astre::file 
 {
-    static inline ChunkID toChunkID(const math::Vec3 & pos, float size) {
-        ChunkID id;
+    static inline proto::file::ChunkID toChunkID(const math::Vec3 & pos, float size) {
+        proto::file::ChunkID id;
         id.set_x(std::floor(pos.x / size));
         id.set_y(std::floor(pos.y / size));
         id.set_z(std::floor(pos.z / size));        
         return id;
     }
 
-    asio::awaitable<void> WorldStreamer::_loadChunk(const ChunkID& id) 
+    asio::awaitable<void> WorldStreamer::_loadChunk(const proto::file::ChunkID& id) 
     {
         co_await _async_context.ensureOnStrand();
         
@@ -31,11 +31,11 @@ namespace astre::file
        
         co_await _async_context.ensureOnStrand();
         spdlog::debug("Chunk loaded  ({};{};{})", id.x(), id.y(), id.z());
-        _loaded_chunks[id] = std::move(*chunk);
+        _loaded_chunks[id] = std::make_unique<proto::file::WorldChunk>(std::move(*chunk));
         _to_reload.erase(id);
     }
 
-    asio::awaitable<void> WorldStreamer::_unloadChunk(const ChunkID& id) 
+    asio::awaitable<void> WorldStreamer::_unloadChunk(const proto::file::ChunkID& id) 
     {
         co_await _async_context.ensureOnStrand();
 
@@ -48,7 +48,7 @@ namespace astre::file
         _loaded_chunks.erase(id);
     }
 
-    const absl::flat_hash_set<ChunkID> & WorldStreamer::getAllChunks() const
+    const absl::flat_hash_set<proto::file::ChunkID> & WorldStreamer::getAllChunks() const
     {
         return _archive->getAllChunks();
     }
@@ -57,18 +57,18 @@ namespace astre::file
     {
         co_await _async_context.ensureOnStrand();
 
-        const ChunkID center = toChunkID(pos, _chunk_size);
+        const proto::file::ChunkID center = toChunkID(pos, _chunk_size);
 
         const auto & all_available_chunks = getAllChunks();
 
-        absl::flat_hash_set<ChunkID> required;
+        absl::flat_hash_set<proto::file::ChunkID> required;
         for (int dx = -LOAD_RADIUS; dx <= LOAD_RADIUS; ++dx)
         {
             for (int dy = -LOAD_RADIUS; dy <= LOAD_RADIUS; ++dy) 
             {
                 for (int dz = -LOAD_RADIUS; dz <= LOAD_RADIUS; ++dz)
                 { 
-                    ChunkID id;
+                    proto::file::ChunkID id;
                     id.set_x(center.x() + dx);
                     id.set_y(center.y() + dy);
                     id.set_z(center.z() + dz);
@@ -79,7 +79,7 @@ namespace astre::file
         }
 
         // Load missing chunks, or reload if needed
-        for (const ChunkID& cid : required) {
+        for (const proto::file::ChunkID& cid : required) {
             if (!_loaded_chunks.contains(cid) || _to_reload.contains(cid))
             {
                 co_await _loadChunk(cid);
@@ -87,13 +87,13 @@ namespace astre::file
         }
 
         // Unload chunks no longer needed
-        std::vector<ChunkID> toRemove;
+        std::vector<proto::file::ChunkID> toRemove;
         for (const auto& [cid, _] : _loaded_chunks) {
             if (!required.contains(cid)) {
                 toRemove.push_back(cid);
             }
         }
-        for (const ChunkID& cid : toRemove) 
+        for (const proto::file::ChunkID& cid : toRemove) 
         {
             co_await _unloadChunk(cid);
         }
@@ -101,13 +101,13 @@ namespace astre::file
         co_return;
     }
 
-    WorldChunk * WorldStreamer::read(ChunkID id)
+    proto::file::WorldChunk * WorldStreamer::read(proto::file::ChunkID id)
     {
         if(!_loaded_chunks.contains(id)) return nullptr;
-        return &_loaded_chunks.at(id);
+        return _loaded_chunks.at(id).get();
     }
 
-    bool WorldStreamer::write(const WorldChunk & chunk)
+    bool WorldStreamer::write(const proto::file::WorldChunk & chunk)
     {
         if(_loaded_chunks.contains(chunk.id()))
         {
@@ -117,7 +117,7 @@ namespace astre::file
         return _archive->writeChunk(chunk);
     }
 
-    bool WorldStreamer::remove(ChunkID id)
+    bool WorldStreamer::remove(proto::file::ChunkID id)
     {
         // schedule unloading of chunk
         // it really does not matter when the chunk is unloaded

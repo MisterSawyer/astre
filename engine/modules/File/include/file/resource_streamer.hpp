@@ -4,7 +4,7 @@
 
 namespace astre::file
 {
-    template<class Iterator, class ResourceData> 
+    template<class Key, class ResourceData> 
     class IResourceStreamer : public type::InterfaceBase
     {
     public:
@@ -12,13 +12,13 @@ namespace astre::file
         virtual ~IResourceStreamer() = default;
         
         // Read data
-        virtual ResourceData * read(Iterator it) = 0;
+        virtual ResourceData * read(Key key) = 0;
         
         // Write data
         virtual bool write(const ResourceData & data) = 0;
         
         // Remove part of the resource
-        virtual bool remove(Iterator it) = 0;
+        virtual bool remove(Key key) = 0;
 
         // Clear the file
         //virtual bool clear() = 0;

@@ -37,23 +37,23 @@ namespace astre::editor::panel
     private:
         struct Selection
         {
-            std::optional<file::ChunkID>           chunk_id;
+            std::optional<proto::file::ChunkID>           chunk_id;
             std::optional<proto::ecs::EntityDefinition>    entity_def;
             std::optional<SelectedComponent>        component;
         };
 
-        bool _addChunk(const file::ChunkID & id);
-        bool _removeChunk(const file::ChunkID & id) noexcept;
+        bool _addChunk(const proto::file::ChunkID & id);
+        bool _removeChunk(const proto::file::ChunkID & id) noexcept;
 
-        bool _addEntity(const file::ChunkID & id, std::string_view name);
-        bool _renameEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name);
-        bool _removeEntity(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept;
+        bool _addEntity(const proto::file::ChunkID & id, std::string_view name);
+        bool _renameEntity(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, std::string_view new_name);
+        bool _removeEntity(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def) noexcept;
 
-        bool _addComponent(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
-        bool _removeComponent(const file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
+        bool _addComponent(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
+        bool _removeComponent(const proto::file::ChunkID & id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component) noexcept;
 
-        void _drawComponent(bool has, std::string label, const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
-        void _drawAddComponentCombo(const file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def);
+        void _drawComponent(bool has, std::string label, const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def, SelectedComponent component);
+        void _drawAddComponentCombo(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def);
 
         bool _visible{true};
 

@@ -15,10 +15,11 @@
 #include "proto/File/world_chunk.pb.h"
 #include "proto/File/save_archive_data.pb.h"
 
-namespace astre::file
+namespace astre::proto::file
 {
     inline bool operator==(const ChunkID& lhs, const ChunkID& rhs)
     { return lhs.x() == rhs.x() && lhs.y() == rhs.y() && lhs.z() == rhs.z(); }
+
 
     inline bool operator==(const WorldChunk& lhs, const WorldChunk& rhs)
     { return lhs.id() == rhs.id(); }
@@ -32,7 +33,10 @@ namespace astre::file
     inline H AbslHashValue(H h, const WorldChunk & world_chunk) {
         return H::combine(std::move(h), world_chunk.id());
     }
+}
 
+namespace astre::file
+{
     struct ChunkIndexEntry
     {
         std::size_t index;
@@ -46,18 +50,18 @@ namespace astre::file
         public:
             virtual ~ISaveArchive() = default;
 
-            virtual bool writeChunk(const WorldChunk & chunk) = 0;
+            virtual bool writeChunk(const proto::file::WorldChunk & chunk) = 0;
 
-            virtual std::optional<WorldChunk> readChunk(const ChunkID& id) = 0;
+            virtual std::optional<proto::file::WorldChunk> readChunk(const proto::file::ChunkID& id) = 0;
 
-            virtual bool removeChunk(const ChunkID& id) = 0;
+            virtual bool removeChunk(const proto::file::ChunkID& id) = 0;
 
-            virtual const absl::flat_hash_set<ChunkID> & getAllChunks() const = 0;
+            virtual const absl::flat_hash_set<proto::file::ChunkID> & getAllChunks() const = 0;
 
 
-            virtual bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
+            virtual bool writeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
 
-            virtual bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
+            virtual bool removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) = 0;
     };
 
     template<class Mode>
@@ -69,13 +73,13 @@ namespace astre::file
         public:
             SaveArchive(std::filesystem::path file_path);
 
-            bool writeChunk(const WorldChunk & chunk) override;
-            std::optional<WorldChunk> readChunk(const ChunkID& id) override;
-            bool removeChunk(const ChunkID& id) override;
-            const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
+            bool writeChunk(const proto::file::WorldChunk & chunk) override;
+            std::optional<proto::file::WorldChunk> readChunk(const proto::file::ChunkID& id) override;
+            bool removeChunk(const proto::file::ChunkID& id) override;
+            const absl::flat_hash_set<proto::file::ChunkID> & getAllChunks() const override;
 
-            bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool writeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
 
     private:
         bool _openStream(std::ios::openmode mode);
@@ -83,8 +87,8 @@ namespace astre::file
 
         std::filesystem::path _file_path;
         std::fstream _stream;
-        absl::flat_hash_set<ChunkID> _all_chunks;
-        absl::flat_hash_map<ChunkID, ChunkIndexEntry> _chunk_index;
+        absl::flat_hash_set<proto::file::ChunkID> _all_chunks;
+        absl::flat_hash_map<proto::file::ChunkID, ChunkIndexEntry> _chunk_index;
     };
 
 
@@ -94,13 +98,13 @@ namespace astre::file
         public:
             SaveArchive(std::filesystem::path file_path);
 
-            bool writeChunk(const WorldChunk & chunk) override;
-            std::optional<WorldChunk> readChunk(const ChunkID& id) override;
-            bool removeChunk(const ChunkID& id) override;
-            const absl::flat_hash_set<ChunkID> & getAllChunks() const override;
+            bool writeChunk(const proto::file::WorldChunk & chunk) override;
+            std::optional<proto::file::WorldChunk> readChunk(const proto::file::ChunkID& id) override;
+            bool removeChunk(const proto::file::ChunkID& id) override;
+            const absl::flat_hash_set<proto::file::ChunkID> & getAllChunks() const override;
 
-            bool writeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
-            bool removeEntity(const ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool writeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
+            bool removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def) override;
             
     private:
         bool _openStream(std::ios::openmode mode);
@@ -109,7 +113,7 @@ namespace astre::file
 
         std::filesystem::path _file_path;
         std::fstream _stream;
-        absl::flat_hash_set<ChunkID> _all_chunks;
-        absl::flat_hash_map<ChunkID, ChunkIndexEntry> _chunk_index;
+        absl::flat_hash_set<proto::file::ChunkID> _all_chunks;
+        absl::flat_hash_map<proto::file::ChunkID, ChunkIndexEntry> _chunk_index;
     };
 }

@@ -5,4 +5,5 @@ package astre.proto.script;
 message ScriptDefinition
 {
     string name = 1;
+    repeated string code = 2;
 }
