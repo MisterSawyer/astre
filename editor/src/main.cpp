@@ -18,8 +18,6 @@ struct EditorState
 
     ecs::Registry & registry;
     ecs::Systems systems;
-
-    world::WorldStreamer world_streamer;
     
     pipeline::LogicFrameTimer logic_timer;
 
@@ -40,73 +38,81 @@ struct EditorState
     controller::ViewportEntityPicker viewport_entity_picker;
 };
 
+struct EditorRenderState
+{
+    const pipeline::RendererState & render_state;
+    const pipeline::PickingResources & picking_resources;
+};
+
 asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
 {
-    // Load Vertex Buffers
-    co_await asset::loadVertexBuffersPrefabs(app_state.renderer);
-    
-    // Load Shaders
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_shader");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "deferred_lighting_pass");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "shadow_depth");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "basic_shader");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "simple_NDC");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "debug_overlay");
-    co_await asset::loadShaderFromDir(app_state.renderer, paths.resources / "shaders" / "glsl" / "picking_id64");
-
-    // Load Scripts
-    co_await asset::loadScript(app_state.script, paths.resources / "worlds" / "scripts" / "player_script.lua");
-
+    // ECS registry
     ecs::Registry registry(app_state.process.getExecutionContext());
 
-    asset::ResourceTracker resource_tracker(app_state.renderer, app_state.script,
-        paths.resources / "shaders" / "glsl",
+    // Filesystem streaming
+    file::MeshStreamer mesh_streamer(
+        app_state.process.getExecutionContext(),
+        paths.resources / "meshes"
+    );
+
+    file::ShaderStreamer shader_streamer(
+        app_state.process.getExecutionContext(),
+        paths.resources / "shaders" / "glsl"
+    );
+
+    file::WorldStreamer world_streamer(  
+        app_state.process.getExecutionContext(),
+        paths.resources / "worlds" / "levels" / "level_0.json",
+        file::use_json,
+        32.0f, 32
+    );
+
+    file::ScriptStreamer script_streamer(
+        app_state.process.getExecutionContext(),
         paths.resources / "worlds" / "scripts"
     );
 
-    model::ChunkEntityRegistry chunk_entities_registry;
+    // Module loaders
+    loader::MeshLoader mesh_loader(app_state.renderer);
+    loader::ShaderLoader shader_loader(app_state.renderer);
+    loader::ScriptLoader script_loader(app_state.script);
+    loader::EntityLoader entity_loader(registry);
+    
+    // load resources from files into memory
+    co_await shader_streamer.load({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay", "picking_id64"});
+    co_await script_streamer.load({std::filesystem::path("player_script.lua"), std::filesystem::path("camera_script.lua")});
+    
+    // basic prefabs already exists in memory, we only need to load them into renderer
+    co_await mesh_loader.loadPrefabs();
 
-    // Create viewport FBO
-    auto display_resources_res = co_await pipeline::buildDisplayResources(app_state.renderer, {1280, 728});
-    if(!display_resources_res) 
+    // load shaders from memory to Renderer using shader loader
+    co_await loader::loadStreamedResources({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay", "picking_id64"},
+        shader_streamer, shader_loader);
+
+    // load scripts from memory to ScriptRuntime using script loader
+    co_await loader::loadStreamedResources({"player_script", "camera_script"}, script_streamer, script_loader);
+
+
+    model::WorldSnapshot world_snapshot;
+
+    // render resources
+    auto render_state_res = co_await pipeline::buildRendererState(app_state.renderer, {1280, 728});
+    if(!render_state_res) 
     {
-        spdlog::error("Failed to create display resources");
-         co_return;
+        spdlog::error("Failed to build renderer state");
+        co_return;
     }
-    const auto & display_resources = *display_resources_res;
-    // Get viewport FBO texture
-    auto viewport_fbo_textures = app_state.renderer.getFrameBufferObjectTextures(display_resources.viewport_fbo);
-    assert(viewport_fbo_textures.size() == 1);
 
     // Create picking FBO
-    auto picking_resources_res = co_await pipeline::buildPickingResources(app_state.renderer, display_resources.size);
+    auto picking_resources_res = co_await pipeline::buildPickingResources(app_state.renderer, render_state_res->display.size);
     if(!picking_resources_res)
     {
         spdlog::error("Failed to build picking resources");
         co_return;
     }
-    const pipeline::PickingResources & picking_resources = *picking_resources_res;
-
-    // Create deferred shading FBO
-    auto render_resources_res = co_await pipeline::buildDeferredShadingResources(app_state.renderer, display_resources.size);
-    if(!render_resources_res)
-    {
-        spdlog::error("Failed to build deferred shading resources");
-        co_return;
-    }
-    const pipeline::DeferredShadingResources & render_resources = *render_resources_res;
-
-    // Create debug overlay resources
-    auto debug_overlay_resources_res = co_await pipeline::buildDebugOverlayResources(app_state.renderer, render_resources);
-    if(!debug_overlay_resources_res)
-    {
-        spdlog::error("Failed to build debug overlay resources");
-        co_return;
-    }
-    const pipeline::DebugOverlayResources & debug_overlay_resources = *debug_overlay_resources_res;
 
     // Create orchestrator
-    pipeline::PipelineOrchestrator<EditorFrame, EditorState, 5, 3> orchestrator(app_state.process,
+    pipeline::PipelineOrchestrator<EditorFrame, EditorState, EditorRenderState, 5, 3> orchestrator(app_state.process,
         EditorState
         {
             .app_state = app_state,
@@ -119,26 +125,18 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 .script = ecs::system::ScriptSystem(app_state.script, registry),
                 .input = ecs::system::InputSystem(app_state.input, registry)
             },
-            .world_streamer = world::WorldStreamer(  
-                app_state.process.getExecutionContext(),
-                asset::use_json,
-                paths.resources / "worlds/levels/level_0.json",
-                registry,
-                resource_tracker,
-                32.0f, 32
-            ),
 
             .logic_timer = pipeline::LogicFrameTimer(),
 
             .dock_space = layout::DockSpace(),
 
             .ctx = model::DrawContext{
-                .viewport_texture = viewport_fbo_textures.at(0)
+                .viewport_texture = render_state_res->viewport_fbo_textures.at(0)
             },
             .main_menu_bar = panel::MainMenuBar(),
-            .scene_panel = panel::ScenePanel(chunk_entities_registry),
+            .scene_panel = panel::ScenePanel(world_snapshot),
             .properties_panel = panel::PropertiesPanel(),
-            .assets_panel = panel::AssetsPanel(resource_tracker),
+            .assets_panel = panel::AssetsPanel(),
             .viewport_panel = panel::ViewportPanel(),
 
             .selection_overlay_controller = controller::SelectionOverlayController(app_state.renderer),
@@ -149,8 +147,14 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             .viewport_entity_picker = controller::ViewportEntityPicker( 
                     app_state.renderer,
                     app_state.input,
-                    picking_resources,
-                    chunk_entities_registry)
+                    *picking_resources_res,
+                    world_snapshot)
+        },
+
+        EditorRenderState
+        {
+            .render_state = *render_state_res,
+            .picking_resources = *picking_resources_res
         }
     );
     
@@ -166,17 +170,17 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Logic 1. PRE ECS, load world depending on flycamera position
     orchestrator.setLogicStage<1>(
-        []
+        [&world_streamer]
         (async::LifecycleToken & token, float, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await pipeline::runPreECS(editor_state.app_state, editor_state.world_streamer, editor_state.flycam.getPosition());
+            co_await pipeline::runPreECS(editor_state.app_state, world_streamer, editor_state.flycam.getPosition());
         }
     );
 
     // Logic 2. ECS stage
     orchestrator.setLogicStage<2>(
-        [&display_resources]
+        [&render_state_res]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -202,7 +206,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             editor_state.ctx.camera_position = editor_state.flycam.getPosition();
 
             // override camera matrices by editor camera
-            editor_state.flycam.overrideFrame(editor_frame.render_frame, display_resources.aspect);
+            editor_state.flycam.overrideFrame(editor_frame.render_frame, render_state_res->display.aspect);
         }
     );
 
@@ -221,67 +225,72 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     );
 
     // Logic 4.
-    bool should_reload_scene = true;
+    bool should_reload_world = true;
     orchestrator.setLogicStage<4>(
-        [&should_reload_scene, &chunk_entities_registry, &picking_resources]
+        [&should_reload_world, &world_snapshot, &world_streamer, &entity_loader]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
 
-            if(should_reload_scene)
+            if(should_reload_world)
             {
-                should_reload_scene = false;
-                chunk_entities_registry.update(editor_state.world_streamer);
+                should_reload_world = false;
+                world_snapshot.load(world_streamer);
+
+                for(const auto & [chunk_id, entity_map] : world_snapshot.mapping)
+                {
+                    for(const auto & [entity_id, entity_def] : entity_map)
+                    {
+                        co_await entity_loader.load(entity_def);
+                    }
+                }
             }
 
             // handle removed chunks
-            for(const auto & removed_chunk : editor_state.scene_panel.getRemovedChunks())
-            {
-                editor_state.world_streamer.removeChunk(removed_chunk);
-                should_reload_scene = true;
-            }
+            // for(const auto & removed_chunk : editor_state.scene_panel.getRemovedChunks())
+            // {
+            //     editor_state.world_streamer.removeChunk(removed_chunk);
+            //     should_reload_scene = true;
+            // }
             // handle created chunks
-            for(const auto & new_chunk : editor_state.scene_panel.getCreatedChunks())
-            {
-                editor_state.world_streamer.writeChunk(new_chunk);
-                should_reload_scene = true;
-            }
+            // for(const auto & new_chunk : editor_state.scene_panel.getCreatedChunks())
+            // {
+            //     editor_state.world_streamer.writeChunk(new_chunk);
+            //     should_reload_scene = true;
+            // }
             
             // handle added entities
-            for(auto & [chunk_id, new_entities] : editor_state.scene_panel.getCreatedEntities())
-            {
-                for(auto & new_entity : new_entities)
-                {
-                    editor_state.world_streamer.createEntity(chunk_id, new_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(auto & [chunk_id, new_entities] : editor_state.scene_panel.getCreatedEntities())
+            // {
+            //     for(auto & new_entity : new_entities)
+            //     {
+            //         //editor_state.world_streamer.createEntity(chunk_id, new_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
             // handle updated entities
-            for(auto & [chunk_id, updated_entities] : editor_state.scene_panel.getUpdatedEntities())
-            {
-                for(auto & updated_entity : updated_entities)
-                {
-                    editor_state.world_streamer.updateEntity(chunk_id, updated_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(auto & [chunk_id, updated_entities] : editor_state.scene_panel.getUpdatedEntities())
+            // {
+            //     for(auto & updated_entity : updated_entities)
+            //     {
+            //         //editor_state.world_streamer.updateEntity(chunk_id, updated_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
             // handle removed entities
-            for(const auto & [chunk_id, removed_entities] : editor_state.scene_panel.getRemovedEntities())
-            {
-                for(const auto & removed_entity : removed_entities)
-                {
-                    editor_state.world_streamer.removeEntity(chunk_id, removed_entity);
-                    should_reload_scene = true;
-                }
-            }
+            // for(const auto & [chunk_id, removed_entities] : editor_state.scene_panel.getRemovedEntities())
+            // {
+            //     for(const auto & removed_entity : removed_entities)
+            //     {
+            //         editor_state.world_streamer.removeEntity(chunk_id, removed_entity);
+            //         should_reload_scene = true;
+            //     }
+            // }
 
-            editor_state.scene_panel.resetEvents();
+            //editor_state.scene_panel.resetEvents();
 
             editor_state.scene_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
-            if(editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller))
-            {
-                should_reload_scene = true;
-            }
+            editor_state.properties_panel.updateSelectedEntity(editor_state.ctx.selection_controller);
 
             editor_state.selection_overlay_controller.update(editor_state.ctx, editor_frame.render_frame);
             editor_state.translate_overlay_controller.update(editor_state.ctx, editor_state.app_state.input, editor_frame.render_frame);
@@ -296,7 +305,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 {
                     const auto serialized_pos = math::serialize(*p);
 
-                    ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
+                    proto::ecs::EntityDefinition pending_def = editor_state.ctx.selection_controller.getEntitySelection();
 
                     pending_def.mutable_transform()->mutable_position()->CopyFrom(serialized_pos);
 
@@ -312,12 +321,10 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 editor_state.ctx.selection_controller.clearSelectedEntityUpdate();
 
                 // save to world
-                editor_state.world_streamer.updateEntity(   
-                    editor_state.ctx.selection_controller.getChunkSelection(),
-                    editor_state.ctx.selection_controller.getEntitySelection()
-                );
-                
-                should_reload_scene = true;
+                // editor_state.world_streamer.updateEntity(   
+                //     editor_state.ctx.selection_controller.getChunkSelection(),
+                //     editor_state.ctx.selection_controller.getEntitySelection()
+                // );
             }
 
             // add selection overlay to frame
@@ -330,18 +337,18 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Render 0.
     orchestrator.setRenderStage<0>(
-        [&display_resources]
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
+        []
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state, EditorRenderState & editor_render_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await editor_state.app_state.renderer.clearScreen({0.1f, 0.1f, 0.1f, 1.0f}, display_resources.viewport_fbo);
+            co_await editor_state.app_state.renderer.clearScreen({0.1f, 0.1f, 0.1f, 1.0f}, editor_render_state.render_state.display.viewport_fbo);
         }
     );
 
     // Render 1.
     orchestrator.setRenderStage<1>(
-        [&render_resources, &picking_resources, &debug_overlay_resources, &display_resources]
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
+        []
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state, EditorRenderState & editor_render_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
 
@@ -350,20 +357,20 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             editor_state.ctx.stats = co_await pipeline::deferredShadingStage(
                 editor_state.app_state.renderer,
-                render_resources,
+                editor_render_state.render_state.deferred_shading,
                 interpolated_frame,
-                display_resources.viewport_fbo);
+                editor_render_state.render_state.display.viewport_fbo);
 
             co_await pipeline::renderDebugOverlay(
                 editor_state.app_state.renderer,
-                debug_overlay_resources,
+                editor_render_state.render_state.debug_overlay,
                 interpolated_frame,
-                display_resources.viewport_fbo
+                editor_render_state.render_state.display.viewport_fbo
             );
 
             co_await pipeline::renderPickingIds(
                 editor_state.app_state.renderer,
-                picking_resources,
+                editor_render_state.picking_resources,
                 interpolated_frame
             ); 
         }
@@ -372,7 +379,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     // Render 2.
     orchestrator.setRenderStage<2>(
         []
-        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state) -> asio::awaitable<void>
+        (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state, EditorRenderState & editor_render_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
             

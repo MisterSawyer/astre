@@ -36,7 +36,7 @@ target_include_directories("${PROJECT_NAME}"
 target_link_libraries("${PROJECT_NAME}"
     PUBLIC
         astre::Math
-        Math_proto
+        astre::Math_proto
         astre::Native
         astre::Async
         astre::Version
@@ -46,15 +46,17 @@ target_link_libraries("${PROJECT_NAME}"
         astre::Process
         astre::Window
         astre::Render
+        astre::Render_proto
         astre::Input
-        Input_proto
+        astre::Input_proto
         astre::ECS
-        ECS_proto
-        astre::Asset
+        astre::ECS_proto
         astre::Pipeline
-        astre::World
-        World_proto
+        astre::File
+        astre::File_proto
         astre::Script
+        astre::Script_proto
+        astre::Loader
         astre::GUI
 
     PUBLIC

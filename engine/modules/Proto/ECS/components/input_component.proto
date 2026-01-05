@@ -1,0 +1,16 @@
+syntax="proto3";
+
+import "Input/input_event.proto";
+
+package astre.proto.ecs;
+
+message InputComponent
+{
+    // Keys
+    repeated astre.proto.input.InputCode pressed = 1;         // All currently pressed keys/buttons
+    repeated astre.proto.input.InputCode just_pressed = 2;    // Keys newly pressed this frame
+    repeated astre.proto.input.InputCode just_released = 3;   // Keys released this frame
+
+    // Mouse
+    astre.proto.input.MouseData mouse = 4;
+}

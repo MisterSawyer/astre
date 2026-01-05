@@ -2,7 +2,7 @@
 
 namespace astre::pipeline
 {
-    asio::awaitable<void> runPreECS(AppState & app_state, world::WorldStreamer & world_streamer, const math::Vec3 & load_position)
+    asio::awaitable<void> runPreECS(AppState & app_state, file::WorldStreamer & world_streamer, const math::Vec3 & load_position)
     {
         auto & ex = app_state.process.getExecutionContext();
         const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);

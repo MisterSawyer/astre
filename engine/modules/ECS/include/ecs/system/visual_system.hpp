@@ -6,15 +6,15 @@
 #include "render/render.hpp"
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/visual_component.pb.h"
+#include "proto/ECS/components/visual_component.pb.h"
 
 namespace astre::ecs::system
 {
-    class VisualSystem : public System<VisualComponent>
+    class VisualSystem : public System<proto::ecs::VisualComponent>
     {
     public:
-        using Reads = std::tuple<TransformComponent, CameraComponent>;
-        using Writes = std::tuple<VisualComponent>;
+        using Reads = std::tuple<proto::ecs::TransformComponent, proto::ecs::CameraComponent>;
+        using Writes = std::tuple<proto::ecs::VisualComponent>;
 
         VisualSystem(const render::IRenderer & renderer, Registry & registry);
 

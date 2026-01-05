@@ -15,8 +15,7 @@ add_module(NAME "Pipeline"
         astre::Window
         astre::Render
         astre::ECS
-        astre::Asset
         astre::Input
         astre::GUI
-        astre::World
+        astre::File
 )

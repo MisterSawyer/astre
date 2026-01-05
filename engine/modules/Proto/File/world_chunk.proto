@@ -1,0 +1,18 @@
+syntax="proto3";
+
+package astre.proto.file;
+
+import "ECS/entity_definition.proto";
+
+message ChunkID
+{
+    int32 x = 1;
+    int32 y = 2;
+    int32 z = 3;
+}
+
+message WorldChunk
+{
+    ChunkID id = 1;
+    repeated astre.proto.ecs.EntityDefinition entities = 2;
+};

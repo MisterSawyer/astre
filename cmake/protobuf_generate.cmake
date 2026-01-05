@@ -29,12 +29,6 @@ function(protobuf_generate)
         message(WARNING "No .proto files found in: ${protobuf_generate_PROTO_SRC_DIRS}")
     endif()
 
-    # Construct all --proto_path args
-    set(PROTO_PATH_ARGS "--proto_path=${protobuf_generate_PROTO_ROOT}")
-    foreach(SRC_DIR IN LISTS protobuf_generate_PROTO_SRC_DIRS)
-        list(APPEND PROTO_PATH_ARGS "--proto_path=${SRC_DIR}")
-    endforeach()
-
     foreach(PROTO_FILE IN LISTS PROTO_FILES)
         file(RELATIVE_PATH REL_PATH "${protobuf_generate_PROTO_ROOT}" "${PROTO_FILE}")
         message( STATUS "relative path : ${REL_PATH}")
@@ -59,9 +53,9 @@ function(protobuf_generate)
         add_custom_command(
             OUTPUT ${GEN_SRC} ${GEN_HDR}
             COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-                    ${PROTO_PATH_ARGS}
+                    --proto_path=${protobuf_generate_PROTO_ROOT}
                     --cpp_out=${protobuf_generate_PROTO_DST_DIR}
-                    "${REL_PATH}"
+                    "${PROTO_FILE}"
             DEPENDS "${PROTO_FILE}"
             WORKING_DIRECTORY "${protobuf_generate_PROTO_ROOT}"
             COMMENT "Generating C++ files from ${PROTO_FILE}"
@@ -74,12 +68,14 @@ function(protobuf_generate)
     message(STATUS "Generated proto files: ${PROTO_GEN_SRCS} ${PROTO_GEN_HDRS}")
 
     add_library(${protobuf_generate_NAME} OBJECT ${PROTO_GEN_SRCS} ${PROTO_GEN_HDRS})
+    add_library("${PROJECT_PREFIX}::${protobuf_generate_NAME}" ALIAS "${protobuf_generate_NAME}")
 
-    get_filename_component(PROTO_DST_PARENT "${protobuf_generate_PROTO_DST_DIR}" DIRECTORY)
-    target_include_directories(${protobuf_generate_NAME} PUBLIC
-        "$<BUILD_INTERFACE:${protobuf_generate_PROTO_DST_DIR}>" 
-        "$<BUILD_INTERFACE:${PROTO_DST_PARENT}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+    target_include_directories(${protobuf_generate_NAME} 
+        PUBLIC
+            "$<BUILD_INTERFACE:${protobuf_generate_PROTO_DST_DIR}>"
+
+            "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>"
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/generated>"
     )
 
     target_link_libraries(${protobuf_generate_NAME} PUBLIC protobuf::libprotobuf)

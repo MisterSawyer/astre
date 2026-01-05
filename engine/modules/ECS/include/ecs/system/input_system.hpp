@@ -4,15 +4,15 @@
 
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/input_component.pb.h"
+#include "proto/ECS/components/input_component.pb.h"
 
 namespace astre::ecs::system
 {
-    class InputSystem : public System<InputComponent>
+    class InputSystem : public System<proto::ecs::InputComponent>
     {
     public:
         using Reads = std::tuple<>;
-        using Writes = std::tuple<InputComponent>;
+        using Writes = std::tuple<proto::ecs::InputComponent>;
 
         InputSystem(input::InputService & input_service, Registry & registry);
 

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+import "Math/math.proto";
+
+package astre.proto.ecs;
+
+enum LightType 
+{
+    UNKNOWN_LightType = 0;
+    
+    DIRECTIONAL = 1;
+    POINT = 2;
+    SPOT = 3;
+}
+
+message LightComponent 
+{
+    LightType type = 1;
+    
+    bool cast_shadows = 2;
+
+    // Color and intensity
+    astre.proto.math.Vec4Serialized color = 3;
+
+    // Attenuation (used by point/spot lights)
+    optional float constant = 4;
+    optional float linear = 5;
+    optional float quadratic = 6;
+
+    // Spot-specific cutoff angles (cosine values)
+    optional float inner_cutoff = 7;
+    optional float outer_cutoff = 8;
+}

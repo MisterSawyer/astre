@@ -1,0 +1,18 @@
+syntax="proto3";
+
+import "Math/math.proto";
+
+package astre.proto.ecs;
+
+message TransformComponent 
+{
+    astre.proto.math.Vec3Serialized position = 1;
+    astre.proto.math.QuatSerialized rotation = 2;
+    astre.proto.math.Vec3Serialized scale = 3;
+
+    astre.proto.math.Vec3Serialized forward = 4;
+    astre.proto.math.Vec3Serialized right = 5;
+    astre.proto.math.Vec3Serialized up = 6;
+
+    astre.proto.math.Mat4Serialized transform_matrix = 7;
+}

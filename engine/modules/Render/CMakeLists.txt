@@ -23,4 +23,7 @@ add_module(NAME "Render"
         astre::Type
         astre::Process
         astre::Window
+
+        astre::Math_proto
+        astre::Render_proto
 )

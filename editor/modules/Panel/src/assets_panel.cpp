@@ -170,13 +170,13 @@ namespace astre::editor::panel
             switch (_current_view)
             {
                 case View::Models:
-                    _drawGrid(_tracker.getLoadedVertexBuffers(), _selected_item, _tile_size, _tile_padding);
+                    //_drawGrid(_tracker.getLoadedVertexBuffers(), _selected_item, _tile_size, _tile_padding);
                     break;
                 case View::Shaders:
-                    _drawGrid(_tracker.getLoadedShaders(), _selected_item, _tile_size, _tile_padding);
+                    //_drawGrid(_tracker.getLoadedShaders(), _selected_item, _tile_size, _tile_padding);
                     break;
                 case View::Scripts:
-                    _drawGrid(_tracker.getLoadedScripts(), _selected_item, _tile_size, _tile_padding);
+                    //_drawGrid(_tracker.getLoadedScripts(), _selected_item, _tile_size, _tile_padding);
                     break;
                 default:
                     ImGui::TextDisabled("Select a folder on the left.");

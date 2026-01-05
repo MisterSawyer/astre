@@ -4,16 +4,16 @@
 
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/transform_component.pb.h"
+#include "proto/ECS/components/transform_component.pb.h"
 
 namespace astre::ecs::system
 {
     // writes to TransformComponent
-    class TransformSystem : public System<TransformComponent>
+    class TransformSystem : public System<proto::ecs::TransformComponent>
     {
     public:
-        using Reads = std::tuple<TransformComponent>;
-        using Writes = std::tuple<TransformComponent>;
+        using Reads = std::tuple<proto::ecs::TransformComponent>;
+        using Writes = std::tuple<proto::ecs::TransformComponent>;
 
         static constexpr math::Vec3 BASE_FORWARD_DIRECTION = math::Vec3(0.0f, 0.0f, -1.0f);
         static constexpr math::Vec3 BASE_UP_DIRECTION = math::Vec3(0.0f, 1.0f, 0.0f);

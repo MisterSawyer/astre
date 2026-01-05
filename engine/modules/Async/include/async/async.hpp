@@ -19,9 +19,20 @@ using namespace std::chrono_literals;
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
 
-/*
-    co_stop_if this token requests it
-*/
+/**
+ * @brief Early-return from a coroutine when a stop is requested.
+ *
+ * Evaluates the token’s stop flag and, if set, immediately `co_return`s.
+ * Optional return values can be passed through the variadic args.
+ *
+ * Example:
+ *   co_stop_if(token);           // co_return;
+ *   co_stop_if(token, false);    // co_return false;
+ *
+ * Notes:
+ * - Intended for use inside `asio::awaitable`/coroutine bodies.
+ * - If no return value is provided, the coroutine’s return type must be `void`.
+ */
 #define co_stop_if(token, ...) if ((token).stopRequested()) co_return __VA_ARGS__
 
 namespace astre::async
@@ -48,7 +59,7 @@ namespace astre::async
         AsyncContext(AsyncContext&&) noexcept = default;
         AsyncContext& operator=(AsyncContext&&) noexcept = default;
 
-        const base & executor() const noexcept { return *this; }
+        executor_type executor() const noexcept { return base::get_inner_executor(); }
 
         asio::awaitable<void> ensureOnStrand() const {
             if (!this->running_in_this_thread()) {
@@ -64,24 +75,32 @@ namespace astre::async
     class ThreadContext : public asio::io_context
     {
         public:
+            /// Construct io_context with a work guard and strand; thread not started
             ThreadContext();
-
+            
+            /// Join the worker thread if joinable; call close() first to let run() exit.
             virtual ~ThreadContext();
 
+            /// Awaitable that dispatches to the strand if called off-strand.
             asio::awaitable<void> ensureOnStrand() const;
 
+            /// Spawn the worker thread running the provided callable
             template<class Func, class... Args>
             void start(Func && func, Args&&... args)
             {
                 _thread = std::thread(std::forward<Func>(func), std::forward<Args>(args)...);
             }
 
+            /// Block until the worker thread exits if joinable.
             void join();
 
+            /// Release the work guard so io_context::run can exit once work drains.
             void close();
-        
-            bool running() const;
 
+            /// True when a thread is joinable and the work guard still owns work.
+            bool running() const;
+            
+            /// Access the strand-bound AsyncContext for serialized async operations.
             AsyncContext<asio::io_context> & getAsyncContext();
 
         private:

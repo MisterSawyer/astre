@@ -4,15 +4,15 @@
 
 #include "ecs/system/system.hpp"
 
-#include "generated/ECS/proto/components/camera_component.pb.h"
+#include "proto/ECS/components/camera_component.pb.h"
 
 namespace astre::ecs::system
 {
-    class CameraSystem : public System<CameraComponent>
+    class CameraSystem : public System<proto::ecs::CameraComponent>
     {
     public:
-        using Reads = std::tuple<TransformComponent>;
-        using Writes = std::tuple<CameraComponent>;
+        using Reads = std::tuple<proto::ecs::TransformComponent>;
+        using Writes = std::tuple<proto::ecs::CameraComponent>;
 
         CameraSystem(ecs::Entity active_camera_entity, Registry & registry);
 

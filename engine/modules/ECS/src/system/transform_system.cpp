@@ -18,8 +18,8 @@ namespace astre::ecs::system
         math::Vec3 up;
         math::Vec3 right;
 
-        getRegistry().runOnAllWithComponents<TransformComponent>(
-            [&](const Entity e, TransformComponent & transform_component)
+        getRegistry().runOnAllWithComponents<proto::ecs::TransformComponent>(
+            [&](const Entity e, proto::ecs::TransformComponent & transform_component)
             {
                 if(transform_component.has_position())
                 {

@@ -1,0 +1,41 @@
+syntax="proto3";
+
+package astre.proto.math;
+
+message Vec2Serialized
+{
+    float x = 1; float y = 2;
+}
+
+message Vec3Serialized
+{
+    float x = 1; float y = 2; float z = 3;
+}
+
+message Vec4Serialized
+{
+    float x = 1; float y = 2; float z = 3; float w = 4;
+}
+
+message QuatSerialized
+{ 
+    float x = 1; float y = 2; float z = 3; float w = 4;
+}
+
+// exactly 4 values in row-major or column-major order
+message Mat2Serialized
+{
+  repeated float data = 1; 
+}
+
+// exactly 9 values in row-major or column-major order
+message Mat3Serialized
+{
+  repeated float data = 1; 
+}
+
+// exactly 16 values in row-major or column-major order
+message Mat4Serialized
+{
+  repeated float data = 1; 
+}

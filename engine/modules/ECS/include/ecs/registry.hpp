@@ -27,8 +27,9 @@ namespace astre::ecs
 
             inline ~Registry() = default;
 
-            asio::awaitable<std::optional<Entity>> spawnEntity(const EntityDefinition & entity_def);
+            asio::awaitable<std::optional<Entity>> spawnEntity(const proto::ecs::EntityDefinition & entity_def);
             asio::awaitable<void> destroyEntity(Entity entity);
+            asio::awaitable<bool> entityExists(Entity entity) const;
 
             asio::awaitable<std::optional<std::string>> getName(Entity entity) const 
             {

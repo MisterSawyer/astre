@@ -9,11 +9,13 @@
 
 #include <asio.hpp>
 
+#include "type/type.hpp"
 #include "model/panel_draw_context.hpp"
 
 namespace astre::editor::panel
 {
-    class IPanel {
+    class IPanel : public type::InterfaceBase
+    {
         public:
 
         virtual ~IPanel() = default;

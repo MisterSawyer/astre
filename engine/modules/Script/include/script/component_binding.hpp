@@ -5,24 +5,23 @@
 #include "math/math.hpp"
 #include "input/input.hpp"
 
-#include "generated/ECS/proto/components/transform_component.pb.h"
-#include "generated/ECS/proto/components/visual_component.pb.h"
-#include "generated/ECS/proto/components/camera_component.pb.h"
-#include "generated/ECS/proto/components/light_component.pb.h"
-#include "generated/ECS/proto/components/input_component.pb.h"
+#include "proto/ECS/components/transform_component.pb.h"
+#include "proto/ECS/components/visual_component.pb.h"
+#include "proto/ECS/components/camera_component.pb.h"
+#include "proto/ECS/components/light_component.pb.h"
+#include "proto/ECS/components/input_component.pb.h"
 
 namespace astre::script
 {
     template<class ComponentType>
     struct LuaBinding;
 
-
     template<>
-    struct LuaBinding<ecs::TransformComponent>
+    struct LuaBinding<proto::ecs::TransformComponent>
     {
-        using bind_type = LuaBinding<ecs::TransformComponent>;
+        using bind_type = LuaBinding<proto::ecs::TransformComponent>;
 
-        ecs::TransformComponent & ref;
+        proto::ecs::TransformComponent & ref;
 
         inline float get_x() const { return ref.position().x(); }
         inline void set_x(float x) { ref.mutable_position()->set_x(x); }
@@ -158,11 +157,11 @@ namespace astre::script
     };
 
     template<>
-    struct LuaBinding<ecs::VisualComponent>
+    struct LuaBinding<proto::ecs::VisualComponent>
     {
-        using bind_type = LuaBinding<ecs::VisualComponent>;
+        using bind_type = LuaBinding<proto::ecs::VisualComponent>;
 
-        ecs::VisualComponent & ref;
+        proto::ecs::VisualComponent & ref;
 
        inline bool is_visible() const { return ref.visible(); }
        inline void set_visible(bool visible) { ref.set_visible(visible); }
@@ -193,11 +192,11 @@ namespace astre::script
     };
 
     template<>
-    struct LuaBinding<ecs::CameraComponent>
+    struct LuaBinding<proto::ecs::CameraComponent>
     {
-        using bind_type = LuaBinding<ecs::CameraComponent>;
+        using bind_type = LuaBinding<proto::ecs::CameraComponent>;
 
-        ecs::CameraComponent & ref;
+        proto::ecs::CameraComponent & ref;
 
         inline float get_fov() const { return ref.fov(); }
         inline void set_fov(float fov) { ref.set_fov(fov); }
@@ -227,12 +226,12 @@ namespace astre::script
     };
 
     template<>
-    struct LuaBinding<ecs::LightComponent>
+    struct LuaBinding<proto::ecs::LightComponent>
     {
-        using bind_type = LuaBinding<ecs::LightComponent>;
+        using bind_type = LuaBinding<proto::ecs::LightComponent>;
 
 
-        ecs::LightComponent & ref;
+        proto::ecs::LightComponent & ref;
 
 
         inline void f(){}
@@ -243,12 +242,12 @@ namespace astre::script
     };
 
     template<>
-    struct LuaBinding<ecs::InputComponent>
+    struct LuaBinding<proto::ecs::InputComponent>
     {
-        using bind_type = LuaBinding<ecs::InputComponent>;
+        using bind_type = LuaBinding<proto::ecs::InputComponent>;
 
 
-        ecs::InputComponent & ref;
+        proto::ecs::InputComponent & ref;
 
         inline float get_mouse_x() const { return ref.mouse().x(); }
         inline float get_mouse_y() const { return ref.mouse().y(); }

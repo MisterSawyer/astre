@@ -1,0 +1,12 @@
+syntax="proto3";
+
+package astre.proto.render;
+
+message ShaderDefinition
+{
+    string name = 1;
+
+    repeated string vertex_code = 2;
+    
+    repeated string fragment_code = 3;
+}

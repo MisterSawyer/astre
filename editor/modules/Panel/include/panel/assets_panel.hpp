@@ -1,8 +1,6 @@
 #pragma once
 #include <string_view>
 
-#include "asset/asset.hpp"
-
 #include "panel/panel_interface.hpp"
 
 namespace astre::editor::panel
@@ -11,8 +9,8 @@ namespace astre::editor::panel
     class AssetsPanel final : public IPanel
     {
     public:
-        AssetsPanel(asset::ResourceTracker & tracker) noexcept 
-        : _tracker(tracker) {};
+        AssetsPanel() noexcept 
+        {};
 
         std::string_view name() const noexcept override { return "Assets"; }
         bool visible() const noexcept override { return _visible; }
@@ -26,7 +24,7 @@ namespace astre::editor::panel
 
         bool _visible{true};
 
-        asset::ResourceTracker & _tracker;
+        //asset::ResourceTracker & _tracker;
 
         // Content-area state
         View _current_view{View::Models};

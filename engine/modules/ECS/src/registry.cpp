@@ -27,7 +27,13 @@ namespace astre::ecs
         return *this;
     }
 
-    asio::awaitable<std::optional<Entity>> Registry::spawnEntity(const EntityDefinition & entity_def)
+    asio::awaitable<bool> Registry::entityExists(Entity entity) const
+    {
+        co_await _async_context.ensureOnStrand();
+        co_return _entities.entityExists(entity);
+    }
+
+    asio::awaitable<std::optional<Entity>> Registry::spawnEntity(const proto::ecs::EntityDefinition & entity_def)
     {
         co_await _async_context.ensureOnStrand();
         const auto res_id = _entities.spawnEntity(entity_def.id());

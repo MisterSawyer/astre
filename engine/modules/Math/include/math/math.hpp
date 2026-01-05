@@ -11,7 +11,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_interpolation.hpp>
 
-#include "generated/Math/proto/math.pb.h"
+#include "proto/Math/math.pb.h"
 
 namespace astre::math
 {
@@ -157,19 +157,19 @@ namespace astre::math
     }
 
 
-    Vec2Serialized serialize(const Vec2& v);
-    Vec3Serialized serialize(const Vec3& v);
-    Vec4Serialized serialize(const Vec4& v);
-    QuatSerialized serialize(const Quat& v);
-    Mat2Serialized serialize(const Mat2& mat2);
-    Mat3Serialized serialize(const Mat3& mat3);
-    Mat4Serialized serialize(const Mat4& mat4);
+    proto::math::Vec2Serialized serialize(const Vec2& v);
+    proto::math::Vec3Serialized serialize(const Vec3& v);
+    proto::math::Vec4Serialized serialize(const Vec4& v);
+    proto::math::QuatSerialized serialize(const Quat& v);
+    proto::math::Mat2Serialized serialize(const Mat2& mat2);
+    proto::math::Mat3Serialized serialize(const Mat3& mat3);
+    proto::math::Mat4Serialized serialize(const Mat4& mat4);
 
-    Vec2 deserialize(const Vec2Serialized& v2Serialized);
-    Vec3 deserialize(const Vec3Serialized& v3Serialized);
-    Vec4 deserialize(const Vec4Serialized& v4Serialized);
-    Quat deserialize(const QuatSerialized& qSerialized);
-    Mat2 deserialize(const Mat2Serialized& mat2Serialized);
-    Mat3 deserialize(const Mat3Serialized& mat3Serialized);
-    Mat4 deserialize(const Mat4Serialized& mat4Serialized);
+    Vec2 deserialize(const proto::math::Vec2Serialized& v2Serialized);
+    Vec3 deserialize(const proto::math::Vec3Serialized& v3Serialized);
+    Vec4 deserialize(const proto::math::Vec4Serialized& v4Serialized);
+    Quat deserialize(const proto::math::QuatSerialized& qSerialized);
+    Mat2 deserialize(const proto::math::Mat2Serialized& mat2Serialized);
+    Mat3 deserialize(const proto::math::Mat3Serialized& mat3Serialized);
+    Mat4 deserialize(const proto::math::Mat4Serialized& mat4Serialized);
 }

@@ -16,7 +16,7 @@ namespace astre::render
      * @brief Vertex
      * 
      */
-    struct Vertex 
+    struct GPUVertex 
     {
         math::Vec3 position;
         math::Vec3 normal;
@@ -31,7 +31,7 @@ namespace astre::render
     struct Mesh
     {
         std::vector<unsigned int> indices;
-        std::vector<Vertex> vertices;
+        std::vector<GPUVertex> vertices;
     };
 
     /**

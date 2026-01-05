@@ -112,41 +112,41 @@ namespace astre::script
         // TransformComponent
         std::apply(
             [&](auto&&... bindings) {
-                _astre_table.new_usertype<LuaBinding<ecs::TransformComponent>>("TransformComponent", std::forward<decltype(bindings)>(bindings)...);
+                _astre_table.new_usertype<LuaBinding<proto::ecs::TransformComponent>>("TransformComponent", std::forward<decltype(bindings)>(bindings)...);
             },
-            LuaBinding<ecs::TransformComponent>::BINDINGS
+            LuaBinding<proto::ecs::TransformComponent>::BINDINGS
         );
 
         //VisualComponent
         std::apply(
             [&](auto&&... bindings) {
-                _astre_table.new_usertype<LuaBinding<ecs::VisualComponent>>("VisualComponent", std::forward<decltype(bindings)>(bindings)...);
+                _astre_table.new_usertype<LuaBinding<proto::ecs::VisualComponent>>("VisualComponent", std::forward<decltype(bindings)>(bindings)...);
             },
-            LuaBinding<ecs::VisualComponent>::BINDINGS
+            LuaBinding<proto::ecs::VisualComponent>::BINDINGS
         );
 
         //CameraComponent
         std::apply(
             [&](auto&&... bindings) {
-                _astre_table.new_usertype<LuaBinding<ecs::CameraComponent>>("CameraComponent", std::forward<decltype(bindings)>(bindings)...);
+                _astre_table.new_usertype<LuaBinding<proto::ecs::CameraComponent>>("CameraComponent", std::forward<decltype(bindings)>(bindings)...);
             },
-            LuaBinding<ecs::CameraComponent>::BINDINGS
+            LuaBinding<proto::ecs::CameraComponent>::BINDINGS
         );
 
         //LightComponent
         std::apply(
             [&](auto&&... bindings) {
-                _astre_table.new_usertype<LuaBinding<ecs::LightComponent>>("LightComponent", std::forward<decltype(bindings)>(bindings)...);
+                _astre_table.new_usertype<LuaBinding<proto::ecs::LightComponent>>("LightComponent", std::forward<decltype(bindings)>(bindings)...);
             },
-            LuaBinding<ecs::LightComponent>::BINDINGS
+            LuaBinding<proto::ecs::LightComponent>::BINDINGS
         );
 
         //InputComponent
         std::apply(
             [&](auto&&... bindings) {
-                _astre_table.new_usertype<LuaBinding<ecs::InputComponent>>("InputComponent", std::forward<decltype(bindings)>(bindings)...);
+                _astre_table.new_usertype<LuaBinding<proto::ecs::InputComponent>>("InputComponent", std::forward<decltype(bindings)>(bindings)...);
             },
-            LuaBinding<ecs::InputComponent>::BINDINGS
+            LuaBinding<proto::ecs::InputComponent>::BINDINGS
         );
     }
 

@@ -3,9 +3,9 @@
 namespace astre::pipeline
 {
 
-    asio::awaitable<std::optional<DebugOverlayResources>> buildDebugOverlayResources(render::IRenderer & renderer, const DeferredShadingResources & deferred_resources)
+    asio::awaitable<std::optional<DebugOverlayResources>> buildDebugOverlayResources(render::IRenderer & renderer)
     {
-        DebugOverlayResources resources{.deferred_resources = deferred_resources};
+        DebugOverlayResources resources;
 
         auto debug_shader_res = renderer.getShader("debug_overlay");
         if (!debug_shader_res) {

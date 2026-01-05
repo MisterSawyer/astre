@@ -6,7 +6,6 @@
 #include "math/math.hpp"
 #include "render/render.hpp"
 #include "ecs/ecs.hpp"
-#include "world/world.hpp"
 
 #include "controller/selection_controller.hpp"
 

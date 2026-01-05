@@ -143,7 +143,7 @@ namespace astre::editor::controller
     private:
         asio::awaitable<void> _handleInput(process::IProcess & process, const input::InputService & input)
         {
-            if(isHovered() && input.isKeyJustReleased(input::InputCode::MOUSE_RIGHT))
+            if(isHovered() && input.isKeyJustReleased(proto::input::InputCode::MOUSE_RIGHT))
             {
                 bool captured = isCaptured();
                 setCaptured(!captured);
@@ -162,32 +162,32 @@ namespace astre::editor::controller
             addDeltaYaw(md.x);
             addDeltaPitch(-md.y);
 
-            if(input.isKeyHeld(input::InputCode::KEY_W))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_W))
             {
                 moveForward();
             }
 
-            if(input.isKeyHeld(input::InputCode::KEY_S))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_S))
             {
                 moveBackward();
             }
 
-            if(input.isKeyHeld(input::InputCode::KEY_A))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_A))
             {
                 moveLeft();
             }
 
-            if(input.isKeyHeld(input::InputCode::KEY_D))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_D))
             {
                 moveRight();
             }
 
-            if(input.isKeyHeld(input::InputCode::KEY_E))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_E))
             {
                 moveUp();
             }
 
-            if(input.isKeyHeld(input::InputCode::KEY_Q))
+            if(input.isKeyHeld(proto::input::InputCode::KEY_Q))
             {
                 moveDown();
             }

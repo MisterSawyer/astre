@@ -42,7 +42,7 @@ namespace astre::render::opengl
         {
             if(_window.releaseDeviceContext(_device_context) == false)
             {
-                spdlog::error("Cannot release OpenGL device context");
+                spdlog::error("[render-thread] Cannot release OpenGL device context");
                 return false;
             }
         }
@@ -58,7 +58,7 @@ namespace astre::render::opengl
 
         if(binding_success == false)
         {
-            spdlog::error("Cannot activate OpenGL context");
+            spdlog::error("[render-thread] Cannot activate OpenGL context");
             return false;
         }
 
@@ -71,7 +71,7 @@ namespace astre::render::opengl
             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         #endif
 
-        spdlog::debug("[opengl] Render thread started");
+        spdlog::debug("[render-thread] Render thread started");
                 
         _device_context = _window.acquireDeviceContext();
                 
@@ -84,7 +84,7 @@ namespace astre::render::opengl
 
         if(binding_success == false)
         {
-            spdlog::error("Cannot bind OpenGL context");
+            spdlog::error("[render-thread] Cannot bind OpenGL context");
             return;
         }
 
@@ -101,7 +101,7 @@ namespace astre::render::opengl
         }
         catch(const std::exception & e)
         {
-            spdlog::error("[render] OpenGL render thread exception: {}", e.what());
+            spdlog::error("[render-thread] OpenGL render thread exception: {}", e.what());
         }
     
         // unbind context
@@ -113,11 +113,11 @@ namespace astre::render::opengl
         {
             if(_window.releaseDeviceContext(_device_context) == false)
             {
-                spdlog::error("Cannot release OpenGL device context");
+                spdlog::error("[render-thread] Cannot release OpenGL device context");
             }
         }
 
-        spdlog::debug("[opengl]  Render thread ended");
+        spdlog::debug("[render-thread]  Render thread ended");
     }
 
     // ----------------------------------------------------------------
@@ -170,7 +170,7 @@ namespace astre::render::opengl
     {
         if(_render_context == nullptr) return;
 
-        spdlog::debug("[opengl] OpenGL renderer join");
+        spdlog::debug("[render] OpenGL renderer join");
         
         asio::co_spawn(*_render_context, close(), asio::detached);
         
@@ -187,7 +187,7 @@ namespace astre::render::opengl
 
         co_await _render_context->ensureOnStrand();
 
-        spdlog::debug("[opengl] close");
+        spdlog::debug("[render] close");
 
         // set render_context to closed such that we won't accept any new 
         // rendering tasks
@@ -223,7 +223,7 @@ namespace astre::render::opengl
 
         co_await _render_context->ensureOnStrand();
         
-        spdlog::debug("[opengl] VSync enabled");
+        spdlog::debug("[render] VSync enabled");
         #ifdef WIN32
             wglSwapIntervalEXT(1);
         #endif
@@ -237,7 +237,7 @@ namespace astre::render::opengl
 
         co_await _render_context->ensureOnStrand();
 
-        spdlog::debug("[opengl] VSync disabled");
+        spdlog::debug("[render] VSync disabled");
 
         #ifdef WIN32
             wglSwapIntervalEXT(0);
@@ -317,7 +317,7 @@ namespace astre::render::opengl
         
         if(_shader_storage_buffers.contains(id) == false)
         {
-            spdlog::warn(std::format("Shader storage buffer {} does not exist", id));
+            spdlog::warn(std::format("[render] Shader storage buffer {} does not exist", id));
             co_return false;
         }
 
@@ -343,7 +343,7 @@ namespace astre::render::opengl
                 Texture tex(std::in_place_type<OpenGLTexture>, resolution, textureFormatToOpenGLFormat(att.format));
                 if(tex->good() == false)
                 {
-                    spdlog::warn("Failed to construct texture for FBO attachment");
+                    spdlog::warn("[render] Failed to construct texture for FBO attachment");
                     co_return std::nullopt;
                 }
 
@@ -358,7 +358,7 @@ namespace astre::render::opengl
                 RenderBuffer rbo(std::in_place_type<OpenGLRenderBufferObject>, resolution, textureFormatToOpenGLFormat(att.format));
                 if(rbo->good() == false)
                 {
-                    spdlog::warn("Failed to construct render buffer for FBO attachment");
+                    spdlog::warn("[render] Failed to construct render buffer for FBO attachment");
                     co_return std::nullopt;
                 }
 
@@ -368,7 +368,7 @@ namespace astre::render::opengl
             }
             else
             {
-                spdlog::warn("Unknown FBO attachment type");
+                spdlog::warn("[render] Unknown FBO attachment type");
                 co_return std::nullopt;
             }
         }
@@ -471,12 +471,12 @@ namespace astre::render::opengl
         {
             auto shader_storage_buffer_it = _shader_storage_buffers.find(storage_buffer);
             if(shader_storage_buffer_it == _shader_storage_buffers.end()){
-                spdlog::warn("Rendering: Shader storage buffer not found");
+                spdlog::warn("[render] Rendering: Shader storage buffer not found");
                 continue;
             }
             if(shader_storage_buffer_it->second->enable() == false)
             {
-                spdlog::error("Cannot enable shader storage buffer");
+                spdlog::error("[render] Cannot enable shader storage buffer");
                 continue;
             }
         }
@@ -488,7 +488,7 @@ namespace astre::render::opengl
         {
             if(_textures.contains(sampler) == false)
             {
-                spdlog::warn(std::format("Texture {} does not exist", name));
+                spdlog::warn(std::format("[render] Texture {} does not exist", name));
                 continue;
             }
 
@@ -503,7 +503,7 @@ namespace astre::render::opengl
             {
                 if(_textures.contains(samplers[i]) == false)
                 {
-                    spdlog::warn(std::format("Texture {} does not exist", name));
+                    spdlog::warn(std::format("[render] Texture {} does not exist", name));
                     success = false;
                     continue;
                 }
@@ -531,12 +531,12 @@ namespace astre::render::opengl
         {
             if(_frame_buffer_objects.contains(*fbo) == false)
             {
-                spdlog::error("clearScreen() : Frame buffer object not found");
+                spdlog::error("[render] clearScreen() : Frame buffer object not found");
                 co_return;
             }
             if(_frame_buffer_objects.at(*fbo)->enable() == false)
             {
-                spdlog::error("Cannot enable frame buffer object");
+                spdlog::error("[render] Cannot enable frame buffer object");
                 co_return;
             }
             const auto & fbo_obj_ref = _frame_buffer_objects.at(*fbo);
@@ -578,12 +578,12 @@ namespace astre::render::opengl
         {
             if(_frame_buffer_objects.contains(*fbo) == false)
             {
-                spdlog::error("render() : Frame buffer object not found");
+                spdlog::error("[render] render() : Frame buffer object not found");
                 co_return stats;
             }
             if(_frame_buffer_objects.at(*fbo)->enable() == false)
             {
-                spdlog::error("Cannot enable frame buffer object");
+                spdlog::error("[render] Cannot enable frame buffer object");
                 co_return stats;
             }
             const auto & fbo_obj_ref = _frame_buffer_objects.at(*fbo);
@@ -598,24 +598,24 @@ namespace astre::render::opengl
 
         auto shader_it = _shaders.find(shader);
         if(shader_it == _shaders.end()){
-            spdlog::warn("Rendering: Shader not found");
+            spdlog::warn("[render] Rendering: Shader not found");
             co_return stats;
         }
 
         auto vertex_buffer_it = _vertex_buffers.find(vertex_buffer);
         if(vertex_buffer_it == _vertex_buffers.end()){
-            spdlog::warn("Rendering: Vertex buffer not found");
+            spdlog::warn("[render] Rendering: Vertex buffer not found");
             co_return stats;
         }
 
 
         if(shader_it->second->enable() == false){
-            spdlog::error("Cannot enable shader program");
+            spdlog::error("[render] Cannot enable shader program");
             co_return stats;
         }
 
         if(vertex_buffer_it->second->enable() == false){
-            spdlog::error("Cannot enable vertex buffer");
+            spdlog::error("[render] Cannot enable vertex buffer");
             co_return stats;
         }
 
