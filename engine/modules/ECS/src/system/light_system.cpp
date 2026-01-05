@@ -23,8 +23,6 @@ namespace astre::ecs::system
     asio::awaitable<void> LightSystem::run(float dt, render::Frame & frame)
     {
         frame.gpu_lights.clear();
-        frame.light_space_matrices.clear();
-        frame.light_space_matrices.reserve(MAX_SHADOW_CASTERS);
 
         math::Vec3 position;
         math::Vec3 direction;
@@ -81,69 +79,84 @@ namespace astre::ecs::system
         );
 
         { // collect shadow casters
-            math::Mat4 view_matrix;
-            math::Mat4 projection_matrix;
-            math::Mat4 light_space_matrix;
-            math::Mat4 model_matrix;
-
             std::size_t shadow_caster_id = 0;
             for (auto & [entity, shadow_caster] : frame.gpu_lights)
             {
                 if(shadow_caster_id >= MAX_SHADOW_CASTERS) break;
+
+                // check if this light casts shadows
                 if(shadow_caster.castShadows.x == 0) continue;
-
-                position = math::Vec3(shadow_caster.position);
-                direction = math::Vec3(shadow_caster.direction);
-
-                view_matrix = glm::lookAt(
-                    position,
-                    position + math::normalize(direction),
-                    TransformSystem::BASE_UP_DIRECTION
-                );
-
-                switch(_getLightType(shadow_caster))
-                {
-                    case proto::ecs::LightType::DIRECTIONAL :
-                    {
-                        projection_matrix = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, 0.1f, 100.0f);
-                        break;
-                    }
-                    case proto::ecs::LightType::SPOT :
-                    {
-                        // TODO
-                        float aspect = 1.7f;
-                        float outer_cutoff_cos = shadow_caster.cutoff.y;
-                        outer_cutoff_cos = glm::clamp(outer_cutoff_cos, -1.0f, 1.0f);
-                        float fov = glm::degrees(2.0f * acos(glm::clamp(outer_cutoff_cos, -0.999f, 0.999f)));
-                        fov = glm::clamp(fov, 5.0f, 179.0f);
-                        const float projection_near = 0.1f;
-                        const float projection_far = 1024.0f;
-                        projection_matrix = glm::perspective(glm::radians(fov), aspect, projection_near, projection_far);
-                        break;
-                    }
-                    case proto::ecs::LightType::POINT :
-                    {
-                        projection_matrix = math::perspective(math::radians(90.0f), 1.0f, 0.1f, 100.0f);
-                        break;
-                    }
-                    default : continue;
-                }
 
                 // store shadow caster id 
                 shadow_caster.castShadows.y = static_cast<float>(shadow_caster_id);
 
-                // store light space matrix
-                frame.light_space_matrices.emplace_back(projection_matrix * view_matrix);
-
                 shadow_caster_id++;
 
-                assert(shadow_caster_id == frame.light_space_matrices.size());
                 assert(shadow_caster_id <= MAX_SHADOW_CASTERS);
             }
-
+            // store shadow casters count
             frame.shadow_casters_count = shadow_caster_id;
         }
 
         co_return;
     }
+
+
+    std::vector<math::Mat4> calculateLightSpaceMatrices(const render::Frame & interpolated_frame)
+    {
+        std::vector<math::Mat4> light_space_matrices;
+        light_space_matrices.resize(interpolated_frame.shadow_casters_count);
+
+        for (auto& [id, light] : interpolated_frame.gpu_lights) 
+        {
+            // check if this light casts shadows
+            if (light.castShadows.x == 0) continue;
+
+            // obtain shadow caster id
+            std::size_t shadow_caster_id = static_cast<std::size_t>(light.castShadows.y);
+            if (shadow_caster_id >= interpolated_frame.shadow_casters_count) continue;
+
+            math::Vec3 pos(light.position);
+            math::Vec3 dir(light.direction);
+
+            math::Mat4 view = glm::lookAt(
+                pos,
+            pos + math::normalize(dir),
+            ecs::system::TransformSystem::BASE_UP_DIRECTION);
+
+            math::Mat4 proj;
+            switch(_getLightType(light))
+            {
+                case proto::ecs::LightType::DIRECTIONAL:
+                {
+                    proj = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, 0.1f, 100.0f);
+                    break;
+                }
+
+                case proto::ecs::LightType::SPOT: 
+                {
+                    float outer = glm::clamp(light.cutoff.y, -1.0f, 1.0f);
+                    float fov = glm::degrees(2.0f * acos(glm::clamp(outer, -0.999f, 0.999f)));
+                    fov = glm::clamp(fov, 5.0f, 179.0f);
+                    proj = glm::perspective(glm::radians(fov), 1.7f, 0.1f, 1024.0f);
+                    break;
+                }
+
+                case proto::ecs::LightType::POINT :
+                {
+                    proj = math::perspective(math::radians(90.0f), 1.0f, 0.1f, 100.0f);
+                    break;
+                }
+
+                default:
+                    continue;
+            }
+            
+            assert(shadow_caster_id < light_space_matrices.size());
+            light_space_matrices.at(shadow_caster_id) = (proj * view);
+        }
+
+        return light_space_matrices;
+    }
+
 }

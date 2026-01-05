@@ -41,4 +41,7 @@ namespace astre::ecs::system
             return expand<Writes>();
         }
     };
+
+
+    std::vector<math::Mat4> calculateLightSpaceMatrices(const render::Frame & interpolated_frame);
 }

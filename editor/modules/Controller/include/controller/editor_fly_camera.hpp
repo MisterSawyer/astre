@@ -51,7 +51,7 @@ namespace astre::editor::controller
         [[nodiscard]] bool isCaptured() const noexcept { return _captured; }
 
         void setHovered(bool hovered) noexcept { _vp_hovered = hovered; }
-        [[nodisard]] bool isHovered() const noexcept { return _vp_hovered; }
+        [[nodiscard]] bool isHovered() const noexcept { return _vp_hovered; }
 
         // Viewport info (provided by ViewportPanel each frame)
         void setViewportRect(math::Vec2 content_top_left, math::Vec2 size) noexcept {

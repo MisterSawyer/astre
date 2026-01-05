@@ -341,7 +341,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         (async::LifecycleToken & token, float alpha, const render::Frame & prev, const render::Frame & curr, EditorState & editor_state, EditorRenderState & editor_render_state) -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await editor_state.app_state.renderer.clearScreen({0.1f, 0.1f, 0.1f, 1.0f}, editor_render_state.render_state.display.viewport_fbo);
+            co_await editor_state.app_state.renderer.clearScreen({0.5f, 0.1f, 0.1f, 1.0f}, editor_render_state.render_state.display.viewport_fbo);
         }
     );
 
@@ -354,6 +354,8 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
             // Render interpolated frame using prev <-> curr, using alpha
             auto interpolated_frame = render::interpolateFrame(prev, curr, alpha);
+            // calculate light space matrices on interpolated frame
+            interpolated_frame.light_space_matrices = ecs::system::calculateLightSpaceMatrices(interpolated_frame);
 
             editor_state.ctx.stats = co_await pipeline::deferredShadingStage(
                 editor_state.app_state.renderer,

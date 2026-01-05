@@ -188,6 +188,12 @@ namespace astre::pipeline
         {    
             co_stop_if(token);
 
+            if(_checkStagesAssignments() == false)
+            {
+                spdlog::error("[pipeline] Some stages are not assigned");
+                co_return;
+            }
+
             auto ex = co_await asio::this_coro::executor;
 
             std::chrono::steady_clock::time_point now;
@@ -229,6 +235,36 @@ namespace astre::pipeline
         }
     
     private:
+
+        bool _checkStagesAssignments()
+        {
+            for(std::size_t logic_idx = 0; logic_idx < RenderStagesCount; ++logic_idx)
+            {
+                if(_logic_stages.at(logic_idx) == nullptr)
+                {
+                    spdlog::error("[pipeline] Logic stage {} is not set", logic_idx);
+                    return false;
+                }
+            }
+
+            for(std::size_t render_idx = 0; render_idx < RenderStagesCount; ++render_idx)
+            {
+                if(_render_stages.at(render_idx) == nullptr)
+                {
+                    spdlog::error("[pipeline] Render stage {} is not set", render_idx);
+                    return false;
+                }
+            }
+
+            if(_sync_stage == nullptr)
+            {
+                spdlog::error("[pipeline] Sync stage is not set");
+                return false;
+            }
+
+            return true;
+        }
+
 
         asio::awaitable<bool> _runLogicStages(async::LifecycleToken & token)
         {

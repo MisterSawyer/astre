@@ -16,7 +16,11 @@ namespace astre::loader
         for(const auto & resource : resources)
         {
             ResourceData * data = streamer.read(resource);
-            if(!data) co_return false;
+            if(!data)
+            {
+                spdlog::error("[resource-loader] Failed to load resource {}", resource);
+                co_return false;
+            }
 
             co_await target.load(*data);
         }

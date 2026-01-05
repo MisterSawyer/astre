@@ -70,24 +70,29 @@ namespace astre::loader
 
     asio::awaitable<void> EntityLoader::load(const proto::ecs::EntityDefinition & entity_def) const
     {
+        ecs::Entity id = entity_def.id();
+
+        // if entity already present skip loading
+        if(co_await _registry.entityExists(entity_def.id())) co_return;
+
+        // spawn entity
+        auto entity_id_res = co_await _registry.spawnEntity(entity_def);
+        if(entity_id_res.has_value() == false)
+        {
+            spdlog::error("[entity-loader] Failed to spawn entity");
+            co_return;
+        }
+        else
+        {
+            id = entity_id_res.value();
+        }
+
+        // load entity components
         for (const auto& [name, loader] : _loaders)
         {
-            ecs::Entity id = entity_def.id();
-
-            // construct entity in registry if not yet present
-            if(co_await _registry.entityExists(entity_def.id()) == false)
-            {
-                auto entity_id_res = co_await _registry.spawnEntity(entity_def);
-                if(entity_id_res.has_value() == false)
-                {
-                    spdlog::error("Failed to create entity");
-                }
-                else
-                {
-                    id = entity_id_res.value();
-                }
-            }
             co_await loader(entity_def, id, _registry);
         }
+
+        spdlog::debug("[entity-loader] Entity {} loaded", id);
     }
 }

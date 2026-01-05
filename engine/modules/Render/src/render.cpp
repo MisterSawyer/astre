@@ -60,9 +60,9 @@ namespace astre::render
             light.cutoff      = math::mix(a.gpu_lights.at(id).cutoff, b.gpu_lights.at(id).cutoff, alpha);
         }
         
-        // TODO: shadows
         result.shadow_casters_count = b.shadow_casters_count;
-        result.light_space_matrices = b.light_space_matrices;
+
+        // light space matrices are calculated after interpolation separately by calculateLightSpaceMatrices
 
         return result;
     }

@@ -106,6 +106,7 @@ namespace astre::pipeline
             const render::Frame & frame,
             const DeferredShadingResources & resources)
     {
+        // clear GBuffer
         co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, resources.deferred_fbo);
         
         render::FrameStats stats;
@@ -181,12 +182,12 @@ namespace astre::pipeline
         const DeferredShadingResources & resources,
         std::optional<std::size_t> fbo)
     {
-        // clear screen
-        co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f});
-
         render::FrameStats stats;
 
-        // render GBuffer to screen
+        // clear screen
+        co_await renderer.clearScreen({0.0f, 0.0f, 0.0f, 1.0f}, fbo);
+
+        // render GBuffer to fbo or if no fbo is provided render to screen
         stats += co_await renderer.render(resources.screen_quad_vb, resources.screen_quad_shader,
             render::ShaderInputs{
             .in_uint = {
@@ -209,7 +210,7 @@ namespace astre::pipeline
             }
             },
             render::RenderOptions{
-            .mode = render::RenderMode::Solid
+                .mode = render::RenderMode::Solid
             },
             fbo
         );
@@ -223,21 +224,18 @@ namespace astre::pipeline
             const render::Frame & frame,
             std::optional<std::size_t> fbo)
     {
-        render::FrameStats stats;
-
-        stats += co_await _renderFrameToGBuffer(renderer, frame, render_resources);
-        // here we should render selection :/ 
-        stats += co_await _renderFrameToShadowMaps(renderer, frame, render_resources);
-        
         // update light SSBO
         std::vector<render::GPULight> lights_buffer;
         lights_buffer.reserve(frame.gpu_lights.size());
         for (auto& [e, light] : frame.gpu_lights) {
-            lights_buffer.push_back(std::move(light));
+            lights_buffer.emplace_back(std::move(light));
         }
          co_await renderer.updateShaderStorageBuffer(
               render_resources.light_ssbo, sizeof(render::GPULight) * lights_buffer.size(), lights_buffer.data());
-
+        
+        render::FrameStats stats;
+        stats += co_await _renderFrameToGBuffer(renderer, frame, render_resources);
+        stats += co_await _renderFrameToShadowMaps(renderer, frame, render_resources);
         stats += co_await _renderGBuffer(renderer, frame, render_resources, fbo);
 
         co_return stats;
