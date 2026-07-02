@@ -1,6 +1,6 @@
 # 🚀 Astre
 
-[![Build Astre engine](https://github.com/MisterSawyer/astre/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MisterSawyer/astre/actions/workflows/ci.yml)
+[![Build Astre engine](https://github.com/MisterSawyer/astre/actions/workflows/test-windows-debug.yml/badge.svg?branch=main)](https://github.com/MisterSawyer/astre/actions/workflows/test-windows-debug.yml)
 
 ---
 
