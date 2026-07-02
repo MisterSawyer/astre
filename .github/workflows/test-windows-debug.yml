@@ -1,0 +1,25 @@
+name: Test (Windows Debug)
+
+on:
+  push:
+
+jobs:
+  test-windows-debug:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure and build tests (Debug)
+      run: |
+        cmake -S . -B build-windows-debug -DCMAKE_INSTALL_PREFIX=install-windows-debug -DCMAKE_BUILD_TYPE=Debug -DASTRE_BUILD_TESTS=ON
+        cmake --build build-windows-debug --config Debug --target AstreEngineTests -j 4
+
+    - name: Build executable (Debug)
+      run: cmake --build build-windows-debug --config Debug --target AstreEngine -j 4
+
+    - name: Run tests
+      run: ctest --test-dir build-windows-debug/tests -C Debug --output-on-failure -- --gtest_filter=-OpenGLShaderRealContextTest.*:WinapiProcessTest.RegisterUnregisterOGLContext
