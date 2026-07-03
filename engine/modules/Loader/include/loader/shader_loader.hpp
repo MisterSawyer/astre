@@ -3,23 +3,21 @@
 
 #include "render/render.hpp"
 
-#include "proto/Render/shader_definition.pb.h"
+#include "asset/concepts.hpp"
 
-#include "loader/loader_interface.hpp"
+#include "proto/Render/shader_definition.pb.h"
 
 namespace astre::loader
 {
     /*
     * Load shader from shader definition
     */
-    class ShaderLoader : public ILoader
+    class ShaderLoader
     {
     public:
         ShaderLoader(render::IRenderer & renderer)
-        : _renderer(renderer) 
+        : _renderer(renderer)
         {}
-
-        virtual ~ShaderLoader() = default;
 
         asio::awaitable<bool> load(const proto::render::ShaderDefinition & shader_def) const
         {

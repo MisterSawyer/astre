@@ -1,27 +1,42 @@
 #pragma once
 
+#include "math/math.hpp"
 #include "render/render.hpp"
+
+#include "asset/concepts.hpp"
 
 #include "proto/Render/mesh_definition.pb.h"
 
-#include "loader/loader_interface.hpp"
-
 namespace astre::loader
 {
-    class MeshLoader : public ILoader
+    class MeshLoader
     {
     public:
         MeshLoader(render::IRenderer & renderer)
-        : _renderer(renderer) 
+        : _renderer(renderer)
         {}
 
-        virtual ~MeshLoader() = default;
-
+        // Stage 3: definition → GPU vertex buffer, keyed by name.
         asio::awaitable<bool> load(const proto::render::MeshDefinition & mesh_def) const
         {
-            //render::Mesh mesh {.indices = mesh_def.indices(), mesh_def.vertices};
-            //auto shader = co_await renderer.createVertexBuffer(shader_def.name, shader_def.vertex, shader_def.fragment);
-            co_return;
+            render::Mesh mesh;
+            mesh.indices.assign(mesh_def.indices().begin(), mesh_def.indices().end());
+            mesh.vertices.reserve(mesh_def.vertices().size());
+            for(const auto & v : mesh_def.vertices())
+            {
+                mesh.vertices.push_back({
+                    math::deserialize(v.position()),
+                    math::deserialize(v.normal()),
+                    math::deserialize(v.uv())
+                });
+            }
+
+            if((co_await _renderer.createVertexBuffer(mesh_def.name(), mesh)) == std::nullopt)
+            {
+                spdlog::error("Failed to create vertex buffer for mesh: {}", mesh_def.name());
+                co_return false;
+            }
+            co_return true;
         }
 
         asio::awaitable<bool> loadPrefabs()
