@@ -12,7 +12,6 @@
 #include "process/process.hpp"
 #include "math/math.hpp"
 
-#include "file/resource_streamer.hpp"
 #include "file/save_archive.hpp"
 
 #include "proto/ECS/entity_definition.pb.h"
@@ -23,7 +22,13 @@ namespace astre::file
     // load 1 chunk in each direction from streaming position
     static constexpr int LOAD_RADIUS = 1;
 
-    class WorldStreamer : public IResourceStreamer<proto::file::ChunkID, proto::file::WorldChunk>
+    // World state stays outside the uniform asset pipeline (mutable,
+    // position-streamed, read/write), but bridges into it structurally: it
+    // exposes read(ChunkID) -> const WorldChunk*, satisfying the Asset
+    // module's DefinitionSource concept without inheriting from or
+    // depending on it (see Loader, which checks this statically since it's
+    // the module that actually depends on both File and Asset).
+    class WorldStreamer
     {
         public:
             template<class Mode>
@@ -44,9 +49,9 @@ namespace astre::file
 
             asio::awaitable<void> updateLoadPosition(const math::Vec3 & pos);
             
-            proto::file::WorldChunk * read(proto::file::ChunkID id) const override;
-            bool write(const proto::file::WorldChunk & chunk) override;
-            bool remove(proto::file::ChunkID id) override;
+            const proto::file::WorldChunk * read(proto::file::ChunkID id) const;
+            bool write(const proto::file::WorldChunk & chunk);
+            bool remove(proto::file::ChunkID id);
 
         private:
             asio::awaitable<void> _loadChunk(const proto::file::ChunkID& id);

@@ -52,6 +52,7 @@ target_link_libraries("${PROJECT_NAME}"
         astre::ECS
         astre::ECS_proto
         astre::Pipeline
+        astre::Asset
         astre::File
         astre::File_proto
         astre::Script

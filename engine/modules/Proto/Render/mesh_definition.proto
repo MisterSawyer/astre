@@ -13,6 +13,7 @@ message VertexDefinition
 
 message MeshDefinition
 {
+    string name = 3;
     repeated uint32 indices = 1;
     repeated VertexDefinition vertices = 2;
 }

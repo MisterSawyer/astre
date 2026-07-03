@@ -17,6 +17,7 @@ add_module(NAME "Loader"
         astre::ECS
         astre::Script
         astre::File
+        astre::Asset
 
         astre::ECS_proto
         astre::Render_proto
