@@ -2,28 +2,26 @@
 
 #include "script/script.hpp"
 
-#include "proto/Script/script_definition.pb.h"
+#include "asset/concepts.hpp"
 
-#include "loader/loader_interface.hpp"
+#include "proto/Script/script_definition.pb.h"
 
 namespace astre::loader
 {
-    class ScriptLoader : public ILoader
+    class ScriptLoader
     {
     public:
         ScriptLoader(script::ScriptRuntime & script_runtime)
-        : _script_runtime(script_runtime) 
+        : _script_runtime(script_runtime)
         {}
 
-        virtual ~ScriptLoader() = default;
-
-        asio::awaitable<void> load(const proto::script::ScriptDefinition & script_def)
+        asio::awaitable<bool> load(const proto::script::ScriptDefinition & script_def)
         {
             std::ostringstream ss;
             for (const auto & code : script_def.code()) ss << code << std::endl;
 
             _script_runtime.loadScript(script_def.name(), ss.str());
-            co_return;
+            co_return true;
         }
 
 

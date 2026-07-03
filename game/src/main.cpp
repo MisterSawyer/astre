@@ -70,28 +70,17 @@ namespace astre::entry
     {
         ecs::Registry registry(app_state.process.getExecutionContext());
 
-        // Filesystem streaming
-        file::MeshStreamer mesh_streamer(
-            app_state.process.getExecutionContext(),
-            paths.resources / "meshes"
-        );
-
-        file::ShaderStreamer shader_streamer(
-            app_state.process.getExecutionContext(),
-            paths.resources / "shaders" / "glsl"
-        );
-
-        file::WorldStreamer world_streamer(  
+        // World state stays on its own streamer (mutable, position-streamed)
+        file::WorldStreamer world_streamer(
             app_state.process.getExecutionContext(),
             paths.resources / "worlds" / "levels" / "level_0.json",
             file::use_json,
             32.0f, 32
         );
 
-        file::ScriptStreamer script_streamer(
-            app_state.process.getExecutionContext(),
-            paths.resources / "worlds" / "scripts"
-        );
+        // Asset caches (Stage 2)
+        asset::AssetCache<proto::render::ShaderDefinition> shader_cache(app_state.process.getExecutionContext());
+        asset::AssetCache<proto::script::ScriptDefinition> script_cache(app_state.process.getExecutionContext());
 
         // Module loaders
         loader::MeshLoader mesh_loader(app_state.renderer);
@@ -99,13 +88,17 @@ namespace astre::entry
         loader::ScriptLoader script_loader(app_state.script);
         loader::EntityLoader entity_loader(registry);
 
-        // load resources from files into memory
-        if(!co_await shader_streamer.load({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"}))
+        // import -> cache -> load, one line per asset type
+        if(!co_await loader::loadAssets<proto::render::ShaderDefinition>(
+            {"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"},
+            asset::glslImporter(paths.resources / "shaders" / "glsl"), shader_cache, shader_loader))
         {
             spdlog::error("Failed to load shaders");
             co_return;
         }
-        if(!co_await script_streamer.load({std::filesystem::path("player_script.lua"), std::filesystem::path("camera_script.lua")}))
+        if(!co_await loader::loadAssets<proto::script::ScriptDefinition>(
+            {"player_script", "camera_script"},
+            asset::luaImporter(paths.resources / "worlds" / "scripts"), script_cache, script_loader))
         {
             spdlog::error("Failed to load scripts");
             co_return;
@@ -113,21 +106,6 @@ namespace astre::entry
 
         // basic prefabs already exists in memory, we only need to load them into renderer
         co_await mesh_loader.loadPrefabs();
-
-        // load shaders from memory to renderer using shader loader
-        if(!co_await loader::loadStreamedResources({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"},
-            shader_streamer, shader_loader))
-        {
-            spdlog::error("Failed to load shaders into renderer");
-            co_return;
-        }
-
-        // load scripts from memory to ScriptRuntime using script loader
-        if(!co_await loader::loadStreamedResources({"player_script", "camera_script"}, script_streamer, script_loader))
-        {
-            spdlog::error("Failed to load scripts into script runtime");
-            co_return;
-        }
 
 
         // construct render resources
@@ -191,7 +169,11 @@ namespace astre::entry
                     // then load every entity in chunk
                     for(const auto & entity_def : chunk->entities())
                     {
-                        co_await entity_loader.load(entity_def);
+                        if(!co_await entity_loader.load(entity_def))
+                        {
+                            spdlog::error("Failed to load entity {} from chunk ({}, {})", entity_def.id(), chunk_id.x(), chunk_id.z());
+                            co_return;
+                        }
                     }
                 }
             }

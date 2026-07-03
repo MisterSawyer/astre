@@ -13,6 +13,7 @@
 #include "ecs/ecs.hpp"
 #include "input/input.hpp"
 #include "pipeline/pipeline.hpp"
+#include "asset/asset.hpp"
 #include "file/file.hpp"
 #include "script/script.hpp"
 #include "loader/loader.hpp"
