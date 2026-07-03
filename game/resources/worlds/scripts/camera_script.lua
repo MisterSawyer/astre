@@ -1,19 +1,19 @@
-local camera_input = get_input(entity)
-local camera_transform = get_transform(entity)
+local camera_input = input_component
+local camera_transform = transform_component
 
 -- Initial angle setup
 if camera_pitch == nil then
     local init_rotation = camera_transform:get_rotation()
-    local euler_deg = glm.degrees(glm.eulerAngles(init_rotation))
+    local euler_deg = astre.math.degrees(astre.math.eulerAngles(init_rotation))
     camera_pitch = euler_deg.x
     camera_yaw = euler_deg.y
 end
 
-local sensitivity = 0.3
+local sensitivity = 0.05
 local pitch_min = -89.0
 local pitch_max = 89.0
-local speed = 5.0
-local dt = delta or 0.016  -- e.g. 60 FPS fallback
+local speed = 10.0
+local dt = dt or 0.016  -- e.g. 60 FPS fallback
 local dx = camera_input:get_mouse_dx()
 local dy = camera_input:get_mouse_dy()
 
@@ -24,8 +24,8 @@ camera_pitch = camera_pitch - (dy * sensitivity)
 camera_pitch = math.max(pitch_min, math.min(pitch_max, camera_pitch))
 
 -- Recompute quaternion from Euler angles
-local euler_rad = glm.radians(glm.vec3(camera_pitch, camera_yaw, 0.0))
-local rotation = glm.quat(euler_rad)
+local euler_rad = astre.math.radians(astre.math.Vec3(camera_pitch, camera_yaw, 0.0))
+local rotation = astre.math.Quat(euler_rad)
 
 -- Apply rotation to transform
 camera_transform:set_rotation(rotation)
@@ -34,7 +34,7 @@ forward = camera_transform:get_forward()
 right = camera_transform:get_right()
 up = camera_transform:get_up()
 
-local movement = glm.vec3(0.0, 0.0, 0.0)
+local movement = astre.math.Vec3(0.0, 0.0, 0.0)
 
 -- Horizontal movement
 if camera_input:is_pressed("KEY_A") or camera_input:just_pressed("KEY_A") then
@@ -67,13 +67,12 @@ end
 acc_movement = (0.1 * acc_movement) + (0.9 * movement)
 
 -- Normalize and apply movement
-if glm.length(movement) > 0.0 then
+if astre.math.length(movement) > 0.0 then
     local position = camera_transform:get_position()
-    movement = glm.normalize(movement) * speed * dt
+    movement = astre.math.normalize(movement) * speed * dt
     position = position + movement
     -- Apply new position to ECS transform
     camera_transform:set_x(position.x)
     camera_transform:set_y(position.y)
     camera_transform:set_z(position.z)
 end
-

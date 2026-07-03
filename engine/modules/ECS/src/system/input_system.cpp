@@ -14,6 +14,9 @@ namespace astre::ecs::system
         google::protobuf::RepeatedField<int> serialized_just_pressed;
         google::protobuf::RepeatedField<int> serialized_just_released;
 
+        const auto & mouse_pos = _input_service.getMousePosition();
+        const auto & mouse_delta = _input_service.getMouseDelta();
+
         for(const auto & held : _input_service.getHeld())
         {
             serialized_pressed.Add(held);
@@ -39,6 +42,11 @@ namespace astre::ecs::system
                 input_component.mutable_pressed()->CopyFrom(serialized_pressed);
                 input_component.mutable_just_pressed()->CopyFrom(serialized_just_pressed);
                 input_component.mutable_just_released()->CopyFrom(serialized_just_released);
+
+                input_component.mutable_mouse()->set_x(mouse_pos.x);
+                input_component.mutable_mouse()->set_y(mouse_pos.y);
+                input_component.mutable_mouse()->set_dx(mouse_delta.x);
+                input_component.mutable_mouse()->set_dy(mouse_delta.y);
             }
         );
 
