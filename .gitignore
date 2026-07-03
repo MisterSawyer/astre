@@ -80,3 +80,8 @@ vcpkg_installed/
 
 # === Logs ===
 /logs/
+
+# === Agent ===
+.agent/
+build-agent/
+install-agent/
