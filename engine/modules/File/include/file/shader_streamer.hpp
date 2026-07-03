@@ -58,7 +58,16 @@ namespace astre::file
                 
                 const auto no_cancel = asio::bind_cancellation_slot(asio::cancellation_slot{}, asio::use_awaitable);
 
-                co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+                auto [order, excs, results] = co_await g.async_wait(asio::experimental::wait_for_all(), no_cancel);
+
+                bool all_ok = true;
+                for(std::size_t i = 0; i < excs.size(); ++i)
+                {
+                    if(excs[i]) std::rethrow_exception(excs[i]);
+                    all_ok = all_ok && results[i];
+                }
+
+                co_return all_ok;
             }
 
             private:

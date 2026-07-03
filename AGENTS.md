@@ -11,7 +11,14 @@ Agents must use a designated build directory for all work:
 - `build-agent` for CMake build files
 - `install-agent` for install output
 
-`cmake -S . -B  build-agent-DCMAKE_INSTALL_PREFIX=install-agent ...`
+`cmake -S . -B build-agent -DCMAKE_INSTALL_PREFIX=install-agent ...`
+
+**Never build in, configure, or otherwise touch `build` or `install`.**
+
+If `build-agent` does not exist yet, that means no one has configured it for
+you: run the `cmake -S . -B build-agent ...` command above yourself to create
+it first. A missing `build-agent` directory is never a reason to fall back to
+`build` — it is an instruction to create `build-agent`.
 
 ## Build/Test Flags
 

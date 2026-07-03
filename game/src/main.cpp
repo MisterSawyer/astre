@@ -100,19 +100,34 @@ namespace astre::entry
         loader::EntityLoader entity_loader(registry);
 
         // load resources from files into memory
-        co_await shader_streamer.load({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"});
-        co_await script_streamer.load({std::filesystem::path("player_script.lua"), std::filesystem::path("camera_script.lua")});
-
+        if(!co_await shader_streamer.load({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"}))
+        {
+            spdlog::error("Failed to load shaders");
+            co_return;
+        }
+        if(!co_await script_streamer.load({std::filesystem::path("player_script.lua"), std::filesystem::path("camera_script.lua")}))
+        {
+            spdlog::error("Failed to load scripts");
+            co_return;
+        }
 
         // basic prefabs already exists in memory, we only need to load them into renderer
         co_await mesh_loader.loadPrefabs();
 
         // load shaders from memory to renderer using shader loader
-        co_await loader::loadStreamedResources({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"}, 
-            shader_streamer, shader_loader);
+        if(!co_await loader::loadStreamedResources({"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay"},
+            shader_streamer, shader_loader))
+        {
+            spdlog::error("Failed to load shaders into renderer");
+            co_return;
+        }
 
         // load scripts from memory to ScriptRuntime using script loader
-        co_await loader::loadStreamedResources({"player_script", "camera_script"}, script_streamer, script_loader);
+        if(!co_await loader::loadStreamedResources({"player_script", "camera_script"}, script_streamer, script_loader))
+        {
+            spdlog::error("Failed to load scripts into script runtime");
+            co_return;
+        }
 
 
         // construct render resources
