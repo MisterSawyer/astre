@@ -1,10 +1,12 @@
-# 🚀 Astre
+# Astre
+
+[Docs](https://mistersawyer.github.io/astre/)
 
 [![Build Astre engine](https://github.com/MisterSawyer/astre/actions/workflows/test-windows-debug.yml/badge.svg?branch=main)](https://github.com/MisterSawyer/astre/actions/workflows/test-windows-debug.yml)
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 This project requires the following libraries:
 
@@ -20,26 +22,26 @@ This project requires the following libraries:
 
 ---
 
-## ⚙️ Configuring the project
+## Configuring
 
 To configure the project using CMake, run the following command:
 
 ```sh
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_INSTALL_PREFIX=install -DASTRE_BUILD_TESTS=ON 
+cmake -S . -B build -A x64 -DCMAKE_INSTALL_PREFIX=install -DASTRE_BUILD_TESTS=ON 
 ```
 
 - `-S .` : Specifies the source directory.
 - `-B build` : Specifies the build directory.
-- `-G "Visual Studio 17 2022"` : Use Visual Studio generator
 - `-A x64` : Sets the target architecture to 64-bit
 - `-DASTRE_BUILD_TESTS=ON` : Enables tests.
 - `-DCMAKE_INSTALL_PREFIX=install` : Specifies install directory.
+- `--graphviz=build/graph.dot` : Specifies the path to the graphviz file.
 
 </br>
 
 ---
 
-## 🛠️ Building the project
+## Building
 
 To build the project in **Debug Mode**, use:
 
@@ -65,7 +67,7 @@ cmake --build build --config Release
 
 ---
 
-## 🛠️ Installing the Project
+## Installing
 
 To install project in **Debug Mode**, use:
 
@@ -85,69 +87,10 @@ cmake --build build --config Release --target install
 
 ---
 
-## Example for VSCode tasks
+## Executables
 
-```json
-{
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "CMake: Configure (VS2022 x64)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build",
-                "-G",
-                "Visual Studio 17 2022",
-                "-A",
-                "x64",
-                "-DCMAKE_INSTALL_PREFIX=install"
-            ],
-            "group": "build",
-            "problemMatcher": [],
-            "detail": "Configure the project using CMake and Visual Studio 2022 (x64)"
-        },
-        {
-            "label": "CMake: Build & Install (Debug)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "build",
-                "--config",
-                "Debug",
-                "--target",
-                "install",
-                "-j",
-                "4"
-            ],
-            "dependsOn": [
-                "CMake: Configure (VS2022 x64)"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [],
-            "detail": "Build and install the project using Debug configuration"
-        }
-    ]
-  }
-```
-
----
-
-## 🖥️ Start the game executable
-
-```sh
-./install/bin/AstreGame.exe
-```
-
-## 🖥️ Start the editor executable
-
-```sh
-./install/bin/AstreEditor.exe
-```
+|name|path|
+|---|---|
+|Engine Tests|`<INSTALL_PREFIX>/bin/AstreEngineTests.exe`|
+|Game|`<INSTALL_PREFIX>/bin/AstreGame.exe`|
+|Editor|`<INSTALL_PREFIX>/bin/AstreEditor.exe`|
