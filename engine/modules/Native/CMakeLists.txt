@@ -34,4 +34,5 @@ add_module(NAME "Native"
 )
 
 # spdlog-src\include\spdlog\fmt\bundled\core.h(418): warning C6239
-target_compile_options(Native PRIVATE /wd6239)
+# spdlog-src\include\spdlog\fmt\bundled\format.h(1098): warning C6240
+target_compile_options(Native PRIVATE /wd6239 /wd6240)

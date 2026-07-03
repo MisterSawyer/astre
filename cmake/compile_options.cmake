@@ -48,6 +48,7 @@ if (MSVC)
         "$<$<CONFIG:Debug>:/FS>"    # Prevents simultaneous writes to .pdb (debug symbols) from multiple compiler processes
         "$<$<CONFIG:Debug>:/D_ITERATOR_DEBUG_LEVEL=2>"  # Controls STL iterator safety checks - Full checks
         "$<$<CONFIG:Debug>:/analyze>"                   # Static analysis
+        "$<$<CONFIG:Debug>:/analyze:external->"         # Don't analyze external/third-party headers
         "$<$<CONFIG:Debug>:/D_DEBUG>"
 
 
