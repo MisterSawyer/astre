@@ -25,7 +25,8 @@ add_executable(${PROJECT_NAME}Tests
     "modules/Render/opengl_shader_tests.cpp"
 
     "modules/File/world_file_tests.cpp"
-    
+    "modules/File/mesh_file_tests.cpp"
+
 )
 
 if(WIN32)

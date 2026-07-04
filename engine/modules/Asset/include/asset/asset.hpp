@@ -4,6 +4,7 @@
 #include "asset/asset_cache.hpp"
 #include "asset/shader_streamer.hpp"
 #include "asset/script_streamer.hpp"
+#include "asset/mesh_streamer.hpp"
 #include "asset/world_streamer.hpp"
 
 namespace astre::asset
@@ -16,4 +17,5 @@ namespace astre::asset
     static_assert(DefinitionSource<WorldStreamer, proto::file::ChunkID, proto::file::WorldChunk>);
     static_assert(DefinitionSource<ShaderStreamer, std::string, proto::render::ShaderDefinition>);
     static_assert(DefinitionSource<ScriptStreamer, std::string, proto::script::ScriptDefinition>);
+    static_assert(DefinitionSource<MeshStreamer, std::string, proto::render::MeshDefinition>);
 }

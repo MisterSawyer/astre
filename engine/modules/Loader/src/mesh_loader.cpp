@@ -6,7 +6,7 @@
 
 namespace astre::loader
 {
-    asio::awaitable<bool> MeshLoader::load(const proto::render::MeshDefinition & mesh_def) const
+    asio::awaitable<bool> MeshLoader::load(const proto::render::MeshDefinition & mesh_def)
     {
         render::Mesh mesh;
         mesh.indices.assign(mesh_def.indices().begin(), mesh_def.indices().end());
@@ -25,22 +25,24 @@ namespace astre::loader
             spdlog::error("Failed to create vertex buffer for mesh: {}", mesh_def.name());
             co_return false;
         }
+
+        _loaded_meshes.insert(mesh_def.name());
         co_return true;
     }
 
-    asio::awaitable<bool> MeshLoader::load(const std::vector<proto::render::MeshDefinition> & mesh_defs) const
+    asio::awaitable<bool> MeshLoader::load(const std::vector<proto::render::MeshDefinition> & mesh_defs)
     {
         for(const auto & mesh_def : mesh_defs)
             if(!co_await load(mesh_def)) co_return false;
         co_return true;
     }
 
-    asio::awaitable<bool> MeshLoader::unload(const std::string & name) const
+    asio::awaitable<bool> MeshLoader::unload(const std::string & name)
     {
         co_return co_await unload(std::vector<std::string>{name});
     }
 
-    asio::awaitable<bool> MeshLoader::unload(const std::vector<std::string> & names) const
+    asio::awaitable<bool> MeshLoader::unload(const std::vector<std::string> & names)
     {
         for(const auto & name : names)
         {
@@ -48,10 +50,12 @@ namespace astre::loader
             if(!mesh)
             {
                 spdlog::warn("[mesh-loader] Mesh {} was not loaded", name);
+                _loaded_meshes.erase(name);
                 continue;
             }
 
             co_await _renderer.eraseVertexBuffer(*mesh);
+            _loaded_meshes.erase(name);
         }
 
         co_return true;

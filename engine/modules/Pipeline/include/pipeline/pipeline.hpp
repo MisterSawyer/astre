@@ -75,7 +75,8 @@ namespace astre::pipeline
                 // default to 32.0f chunk size
                 .world_streamer = asset::WorldStreamer(_process, 32.0f),
                 .shader_streamer = asset::ShaderStreamer(_process),
-                .script_streamer = asset::ScriptStreamer(_process)
+                .script_streamer = asset::ScriptStreamer(_process),
+                .mesh_streamer = asset::MeshStreamer(_process)
             };
 
             co_await _process.setWindowCallbacks(window->getHandle(), 

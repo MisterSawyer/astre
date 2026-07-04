@@ -135,6 +135,15 @@ namespace astre::entry
 
         // basic prefabs already exists in memory, we only need to load them into renderer
         co_await app_state.loaders.mesh_loader.loadPrefabs();
+        const std::vector<std::filesystem::path> mesh_files = {
+            paths.resources / "assets" / "meshes" / "tree0.obj"
+        };
+        if(!co_await app_state.streamers.mesh_streamer.stream(mesh_files, file::use_obj) ||
+           !co_await app_state.loaders.mesh_loader.sync(app_state.streamers.mesh_streamer.keys(), app_state.streamers.mesh_streamer))
+        {
+            spdlog::error("Failed to load meshes");
+            co_return;
+        }
 
         // construct render resources
         auto render_state_res = co_await pipeline::buildRendererState(app_state.renderer, {1280, 728});

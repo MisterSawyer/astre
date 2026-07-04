@@ -311,6 +311,45 @@ silence_warnings(TARGETS imgui)
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
 
 # ---------------------------------------------------------
+# assimp
+# ---------------------------------------------------------
+message(STATUS "Fetching dependency `assimp` ...")
+FetchContent_Declare(
+    assimp
+    GIT_REPOSITORY "https://github.com/assimp/assimp.git"
+    GIT_TAG        "v6.0.5"
+    SYSTEM
+    OVERRIDE_FIND_PACKAGE
+)
+# static lib, no tools/tests, OBJ importer only for now, no exporters
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL ON CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL_PDB OFF CACHE BOOL "" FORCE) # RelWithDebInfo PDB install is broken upstream
+set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ZLIB ON CACHE BOOL "" FORCE)
+set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
+if(MSVC)
+    set(USE_STATIC_CRT ON CACHE BOOL "" FORCE)
+endif()
+# assimp's MSVC build adds /source-charset:utf-8 itself, which clashes with our
+# global /utf-8 (error D8016). Drop /utf-8 from the inherited directory options for
+# the assimp subtree only, then restore it — assimp sets its own charset flags.
+get_directory_property(_astre_saved_opts COMPILE_OPTIONS)
+set(_astre_assimp_opts ${_astre_saved_opts})
+list(REMOVE_ITEM _astre_assimp_opts "/utf-8")
+set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_astre_assimp_opts}")
+
+FetchContent_MakeAvailable(assimp)
+silence_warnings(TARGETS assimp)
+
+set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_astre_saved_opts}")
+
+# ---------------------------------------------------------
 # GTest
 # ---------------------------------------------------------
 if(ASTRE_BUILD_TESTS)

@@ -10,6 +10,7 @@ add_module(NAME "File"
         asio
         absl::flat_hash_map
         spdlog
+        assimp
 
         astre::Async
         astre::Math

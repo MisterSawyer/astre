@@ -21,6 +21,7 @@ namespace astre::pipeline
         asset::WorldStreamer world_streamer;
         asset::ShaderStreamer shader_streamer;
         asset::ScriptStreamer script_streamer;
+        asset::MeshStreamer mesh_streamer;
     };
 
     struct AppLoaders
