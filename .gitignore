@@ -31,6 +31,8 @@ install_manifest.txt
 # === Compiled Objects ===
 *.o
 *.obj
+# files under any assets/meshes/ dir are tracked
+!**/assets/meshes/**/*.obj
 *.lo
 *.gch
 *.pch
