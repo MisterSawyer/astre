@@ -168,7 +168,10 @@ namespace astre::render::opengl
             }
 
             template<class T>
-            asio::awaitable<bool> eraseInternalObject(absl::flat_hash_map<std::size_t, T> & object_map, std::size_t id) const
+            asio::awaitable<bool> eraseInternalObject(
+                absl::flat_hash_map<std::size_t, T> & object_map,
+                absl::flat_hash_map<std::string, std::size_t> & name_map,
+                std::size_t id) const
             {
                 if(good() == false)co_return false;
 
@@ -181,6 +184,14 @@ namespace astre::render::opengl
                 }
 
                 object_map.erase(id);
+                for(auto it = name_map.begin(); it != name_map.end(); ++it)
+                {
+                    if(it->second == id)
+                    {
+                        name_map.erase(it);
+                        break;
+                    }
+                }
 
                 spdlog::info(std::format("renderer object {} erased", id));
 

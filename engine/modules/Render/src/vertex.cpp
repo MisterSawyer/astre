@@ -64,6 +64,30 @@ namespace astre::render
         return quad;   
     }
 
+    const Mesh & getWireCubePrefab()
+    {
+        // 8 corners, 12 edges as a line list. Normals/uv unused by the debug shader.
+        static const Mesh wire_cube{
+            {
+                0,1, 1,2, 2,3, 3,0, // bottom face (-Z)
+                4,5, 5,6, 6,7, 7,4, // top face (+Z)
+                0,4, 1,5, 2,6, 3,7  // verticals
+            },
+            {
+                {{-0.5f, -0.5f, -0.5f}, {0, 0, 1}, {0, 0}}, // 0
+                {{ 0.5f, -0.5f, -0.5f}, {0, 0, 1}, {0, 0}}, // 1
+                {{ 0.5f,  0.5f, -0.5f}, {0, 0, 1}, {0, 0}}, // 2
+                {{-0.5f,  0.5f, -0.5f}, {0, 0, 1}, {0, 0}}, // 3
+                {{-0.5f, -0.5f,  0.5f}, {0, 0, 1}, {0, 0}}, // 4
+                {{ 0.5f, -0.5f,  0.5f}, {0, 0, 1}, {0, 0}}, // 5
+                {{ 0.5f,  0.5f,  0.5f}, {0, 0, 1}, {0, 0}}, // 6
+                {{-0.5f,  0.5f,  0.5f}, {0, 0, 1}, {0, 0}}, // 7
+            }
+        };
+
+        return wire_cube;
+    }
+
     const Mesh & getCubePrefab()
     {
         static const Mesh cube{

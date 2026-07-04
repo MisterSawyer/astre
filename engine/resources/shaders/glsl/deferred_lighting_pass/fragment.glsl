@@ -40,8 +40,17 @@ out vec4 FragColor;
 float calculateShadow(vec3 fragPosWorld, int shadow_caster_id)
 {
     vec4 fragPosLightSpace = lightSpaceMatrices[shadow_caster_id] * vec4(fragPosWorld, 1.0);
+    if (fragPosLightSpace.w <= 0.0) return 1.0; // behind the light -> no shadow data, treat as lit
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
+
+    // Outside the light's shadow frustum there is no depth data (point lights light
+    // omnidirectionally but only render one frustum). Treat as lit to avoid a hard
+    // dark band where the frustum edge crosses geometry.
+    if (projCoords.z > 1.0 ||
+        projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0) return 1.0;
+
     projCoords.z -= 0.005;
 
     return texture(shadowMaps[shadow_caster_id], projCoords); // 0 = in shadow, 1 = lit

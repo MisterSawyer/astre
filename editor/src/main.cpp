@@ -15,9 +15,6 @@ struct EditorFrame
 struct EditorState
 {
     pipeline::AppState & app_state;
-
-    ecs::Registry & registry;
-    ecs::Systems systems;
     
     pipeline::LogicFrameTimer logic_timer;
 
@@ -46,46 +43,41 @@ struct EditorRenderState
 
 asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppState app_state, const entry::AppPaths & paths)
 {
-    // ECS registry
-    ecs::Registry registry(app_state.process.getExecutionContext());
+    constexpr ecs::Entity active_camera_entity = 5;
+    app_state.systems.camera.setActiveCameraEntity(active_camera_entity);
 
-    // World state stays on its own streamer (mutable, position-streamed)
-    file::WorldStreamer world_streamer(
-        app_state.process.getExecutionContext(),
-        paths.resources / "worlds" / "levels" / "level_0.json",
-        file::use_json,
-        32.0f, 32
-    );
+    if(!co_await app_state.streamers.world_streamer.stream(paths.resources / "worlds" / "levels" / "level_0.json", file::use_json))
+    {
+        spdlog::error("Failed to open world file");
+        co_return;
+    }
 
-    // Asset caches (Stage 2)
-    asset::AssetCache<proto::render::ShaderDefinition> shader_cache(app_state.process.getExecutionContext());
-    asset::AssetCache<proto::script::ScriptDefinition> script_cache(app_state.process.getExecutionContext());
-
-    // Module loaders
-    loader::MeshLoader mesh_loader(app_state.renderer);
-    loader::ShaderLoader shader_loader(app_state.renderer);
-    loader::ScriptLoader script_loader(app_state.script);
-    loader::EntityLoader entity_loader(registry);
-
-    // import -> cache -> load, one line per asset type
-    if(!co_await loader::loadAssets<proto::render::ShaderDefinition>(
-        {"deferred_shader", "deferred_lighting_pass", "shadow_depth", "basic_shader", "simple_NDC", "debug_overlay", "picking_id64"},
-        asset::glslImporter(paths.resources / "shaders" / "glsl"), shader_cache, shader_loader))
+    // stream (import -> cache) then load (cache -> runtime) per asset type;
+    // each streamer names its assets by file stem.
+    const auto shader_dir = paths.resources / "shaders" / "glsl";
+    const std::vector<std::filesystem::path> shader_files = {
+        shader_dir / "deferred_shader", shader_dir / "deferred_lighting_pass",
+        shader_dir / "shadow_depth", shader_dir / "basic_shader",
+        shader_dir / "simple_NDC", shader_dir / "debug_overlay", shader_dir / "picking_id64"};
+    if(!co_await app_state.streamers.shader_streamer.stream(shader_files) ||
+       !co_await app_state.loaders.shader_loader.sync(app_state.streamers.shader_streamer.keys(), app_state.streamers.shader_streamer))
     {
         spdlog::error("Failed to load shaders");
         co_return;
     }
-    if(!co_await loader::loadAssets<proto::script::ScriptDefinition>(
-        {"player_script", "camera_script"},
-        asset::luaImporter(paths.resources / "worlds" / "scripts"), script_cache, script_loader))
+
+    const auto script_dir = paths.resources / "worlds" / "scripts";
+    const std::vector<std::filesystem::path> script_files = {
+        script_dir / "player_script.lua", script_dir / "camera_script.lua"};
+    if(!co_await app_state.streamers.script_streamer.stream(script_files) ||
+       !co_await app_state.loaders.script_loader.sync(app_state.streamers.script_streamer.keys(), app_state.streamers.script_streamer))
     {
         spdlog::error("Failed to load scripts");
         co_return;
     }
 
     // basic prefabs already exists in memory, we only need to load them into renderer
-    co_await mesh_loader.loadPrefabs();
-
+    co_await app_state.loaders.mesh_loader.loadPrefabs();
 
     model::WorldSnapshot world_snapshot;
 
@@ -110,15 +102,6 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         EditorState
         {
             .app_state = app_state,
-            .registry = registry,
-            .systems = ecs::Systems{
-                .transform = ecs::system::TransformSystem(registry),
-                .camera = ecs::system::CameraSystem(5, registry),
-                .visual = ecs::system::VisualSystem(app_state.renderer, registry),
-                .light = ecs::system::LightSystem(registry),
-                .script = ecs::system::ScriptSystem(app_state.script, registry),
-                .input = ecs::system::InputSystem(app_state.input, registry)
-            },
 
             .logic_timer = pipeline::LogicFrameTimer(),
 
@@ -164,11 +147,18 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
 
     // Logic 1. PRE ECS, load world depending on flycamera position
     orchestrator.setLogicStage<1>(
-        [&world_streamer]
+        []
         (async::LifecycleToken & token, float, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
+            auto & world_streamer = editor_state.app_state.streamers.world_streamer;
             co_await pipeline::runPreECS(editor_state.app_state, world_streamer, editor_state.flycam.getPosition());
+
+            if(!co_await editor_state.app_state.loaders.chunk_loader.sync(world_streamer.keys(), world_streamer))
+            {
+                spdlog::error("Failed to load streamed world chunks");
+                co_return;
+            }
         }
     );
 
@@ -178,7 +168,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
-            co_await pipeline::runECS(editor_state.systems, dt, editor_frame.render_frame);
+            co_await pipeline::runECS(editor_state.app_state.systems, dt, editor_frame.render_frame);
 
             editor_state.viewport_entity_picker.setViewportRect(
                 editor_state.viewport_panel.getImgPos(),
@@ -221,7 +211,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
     // Logic 4.
     bool should_reload_world = true;
     orchestrator.setLogicStage<4>(
-        [&should_reload_world, &world_snapshot, &world_streamer, &entity_loader]
+        [&should_reload_world, &world_snapshot]
         (async::LifecycleToken & token, float dt, EditorFrame & editor_frame, EditorState & editor_state)  -> asio::awaitable<void>
         {
             co_stop_if(token);
@@ -229,19 +219,7 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
             if(should_reload_world)
             {
                 should_reload_world = false;
-                world_snapshot.load(world_streamer);
-
-                for(const auto & [chunk_id, entity_map] : world_snapshot.mapping)
-                {
-                    for(const auto & [entity_id, entity_def] : entity_map)
-                    {
-                        if(!co_await entity_loader.load(entity_def))
-                        {
-                            spdlog::error("Failed to load entity {} from chunk ({}, {})", entity_def.id(), chunk_id.x(), chunk_id.z());
-                            co_return;
-                        }
-                    }
-                }
+                world_snapshot.load(editor_state.app_state.streamers.world_streamer);
             }
 
             // handle removed chunks
@@ -367,6 +345,16 @@ asio::awaitable<void> runMainLoop(async::LifecycleToken & token, pipeline::AppSt
                 interpolated_frame,
                 editor_render_state.render_state.display.viewport_fbo
             );
+
+            // chunk-border debug overlay, state by state, into the viewport fbo
+            if(editor_state.viewport_panel.showChunkBorders())
+                co_await pipeline::renderChunkBorders(
+                    editor_state.app_state.renderer,
+                    editor_render_state.render_state.debug_overlay,
+                    editor_state.app_state.streamers.world_streamer,
+                    interpolated_frame.view_matrix,
+                    interpolated_frame.proj_matrix,
+                    editor_render_state.render_state.display.viewport_fbo);
 
             co_await pipeline::renderPickingIds(
                 editor_state.app_state.renderer,

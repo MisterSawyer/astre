@@ -18,7 +18,7 @@ namespace astre::ecs
     class Registry
     {
         public:
-            Registry(process::IProcess::execution_context_type & execution_context);
+            Registry(process::IProcess & process);
             Registry(Registry && other);
             Registry& operator=(Registry && other);
 

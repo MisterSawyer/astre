@@ -23,7 +23,7 @@ namespace astre::ecs
         return *this;
     }
     
-    std::optional<Entity> EntityManager::spawnEntity(std::optional<std::size_t> entity_id) 
+    std::optional<Entity> EntityManager::spawnEntity(std::optional<Entity> entity_id) 
     {
         Entity entity = INVALID_ENTITY;
 

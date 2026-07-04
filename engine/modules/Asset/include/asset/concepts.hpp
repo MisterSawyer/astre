@@ -19,22 +19,20 @@ namespace astre::asset
             { d.name() } -> std::convertible_to<std::string_view>;
         };
 
-    // Stage 1: anything callable that turns a source name into a definition.
-    // Satisfied by free functions, lambdas (capturing dirs/contexts), functors.
-    template<class F, class Def>
-    concept ImporterOf =
-        AssetDefinition<Def> &&
-        std::invocable<F, std::string> &&
-        std::same_as<std::invoke_result_t<F, std::string>,
-                     asio::awaitable<std::optional<Def>>>;
-
-    // Stage 3: anything that uploads a definition into a runtime system.
+    // Stage 3 (write side): uploads a definition into a runtime system. Name-
+    // agnostic — the upload never inspects name(), that is an importer/cache
+    // concern (same reasoning DefinitionSource uses on the read side below).
+    // Satisfied by EntityLoader for EntityDefinition, ChunkLoader for WorldChunk.
     template<class L, class Def>
-    concept LoaderOf =
-        AssetDefinition<Def> &&
+    concept LoadSink =
         requires(L & l, const Def & d) {
             { l.load(d) } -> std::same_as<asio::awaitable<bool>>;
         };
+
+    // Named variant, for definitions that also flow through the import/cache
+    // stages and are therefore addressable by name().
+    template<class L, class Def>
+    concept LoaderOf = LoadSink<L, Def> && AssetDefinition<Def>;
 
     // Stage 2 (read side): where loaders' inputs come from. Satisfied by
     // AssetCache<Def>; WorldStreamer satisfies it for WorldChunk, which is

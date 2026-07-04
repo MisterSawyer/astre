@@ -66,6 +66,15 @@ namespace astre::render
     const Mesh & getCubePrefab();
 
     /**
+     * @brief Get the wireframe cube prefab object: 8 corners + 12 edges as a
+     * line list (draw with PrimitiveTopology::Lines). Unlike a triangle cube in
+     * wireframe polygon mode, it has no face diagonals.
+     *
+     * @return The wireframe cube prefab object.
+     */
+    const Mesh & getWireCubePrefab();
+
+    /**
      * @brief Get the sphere prefab object.
      * 
      * @param subdivisions The number of subdivisions.

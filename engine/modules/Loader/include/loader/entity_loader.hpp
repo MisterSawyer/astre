@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <asio.hpp>
 
 #include "asset/concepts.hpp"
@@ -22,6 +24,11 @@ namespace astre::loader
         EntityLoader& operator=(const EntityLoader &) = delete;
 
         asio::awaitable<bool> load(const proto::ecs::EntityDefinition & entity_def) const;
+        // ponytail: batch = loop over single load; registry has no batched spawn.
+        asio::awaitable<bool> load(const std::vector<proto::ecs::EntityDefinition> & entity_defs) const;
+        asio::awaitable<bool> unload(const std::vector<ecs::Entity> & entities) const;
+        asio::awaitable<bool> unload(ecs::Entity entity) const;
+        ecs::Registry & registry() const { return _registry; }
 
     private:
         ecs::Registry & _registry;

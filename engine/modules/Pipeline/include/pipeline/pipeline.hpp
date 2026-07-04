@@ -12,6 +12,7 @@
 #include "window/window.hpp"
 #include "render/render.hpp"
 #include "ecs/ecs.hpp"
+#include "loader/loader.hpp"
 #include "input/input.hpp"
 
 #include "pipeline/app_state.hpp"
@@ -56,6 +57,26 @@ namespace astre::pipeline
             co_await gui.init();
 
             script::ScriptRuntime script_runtime;
+
+            ecs::Registry registry(_process);
+            ecs::Systems systems = ecs::Systems{
+                .transform = ecs::system::TransformSystem(registry),
+                .camera = ecs::system::CameraSystem(registry),
+                .visual = ecs::system::VisualSystem(*renderer, registry),
+                .light = ecs::system::LightSystem(registry),
+                .script = ecs::system::ScriptSystem(script_runtime, registry),
+                .input = ecs::system::InputSystem(input, registry)
+            };
+            
+            // Loaders (Stage 3 : memory -> runtime system)
+            AppLoaders loaders(*renderer, script_runtime, registry);
+
+            AppStreamers streamers{
+                // default to 32.0f chunk size
+                .world_streamer = asset::WorldStreamer(_process, 32.0f),
+                .shader_streamer = asset::ShaderStreamer(_process),
+                .script_streamer = asset::ScriptStreamer(_process)
+            };
 
             co_await _process.setWindowCallbacks(window->getHandle(), 
             process::WindowCallbacks{
@@ -115,16 +136,35 @@ namespace astre::pipeline
                 std::forward<F>(fnc),
                 fnc_token,
                 AppState{
+                    // process - created before pipeline
                     .process = _process,
+
+                    // core resources - created in pipeline
                     .window = *window,
                     .renderer = *renderer,
+                    
+                    // services
                     .input = input,
                     .gui = gui,
-                    .script = script_runtime
+                    .script = script_runtime,
+                    
+                    // ECS
+                    .registry = registry,
+                    .systems = systems,
+
+                    // loaders
+                    .loaders = loaders,
+                    
+                    // streamers
+                    .streamers = streamers
                 },
                 std::forward<Args>(args)...
             );
             
+            // Flush chunks still resident at shutdown; deferred writes only reach disk
+            // when a chunk unloads otherwise.
+            co_await streamers.world_streamer.persistAll();
+
             fnc_token.markFinished();
 
             // Wait for app exit

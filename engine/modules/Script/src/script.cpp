@@ -175,6 +175,12 @@ namespace astre::script
     {
         spdlog::debug(std::format("[script] Loading script '{}'", name));
 
+        if(_scripts.contains(name))
+        {
+            spdlog::error(std::format("[script] Script '{}' already loaded", name));
+            return false;
+        }
+
         sol::load_result loaded = _lua.load(code);
         if (!loaded .valid()) 
         {
@@ -185,6 +191,23 @@ namespace astre::script
 
         _scripts[name] = loaded;
 
+        return true;
+    }
+
+    bool ScriptRuntime::unloadScripts(const std::vector<std::string> & names)
+    {
+        for(const auto & name : names)
+        {
+            if(!_scripts.contains(name))
+            {
+                spdlog::warn(std::format("[script] Script '{}' was not loaded", name));
+                continue;
+            }
+
+            _scripts.erase(name);
+        }
+
+        collectGarbage();
         return true;
     }
 

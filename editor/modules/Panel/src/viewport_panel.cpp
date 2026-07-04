@@ -99,7 +99,9 @@ namespace astre::editor::panel
         if (ImGui::Begin("Viewport", &_visible, flags))
         {
             ImGui::TextUnformatted("Viewport");
-            
+            ImGui::SameLine();
+            ImGui::Checkbox("Show chunk borders", &_show_chunk_borders);
+
             const ImVec2 avail = ImGui::GetContentRegionAvail();
 
             if (ctx.viewport_texture)

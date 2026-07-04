@@ -5,9 +5,9 @@
 
 namespace astre::ecs::system
 {
-    CameraSystem::CameraSystem(ecs::Entity active_camera_entity, Registry & registry)
+    CameraSystem::CameraSystem(Registry & registry)
         :   System(registry),
-            active_camera_entity(std::move(active_camera_entity))
+            active_camera_entity(std::nullopt)
     {}
 
     void CameraSystem::run(float dt, render::Frame & frame)
@@ -16,7 +16,9 @@ namespace astre::ecs::system
         frame.view_matrix = math::Mat4(1.0f);
         frame.proj_matrix = math::Mat4(1.0f);
 
-        getRegistry().runOnSingleWithComponents<proto::ecs::TransformComponent, proto::ecs::CameraComponent>(active_camera_entity,
+        if(!active_camera_entity.has_value()) return;
+
+        getRegistry().runOnSingleWithComponents<proto::ecs::TransformComponent, proto::ecs::CameraComponent>(*active_camera_entity,
             [&](const Entity e, const proto::ecs::TransformComponent & transform_component, const proto::ecs::CameraComponent & camera_component)
             {
                 const math::Vec3 position = math::deserialize(transform_component.position());
@@ -36,5 +38,20 @@ namespace astre::ecs::system
             }
         );
     } 
+
+    std::optional<math::Vec3> CameraSystem::getActiveCameraPosition() const
+    {
+        if(!active_camera_entity.has_value()) return std::nullopt;
+
+        std::optional<math::Vec3> position;
+        getRegistry().runOnSingleWithComponents<proto::ecs::TransformComponent, proto::ecs::CameraComponent>(*active_camera_entity,
+            [&](const Entity, const proto::ecs::TransformComponent & transform_component, const proto::ecs::CameraComponent &)
+            {
+                position = math::deserialize(transform_component.position());
+            }
+        );
+
+        return position;
+    }
 
 }

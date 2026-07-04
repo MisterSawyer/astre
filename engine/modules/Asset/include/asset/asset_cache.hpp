@@ -1,53 +1,68 @@
 #pragma once
 
-#include <string>
-#include <string_view>
-
-#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
+#include <absl/container/node_hash_map.h>
 
 #include "async/async.hpp"
 #include "process/process.hpp"
 
-#include "asset/concepts.hpp"
-
 namespace astre::asset
 {
-    // Stage 2: one concept-constrained template replaces every hand-written
-    // streamer. AssetCache<ShaderDefinition>, AssetCache<ScriptDefinition>, ...
-    // Instantiating with a non-definition type is a compile error naming
-    // AssetDefinition. Thread-safe writes via strand, same discipline the old
-    // streamers used.
-    template<asset::AssetDefinition Def>
+    // Stage 2: a keyed in-memory store of definitions. Generic over Key (asset
+    // name, ChunkID, ...) and Def; no AssetDefinition requirement — the store
+    // never inspects name(), that is the importer's concern (same reasoning as
+    // DefinitionSource/LoadSink). node_hash_map keeps read() pointers stable
+    // across inserts, which streaming callers rely on. Thread-safe writes via
+    // strand.
+    template<class Key, class Def>
     class AssetCache
     {
         public:
-            explicit AssetCache(process::IProcess::execution_context_type & execution_context)
-            :   _async_context(execution_context)
+            explicit AssetCache(process::IProcess & process)
+            :   _async_context(process.getExecutionContext())
             {}
 
-            // satisfies DefinitionSource<AssetCache, std::string_view, Def>
-            const Def * read(std::string_view name) const
+            // satisfies DefinitionSource<AssetCache, Key, Def>
+            const Def * read(const Key & key) const
             {
-                auto it = _cache.find(name);
+                auto it = _cache.find(key);
                 return it == _cache.end() ? nullptr : &it->second;
             }
 
-            asio::awaitable<void> put(std::string name, Def def)
+            asio::awaitable<void> put(Key key, Def def)
             {
                 co_await _async_context.ensureOnStrand();
-                _cache.insert_or_assign(std::move(name), std::move(def));
+                _cache.insert_or_assign(std::move(key), std::move(def));
             }
 
-            void remove(std::string_view name)
+            void remove(const Key & key)
             {
-                _cache.erase(name);
+                _cache.erase(key);
             }
+
+            bool contains(const Key & key) const { return _cache.contains(key); }
+
+            // Snapshot of currently-cached keys — the seam eviction needs to
+            // decide what to drop (streaming radius-unload today, a memory-
+            // pressure policy later). A copy so callers can remove while iterating.
+            absl::flat_hash_set<Key> keys() const
+            {
+                absl::flat_hash_set<Key> out;
+                out.reserve(_cache.size());
+                for(const auto & [k, _] : _cache) out.insert(k);
+                return out;
+            }
+
+            // Serialize onto this cache's strand. Streaming owners run their own
+            // state (e.g. reload sets) on it too, so all access to one cache
+            // stays single-strand.
+            asio::awaitable<void> ensureOnStrand() const { return _async_context.ensureOnStrand(); }
 
             // underlying thread-pool executor, used to fan out imports
             auto executor() const noexcept { return _async_context.executor(); }
 
         private:
             async::AsyncContext<process::IProcess::execution_context_type> _async_context;
-            absl::flat_hash_map<std::string, Def> _cache;
+            absl::node_hash_map<Key, Def> _cache;
     };
 }

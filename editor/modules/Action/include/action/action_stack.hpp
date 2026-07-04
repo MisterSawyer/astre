@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-#include "file/file.hpp"
+#include "asset/world_streamer.hpp"
 
 #include "action/action_interface.hpp"
 
@@ -14,14 +14,14 @@ namespace astre::editor::action
     public:
         void clear() noexcept { _done.clear(); _undone.clear(); }
 
-        void push(std::unique_ptr<IAction> a, file::WorldStreamer& ws) noexcept
+        void push(std::unique_ptr<IAction> a, asset::WorldStreamer& ws) noexcept
         {
             a->apply(ws);
             _undone.clear();
             _done.emplace_back(std::move(a));
         }
 
-        bool undo(file::WorldStreamer& ws) noexcept
+        bool undo(asset::WorldStreamer& ws) noexcept
         {
             if (_done.empty()) return false;
             auto a = std::move(_done.back()); _done.pop_back();
@@ -30,7 +30,7 @@ namespace astre::editor::action
             return true;
         }
 
-        bool redo(file::WorldStreamer& ws) noexcept
+        bool redo(asset::WorldStreamer& ws) noexcept
         {
             if (_undone.empty()) return false;
             auto a = std::move(_undone.back()); _undone.pop_back();

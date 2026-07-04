@@ -1,4 +1,4 @@
-#include "file/save_archive.hpp"
+#include "file/world_file.hpp"
 
 #include <google/protobuf/util/delimited_message_util.h>
 #include <google/protobuf/util/json_util.h>
@@ -11,25 +11,25 @@ namespace astre::file
     //chunks: [
     //    {chunk0}, {chunk1}, ...
     //]
-    SaveArchive<use_json_t>::SaveArchive(std::filesystem::path file_path)
+    WorldFile<use_json_t>::WorldFile(std::filesystem::path file_path)
         : _file_path(std::move(file_path))
     {
         if(!_openStream(std::ios::in))return;
 
-        // need to load SaveArchiveData from json file 
+        // need to load WorldFileData from json file 
         // then scan it and add all indexes, and their offsets and sizes
         // such that we  then can read from file only given part
         std::stringstream buffer = _readStream();
         _closeStream();
 
-        proto::file::SaveArchiveData data;
+        proto::file::WorldFileData data;
         google::protobuf::util::JsonParseOptions options;
         options.ignore_unknown_fields = true;
 
         auto status = google::protobuf::util::JsonStringToMessage(buffer.str(), &data, options);
         if (!status.ok())
         {
-            spdlog::error("Failed to parse SaveArchiveData JSON: {}", status.ToString());
+            spdlog::error("Failed to parse WorldFileData JSON: {}", status.ToString());
             return;
         }
 
@@ -40,10 +40,12 @@ namespace astre::file
             _chunk_index[chunk.id()].index = i;
             _all_chunks.emplace(chunk.id());
         }
+
+        _valid = true;
     }
 
 
-    bool SaveArchive<use_json_t>::_openStream(std::ios::openmode mode) {
+    bool WorldFile<use_json_t>::_openStream(std::ios::openmode mode) {
         if (_stream.is_open()) {
             _stream.close();  // Ensure no existing stream is active
         }
@@ -66,28 +68,28 @@ namespace astre::file
         return _stream.is_open() && _stream.good();
     }
 
-    bool SaveArchive<use_json_t>::_closeStream()
+    bool WorldFile<use_json_t>::_closeStream()
     {
         _stream.close();
         return !_stream.is_open();
     }
 
-    std::stringstream SaveArchive<use_json_t>::_readStream() const
+    std::stringstream WorldFile<use_json_t>::_readStream() const
     {
         std::stringstream buffer;
         buffer << _stream.rdbuf();
         return buffer;
     }
 
-    const absl::flat_hash_set<proto::file::ChunkID> & SaveArchive<use_json_t>::getAllChunks() const
+    const absl::flat_hash_set<proto::file::ChunkID> & WorldFile<use_json_t>::getAllChunks() const
     {
         return _all_chunks;
     }
 
-    bool SaveArchive<use_json_t>::writeChunk(const proto::file::WorldChunk & chunk) 
+    bool WorldFile<use_json_t>::writeChunk(const proto::file::WorldChunk & chunk) 
     {
         // Load existing
-        proto::file::SaveArchiveData archive;
+        proto::file::WorldFileData archive;
 
         if (_openStream(std::ios::in))
         {
@@ -97,7 +99,7 @@ namespace astre::file
         }
         else
         {
-            spdlog::error("[save-archive] Failed to open stream for reading JSON");
+            spdlog::error("[world-file] Failed to open stream for reading JSON");
             return false;
         }
 
@@ -156,24 +158,27 @@ namespace astre::file
         return true;
     }
 
-    std::optional<proto::file::WorldChunk> SaveArchive<use_json_t>::readChunk(const proto::file::ChunkID & id)
+    std::optional<proto::file::WorldChunk> WorldFile<use_json_t>::read(const proto::file::ChunkID & id) const
     {
-        if (!_chunk_index.contains(id))
+        const auto index_it = _chunk_index.find(id);
+        if (index_it == _chunk_index.end())
         {
             return std::nullopt;
         }
 
-        if (!_openStream(std::ios::in)) 
+        // local stream (not the member _stream): const + safe to call concurrently.
+        std::ifstream stream(_file_path, std::ios::in);
+        if (!stream.is_open())
         {
             spdlog::error("Failed to open stream for reading");
             return std::nullopt;
         }
 
         // we need to read whole message to parse chunks array
-        std::stringstream buffer = _readStream();
-        _closeStream();
+        std::stringstream buffer;
+        buffer << stream.rdbuf();
 
-        proto::file::SaveArchiveData archive;
+        proto::file::WorldFileData archive;
         google::protobuf::util::JsonParseOptions options;
         options.ignore_unknown_fields = true;
 
@@ -181,11 +186,11 @@ namespace astre::file
         auto status = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, options);
         if (!status.ok())
         {
-            spdlog::error("Failed to parse SaveArchiveData JSON: {}", status.ToString());
+            spdlog::error("Failed to parse WorldFileData JSON: {}", status.ToString());
             return std::nullopt;
         }
 
-        const std::size_t index = _chunk_index[id].index;
+        const std::size_t index = index_it->second.index;
         if (index >= static_cast<std::size_t>(archive.chunks_size()))
         {
             spdlog::error("Invalid index in chunk map");
@@ -197,7 +202,7 @@ namespace astre::file
     }
 
 
-    bool SaveArchive<use_json_t>::removeChunk(const proto::file::ChunkID& id)
+    bool WorldFile<use_json_t>::removeChunk(const proto::file::ChunkID& id)
     {
         if (!_chunk_index.contains(id))
         {
@@ -206,7 +211,7 @@ namespace astre::file
         
         if (!_openStream(std::ios::in)) 
         {
-            spdlog::error("[save-archive] Failed to open stream");
+            spdlog::error("[world-file] Failed to open stream");
             return false;
         }
 
@@ -214,13 +219,13 @@ namespace astre::file
         std::stringstream buffer = _readStream();
         _closeStream();
 
-        proto::file::SaveArchiveData archive;
+        proto::file::WorldFileData archive;
         google::protobuf::util::JsonParseOptions in_options;
         in_options.ignore_unknown_fields = true;
 
         auto status = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, in_options);
         if (!status.ok()) {
-            spdlog::error("[save-archive] parse error: {}", status.ToString());
+            spdlog::error("[world-file] parse error: {}", status.ToString());
             return false;
         }
 
@@ -236,7 +241,7 @@ namespace astre::file
         if (remove_idx < 0)
         {
             // index desync: it's in the map but not in file; treat as failure
-            spdlog::warn("[save-archive] chunk present in index but not in file");
+            spdlog::warn("[world-file] chunk present in index but not in file");
             return false;
         }
 
@@ -253,7 +258,7 @@ namespace astre::file
         status = google::protobuf::util::MessageToJsonString(archive, &out_json, out_options);
         if (!status.ok())
         {
-            spdlog::error("[save-archive] serialize error: {}", status.ToString());
+            spdlog::error("[world-file] serialize error: {}", status.ToString());
             return false;
         }
 
@@ -262,7 +267,7 @@ namespace astre::file
             _stream << out_json;
             if (!_stream.good())
             {
-                spdlog::error("[save-archive] write error");
+                spdlog::error("[world-file] write error");
 
                 _closeStream();
                 return false;
@@ -282,28 +287,27 @@ namespace astre::file
                     std::streamoff{0}, // not used for JSON
                     std::size_t{0}     // not used for JSON
                 };
-                // fallback if not present somehow
                 _all_chunks.emplace(ch.id());
             }
 
-            spdlog::debug("[save-archive] chunk removed");
+            spdlog::debug("[world-file] chunk removed");
             return true;
         }
         else
         {
-            spdlog::error("[save-archive] Failed to open stream for writing");
+            spdlog::error("[world-file] Failed to open stream for writing");
             return false;
         }
 
         return false;
     }
 
-    bool SaveArchive<use_json_t>::writeEntity(const proto::file::ChunkID& chunk_id,
+    bool WorldFile<use_json_t>::writeEntity(const proto::file::ChunkID& chunk_id,
                                   const proto::ecs::EntityDefinition& entity_def)
     {
         proto::file::WorldChunk chunk;
 
-        if (auto existing = readChunk(chunk_id))
+        if (auto existing = read(chunk_id))
         {
             chunk = std::move(*existing);
         }
@@ -315,7 +319,7 @@ namespace astre::file
 
         // Replace or append entity by id()
         auto* entities = chunk.mutable_entities();
-        const std::size_t & entity_id = entity_def.id();
+        const auto entity_id = entity_def.id();
 
         if(entity_id == 0)
         {
@@ -342,11 +346,11 @@ namespace astre::file
         return writeChunk(chunk);
     }
 
-    bool SaveArchive<use_json_t>::removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
+    bool WorldFile<use_json_t>::removeEntity(const proto::file::ChunkID & chunk_id, const proto::ecs::EntityDefinition & entity_def)
     {
         // open & read
         if (!_openStream(std::ios::in)) {
-            spdlog::error("[save-archive] Failed to open stream for reading");
+            spdlog::error("[world-file] Failed to open stream for reading");
             return false;
         }
         std::stringstream buffer = _readStream();
@@ -354,12 +358,12 @@ namespace astre::file
 
 
         // parse
-        proto::file::SaveArchiveData archive;
+        proto::file::WorldFileData archive;
         google::protobuf::util::JsonParseOptions in_opts;
         in_opts.ignore_unknown_fields = true;
         auto st = google::protobuf::util::JsonStringToMessage(buffer.str(), &archive, in_opts);
         if (!st.ok()) {
-            spdlog::error("[save-archive] parse error: {}", st.ToString());
+            spdlog::error("[world-file] parse error: {}", st.ToString());
             return false;
         }
 
@@ -372,13 +376,13 @@ namespace astre::file
             }
         }
         if (chunk_idx < 0) {
-            spdlog::warn("[save-archive] removeEntity: chunk not found");
+            spdlog::warn("[world-file] removeEntity: chunk not found");
             return false;
         }
 
         // remove entity by id
         auto* entities = archive.mutable_chunks(chunk_idx)->mutable_entities();
-        const std::size_t & entity_id = entity_def.id();
+        const auto entity_id = entity_def.id();
         int entity_idx = -1;
         for (int i = 0; i < entities->size(); ++i) 
         {
@@ -390,7 +394,7 @@ namespace astre::file
         }
         if (entity_idx < 0)
         {
-            spdlog::warn("[save-archive] removeEntity: entity '{}' not found in chunk", entity_id);
+            spdlog::warn("[world-file] removeEntity: entity '{}' not found in chunk", entity_id);
             return false;
         }
         entities->DeleteSubrange(entity_idx, 1);
@@ -405,14 +409,14 @@ namespace astre::file
         st = google::protobuf::util::MessageToJsonString(archive, &out_json, out_opts);
         if (!st.ok())
         {
-            spdlog::error("[save-archive] serialize error: {}", st.ToString());
+            spdlog::error("[world-file] serialize error: {}", st.ToString());
             return false;
         }
 
         // write
         if (!_openStream(std::ios::out | std::ios::trunc))
         {
-            spdlog::error("[save-archive] Failed to open stream for writing");
+            spdlog::error("[world-file] Failed to open stream for writing");
             return false;
         }
         _stream << out_json;
@@ -421,12 +425,12 @@ namespace astre::file
 
         if (!ok)
         {
-            spdlog::error("[save-archive] write error");
+            spdlog::error("[world-file] write error");
             return false;
         }
 
         // Note: _chunk_index / _all_chunks unchanged (we only modified entities within a chunk)
-        spdlog::debug("[save-archive] entity '{}' removed from chunk ({},{},{})",
+        spdlog::debug("[world-file] entity '{}' removed from chunk ({},{},{})",
                       entity_id, chunk_id.x(), chunk_id.y(), chunk_id.z());
         return true;
     }

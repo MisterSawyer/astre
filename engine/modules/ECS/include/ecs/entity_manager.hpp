@@ -1,6 +1,8 @@
 #pragma once
 
 #include <bitset>
+#include <optional>
+
 #include <absl/container/flat_hash_map.h>
 
 #include "ecs/entity.hpp"
@@ -22,7 +24,7 @@ namespace astre::ecs
              * 
              * @return The ID of the newly created entity.
              */
-            std::optional<Entity> spawnEntity(std::optional<std::size_t> entity_id);
+            std::optional<Entity> spawnEntity(std::optional<Entity> entity_id);
 
             /**
              * @brief Destroys an entity and its associated components.

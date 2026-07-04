@@ -12,7 +12,7 @@
 
 namespace astre::pipeline 
 {
-    asio::awaitable<void> runPreECS(AppState & app_state, file::WorldStreamer & world_streamer, const math::Vec3 & load_position);
+    asio::awaitable<void> runPreECS(AppState & app_state, asset::WorldStreamer & world_streamer, const math::Vec3 & load_position);
 
     asio::awaitable<void> runECS(ecs::Systems & systems, float dt, render::Frame & render_frame);
 }

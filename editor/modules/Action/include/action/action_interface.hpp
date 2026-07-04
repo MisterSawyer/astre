@@ -1,7 +1,7 @@
 #pragma once
 
 #include "type/type.hpp"
-#include "file/file.hpp"
+#include "asset/world_streamer.hpp"
 
 namespace astre::editor::action
 {
@@ -10,7 +10,7 @@ namespace astre::editor::action
     public:
         virtual ~IAction() = default;
 
-        virtual void apply(file::WorldStreamer&) noexcept = 0;
-        virtual void revert(file::WorldStreamer&) noexcept = 0;
+        virtual void apply(asset::WorldStreamer&) noexcept = 0;
+        virtual void revert(asset::WorldStreamer&) noexcept = 0;
     };
 }

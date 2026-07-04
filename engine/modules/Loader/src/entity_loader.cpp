@@ -12,8 +12,11 @@ namespace astre::loader
     {
         ecs::Entity id = entity_def.id();
 
-        // if entity already present skip loading
-        if(co_await _registry.entityExists(entity_def.id())) co_return true;
+        if(co_await _registry.entityExists(entity_def.id()))
+        {
+            spdlog::error("[entity-loader] Entity {} already exists", entity_def.id());
+            co_return false;
+        }
 
         // spawn entity
         auto entity_id_res = co_await _registry.spawnEntity(entity_def);
@@ -69,6 +72,35 @@ namespace astre::loader
         }
 
         spdlog::debug("[entity-loader] Entity {} loaded", id);
+        co_return true;
+    }
+
+    asio::awaitable<bool> EntityLoader::load(const std::vector<proto::ecs::EntityDefinition> & entity_defs) const
+    {
+        for(const auto & entity_def : entity_defs)
+            if(!co_await load(entity_def)) co_return false;
+        co_return true;
+    }
+
+    asio::awaitable<bool> EntityLoader::unload(ecs::Entity entity) const
+    {
+        co_return co_await unload(std::vector<ecs::Entity>{entity});
+    }
+
+    asio::awaitable<bool> EntityLoader::unload(const std::vector<ecs::Entity> & entities) const
+    {
+        for(const auto entity : entities)
+        {
+            if(!co_await _registry.entityExists(entity))
+            {
+                spdlog::warn("[entity-loader] Entity {} does not exist", entity);
+                continue;
+            }
+
+            co_await _registry.destroyEntity(entity);
+            spdlog::debug("[entity-loader] Entity {} unloaded", entity);
+        }
+
         co_return true;
     }
 }

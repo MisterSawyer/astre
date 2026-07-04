@@ -3,14 +3,14 @@
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 
-#include "file/file.hpp"
+#include "asset/world_streamer.hpp"
 
 namespace astre::editor::model
 {
     // Minimal, serialization-friendly view of a chunk.
     struct WorldSnapshot
     {
-        void load(file::WorldStreamer & world_streamer)
+        void load(asset::WorldStreamer & world_streamer)
         {
             mapping.clear();
         

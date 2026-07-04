@@ -22,9 +22,12 @@ namespace astre::editor::panel
 
         bool isHovered() const noexcept { return _hovered; }
 
+        bool showChunkBorders() const noexcept { return _show_chunk_borders; }
+
     private:
         bool _visible{true};
         bool _hovered{false};
+        bool _show_chunk_borders{false};
 
         math::Vec2 _img_pos;
         math::Vec2 _img_size;

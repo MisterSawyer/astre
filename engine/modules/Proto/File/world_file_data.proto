@@ -4,7 +4,7 @@ package astre.proto.file;
 
 import "File/world_chunk.proto";
 
-message SaveArchiveData
+message WorldFileData
 {
     repeated WorldChunk chunks = 1;
 };

@@ -4,8 +4,8 @@
 
 namespace astre::ecs
 {
-    Registry::Registry(process::IProcess::execution_context_type & execution_context)
-    :   _async_context(execution_context),    
+    Registry::Registry(process::IProcess & process)
+    :   _async_context(process.getExecutionContext()),    
         _entities(),
         _components(_entities)
     {}

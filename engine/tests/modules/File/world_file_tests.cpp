@@ -2,12 +2,12 @@
 #include <fstream>
 #include "file/file.hpp"
 
-class SaveArchiveTest : public ::testing::Test {
+class WorldFileTest : public ::testing::Test {
 protected:
     std::filesystem::path temp_dir;
 
     void SetUp() override {
-        temp_dir = std::filesystem::current_path() / "save_archive_test_data";
+        temp_dir = std::filesystem::current_path() / "world_file_test_data";
         std::filesystem::create_directories(temp_dir);
     }
 
@@ -30,18 +30,18 @@ protected:
 };
 
 
-TEST_F(SaveArchiveTest, WriteAndReadChunk_BinaryFormat) {
+TEST_F(WorldFileTest, WriteAndReadChunk_BinaryFormat) {
     auto chunk = createTestChunk(1, 2, 3, "binary_test");
 
     std::filesystem::path file = temp_dir / "test_chunk.bin";
     {
-        astre::file::SaveArchive<astre::file::use_binary_t> writer(file);
+        astre::file::WorldFile<astre::file::use_binary_t> writer(file);
         ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::file::SaveArchive<astre::file::use_binary_t> reader(file);
-        auto result = reader.readChunk(chunk.id());
+        astre::file::WorldFile<astre::file::use_binary_t> reader(file);
+        auto result = reader.read(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());
         EXPECT_EQ(result->entities_size(), 1);
@@ -50,18 +50,18 @@ TEST_F(SaveArchiveTest, WriteAndReadChunk_BinaryFormat) {
 }
 
 
-TEST_F(SaveArchiveTest, WriteAndReadChunk_JsonFormat) {
+TEST_F(WorldFileTest, WriteAndReadChunk_JsonFormat) {
     auto chunk = createTestChunk(4, 5, 6, "json_test");
 
     std::filesystem::path file = temp_dir / "test_chunk.json";
     {
-        astre::file::SaveArchive<astre::file::use_json_t> writer(file);
+        astre::file::WorldFile<astre::file::use_json_t> writer(file);
         ASSERT_TRUE(writer.writeChunk(chunk));
     }
 
     {
-        astre::file::SaveArchive<astre::file::use_json_t> reader(file);
-        auto result = reader.readChunk(chunk.id());
+        astre::file::WorldFile<astre::file::use_json_t> reader(file);
+        auto result = reader.read(chunk.id());
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->id().x(), chunk.id().x());
         EXPECT_EQ(result->entities_size(), 1);

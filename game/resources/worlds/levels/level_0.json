@@ -36,7 +36,7 @@
           "transform": {
             "position": {
               "x": 0,
-              "y": 16,
+              "y": 20,
               "z": -10
             },
             "scale": {
@@ -58,7 +58,7 @@
           "transform": {
             "position": {
               "x": 0,
-              "y": 32,
+              "y": 35,
               "z": 6
             },
             "scale": {
@@ -296,7 +296,141 @@
     },
     {
         "id": { "x": 1, "y": 0, "z": 0 },
-        "entities": []
+        "entities": [
+          {
+            "id" : 11,
+            "name": "crate0",
+            "transform": {
+              "position": {
+                "x": 35,
+                "y": 2,
+                "z": 0
+              },
+              "scale": {
+                "x": 2,
+                "y": 2,
+                "z": 2
+              }
+            },
+            "visual": {
+              "visible": true,
+              "vertex_buffer_name": "cube_prefab",
+              "shader_name": "deferred_shader",
+              "color": { "x": 0.6, "y": 0.4, "z": 0.2, "w": 1.0 }
+            }
+          },
+          {
+            "id" : 12,
+            "name": "crate1",
+            "transform": {
+              "position": {
+                "x": 28,
+                "y": 3,
+                "z": 5
+              },
+              "scale": {
+                "x": 2,
+                "y": 4,
+                "z": 2
+              }
+            },
+            "visual": {
+              "visible": true,
+              "vertex_buffer_name": "cube_prefab",
+              "shader_name": "deferred_shader",
+              "color": { "x": 0.6, "y": 0.4, "z": 0.2, "w": 1.0 }
+            }
+          },
+          {
+            "id" : 13,
+            "name": "lamp0",
+            "transform": {
+              "position": {
+                "x": 35,
+                "y": 8,
+                "z": 0
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            },
+            "visual": {
+              "visible": true,
+              "vertex_buffer_name": "icosphere3_prefab",
+              "shader_name": "deferred_shader",
+              "color": { "x": 1.0, "y": 1.0, "z": 0.8, "w": 1.0 }
+            },
+            "light": {
+              "type": "POINT",
+              "cast_shadows": true,
+              "color": { "x": 1.0, "y": 0.9, "z": 0.7, "w": 10.0 },
+
+              "constant": 1.0,
+              "linear": 0.09,
+              "quadratic": 0.032
+            }
+          }
+        ]
+    },
+    {
+        "id": { "x": 0, "y": 1, "z": 0 },
+        "entities": [
+          {
+            "id" : 15,
+            "name": "pillar0",
+            "transform": {
+              "position": {
+                "x": 6,
+                "y": 36,
+                "z": -6
+              },
+              "scale": {
+                "x": 1,
+                "y": 8,
+                "z": 1
+              }
+            },
+            "visual": {
+              "visible": true,
+              "vertex_buffer_name": "cylinder_prefab",
+              "shader_name": "deferred_shader",
+              "color": { "x": 0.7, "y": 0.7, "z": 0.7, "w": 1.0 }
+            }
+          },
+          {
+            "id" : 16,
+            "name": "orb0",
+            "transform": {
+              "position": {
+                "x": -6,
+                "y": 37,
+                "z": 4
+              },
+              "scale": {
+                "x": 1.5,
+                "y": 1.5,
+                "z": 1.5
+              }
+            },
+            "visual": {
+              "visible": true,
+              "vertex_buffer_name": "icosphere3_prefab",
+              "shader_name": "deferred_shader",
+              "color": { "x": 0.2, "y": 0.6, "z": 1.0, "w": 1.0 }
+            },
+            "light": {
+              "type": "POINT",
+              "cast_shadows": false,
+              "color": { "x": 0.2, "y": 0.6, "z": 1.0, "w": 6.0 },
+
+              "constant": 1.0,
+              "linear": 0.09,
+              "quadratic": 0.032
+            }
+          }
+        ]
     }
   ]
 }

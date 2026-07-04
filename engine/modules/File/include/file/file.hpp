@@ -1,8 +1,9 @@
 #pragma once
 
 #include "file/data_type.hpp"
-#include "file/save_archive.hpp"
-#include "file/world_streamer.hpp"
+#include "file/world_file.hpp"
+#include "file/shader_file.hpp"
+#include "file/script_file.hpp"
 
 namespace astre::file
 {

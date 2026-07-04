@@ -16,6 +16,7 @@ namespace astre::loader
             throw std::runtime_error("Entity has no name");
         }
 
+        entity_def.set_id(entity);
         entity_def.set_name(name_res.value());
 
         registry.runOnSingleWithComponents<proto::ecs::TransformComponent>(entity,

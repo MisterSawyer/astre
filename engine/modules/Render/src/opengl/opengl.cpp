@@ -255,7 +255,7 @@ namespace astre::render::opengl
 
     asio::awaitable<bool> OpenGLRenderer::eraseVertexBuffer(std::size_t id)
     {
-        co_return co_await eraseInternalObject(_vertex_buffers, std::move(id));
+        co_return co_await eraseInternalObject(_vertex_buffers, _vertex_buffer_names, std::move(id));
     }
 
     std::optional<std::size_t> OpenGLRenderer::getVertexBuffer(std::string name) const
@@ -279,7 +279,7 @@ namespace astre::render::opengl
 
     asio::awaitable<bool> OpenGLRenderer::eraseShader(std::size_t id)
     {
-        co_return co_await eraseInternalObject(_shaders, std::move(id));
+        co_return co_await eraseInternalObject(_shaders, _shader_names, std::move(id));
     }
 
     std::optional<std::size_t> OpenGLRenderer::getShader(std::string name) const
@@ -301,7 +301,7 @@ namespace astre::render::opengl
 
     asio::awaitable<bool> OpenGLRenderer::eraseShaderStorageBuffer(std::size_t id)
     {
-        co_return co_await eraseInternalObject(_shader_storage_buffers, std::move(id));
+        co_return co_await eraseInternalObject(_shader_storage_buffers, _shader_storage_buffer_names, std::move(id));
     }
 
     std::optional<std::size_t> OpenGLRenderer::getShaderStorageBuffer(std::string name) const
@@ -380,7 +380,7 @@ namespace astre::render::opengl
 
     asio::awaitable<bool> OpenGLRenderer::eraseFrameBufferObject(std::size_t id)
     {
-        co_return co_await eraseInternalObject(_frame_buffer_objects, std::move(id));
+        co_return co_await eraseInternalObject(_frame_buffer_objects, _frame_buffer_object_names, std::move(id));
     }
 
     std::optional<std::size_t> OpenGLRenderer::getFrameBufferObject(std::string name) const
@@ -406,7 +406,7 @@ namespace astre::render::opengl
 
     asio::awaitable<bool> OpenGLRenderer::eraseTexture(std::size_t id)
     {
-        co_return co_await eraseInternalObject(_textures, std::move(id));
+        co_return co_await eraseInternalObject(_textures, _textures_names, std::move(id));
     }
 
     std::optional<std::size_t> OpenGLRenderer::getTexture(std::string name) const
@@ -644,9 +644,14 @@ namespace astre::render::opengl
             glDepthMask(GL_TRUE);
         }
 
-        glDrawElements(GL_TRIANGLES, (GLsizei)vertex_buffer_it->second->numberOfElements(), GL_UNSIGNED_INT, nullptr);
-        
-        glDepthMask(prev_write_depth_mask); 
+        if(!options.depth_test) glDisable(GL_DEPTH_TEST);
+
+        const GLenum primitive = options.topology == PrimitiveTopology::Lines ? GL_LINES : GL_TRIANGLES;
+        glDrawElements(primitive, (GLsizei)vertex_buffer_it->second->numberOfElements(), GL_UNSIGNED_INT, nullptr);
+
+        if(!options.depth_test) glEnable(GL_DEPTH_TEST); // restore global default (enabled at init)
+
+        glDepthMask(prev_write_depth_mask);
 
         if(options.polygon_offset)
         {

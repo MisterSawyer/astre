@@ -43,6 +43,7 @@ namespace astre::ecs::system
 
         protected:
             Registry & getRegistry() { return _registry; }
+            const Registry & getRegistry() const { return _registry; }
 
             template<typename Tuple>
             static std::vector<std::type_index> expand()

@@ -9,12 +9,20 @@ add_module(NAME "Asset"
     DEPENDENCIES
         asio
         absl::flat_hash_map
+        absl::flat_hash_set
+        absl::node_hash_map
         spdlog
 
         astre::Async
         astre::Native
         astre::Process
+        astre::Math
+        astre::Type
+        astre::File
+        astre::ECS
 
         astre::Render_proto
         astre::Script_proto
+        astre::File_proto
+        astre::ECS_proto
 )

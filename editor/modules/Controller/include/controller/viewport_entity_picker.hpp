@@ -56,15 +56,16 @@ namespace astre::editor::controller
 
                 auto selected_id_res = co_await _renderer.readPixelUint64(_picking_resources.fbo, 0, x, y);
                 if(selected_id_res == std::nullopt) co_return;
+                const ecs::Entity selected_entity = *selected_id_res;
                 
                 // update selected entity in selection controller
                 // we need to map entity id obtained from texture to chunk id and EntityDefinition
                 // to do that we need mapping 
                 for(const auto & [chunk_id, entities] : _world_snapshot.mapping)
                 {
-                    if(entities.contains(*selected_id_res))
+                    if(entities.contains(selected_entity))
                     {
-                        selection_controller.setSelection(chunk_id, entities.at(*selected_id_res));
+                        selection_controller.setSelection(chunk_id, entities.at(selected_entity));
                         co_return;
                     }
                 }

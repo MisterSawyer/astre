@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "render/render.hpp"
 
 #include "ecs/system/system.hpp"
@@ -14,10 +16,10 @@ namespace astre::ecs::system
         using Reads = std::tuple<proto::ecs::TransformComponent>;
         using Writes = std::tuple<proto::ecs::CameraComponent>;
 
-        CameraSystem(ecs::Entity active_camera_entity, Registry & registry);
+        CameraSystem(Registry & registry);
 
         inline CameraSystem(CameraSystem && other)
-            : System(std::move(other)), active_camera_entity(std::move(other.active_camera_entity))
+            : System(std::move(other)), active_camera_entity(std::nullopt)
         {}
 
         CameraSystem & operator=(CameraSystem && other) = delete;
@@ -28,6 +30,7 @@ namespace astre::ecs::system
         ~CameraSystem() = default;
 
         void run(float dt, render::Frame & frame);
+        std::optional<math::Vec3> getActiveCameraPosition() const;
 
         std::vector<std::type_index> getReads() const override {
             return expand<Reads>();
@@ -37,9 +40,10 @@ namespace astre::ecs::system
             return expand<Writes>();
         }
 
-        void setActiveCameraEntityName(const ecs::Entity & entity) { active_camera_entity = entity; }
+        void setActiveCameraEntity(const ecs::Entity & entity) { active_camera_entity = entity; }
+        void deactivateCameraEntity() { active_camera_entity = std::nullopt; }
 
     private:
-        ecs::Entity active_camera_entity;
+        std::optional<ecs::Entity> active_camera_entity;
     };
 }
