@@ -345,7 +345,7 @@ list(REMOVE_ITEM _astre_assimp_opts "/utf-8")
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_astre_assimp_opts}")
 
 FetchContent_MakeAvailable(assimp)
-silence_warnings(TARGETS assimp)
+silence_warnings(TARGETS assimp zlibstatic)
 
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_astre_saved_opts}")
 
